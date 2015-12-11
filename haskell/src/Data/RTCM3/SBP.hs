@@ -60,11 +60,11 @@ toCn0 = (^. gpsL1ExtObservation_cnr)
 toLock :: GpsL1Observation -> Word16
 toLock _l1 = 0
 
-toSid :: Word8 -> SBPGnssSignal
-toSid sat = SBPGnssSignal
-  { _sBPGnssSignal_sat           = fromIntegral $ sat - 1
-  , _sBPGnssSignal_band          = 0
-  , _sBPGnssSignal_constellation = 0
+toSid :: Word8 -> GnssSignal
+toSid sat = GnssSignal
+  { _gnssSignal_sat           = fromIntegral $ sat - 1
+  , _gnssSignal_band          = 0
+  , _gnssSignal_constellation = 0
   }
 
 fromObservation1002 :: Observation1002 -> PackedObsContent
