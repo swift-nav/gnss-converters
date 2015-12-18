@@ -27,13 +27,13 @@ fromEcefVal x = fromIntegral x / 10000
 toGPSTime :: GpsObservationHeader -> ObsGPSTime
 toGPSTime hdr = ObsGPSTime
   { _obsGPSTime_tow = hdr ^. gpsObservationHeader_tow
-  , _obsGPSTime_wn  = 1874
+  , _obsGPSTime_wn  = 1875
   }
 
 fromGpsObservationHeader :: GpsObservationHeader -> ObservationHeader
 fromGpsObservationHeader hdr = ObservationHeader
   { _observationHeader_t     = toGPSTime hdr
-  , _observationHeader_n_obs = fromIntegral $ hdr ^. gpsObservationHeader_n
+  , _observationHeader_n_obs = 0x10
   }
 
 toP :: GpsL1Observation -> GpsL1ExtObservation -> Word32
