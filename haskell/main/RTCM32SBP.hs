@@ -19,8 +19,8 @@ import System.IO
 
 main :: IO ()
 main = runResourceT $
-  sourceHandle stdin  =$=
-  conduitDecode       =$=
-  CL.mapMaybe convert =$=
-  conduitEncode       $$
+  sourceHandle stdin   =$=
+  conduitDecode        =$=
+  CL.mapMaybeM convert =$=
+  conduitEncode        $$
   sinkHandle stdout
