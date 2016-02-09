@@ -17,6 +17,7 @@ module Data.RTCM3.SBP
 import BasicPrelude
 import Control.Lens
 import Data.Bits
+import Data.Time
 import Data.Word
 import Data.RTCM3
 import SwiftNav.SBP
@@ -24,17 +25,21 @@ import SwiftNav.SBP
 fromEcefVal :: Int64 -> Double
 fromEcefVal x = fromIntegral x / 10000
 
-toGPSTime :: GpsObservationHeader -> ObsGPSTime
-toGPSTime hdr = ObsGPSTime
-  { _obsGPSTime_tow = hdr ^. gpsObservationHeader_tow
-  , _obsGPSTime_wn  = 1875
-  }
+toGPSTime :: MonadIO m => GpsObservationHeader -> m ObsGPSTime
+toGPSTime hdr = do
+  today <- utctDay <$> liftIO getCurrentTime
+  return ObsGPSTime
+    { _obsGPSTime_tow = hdr ^. gpsObservationHeader_tow
+    , _obsGPSTime_wn  = fromIntegral $ div (diffDays today (fromGregorian 1980 1 6)) 7
+    }
 
-fromGpsObservationHeader :: GpsObservationHeader -> ObservationHeader
-fromGpsObservationHeader hdr = ObservationHeader
-  { _observationHeader_t     = toGPSTime hdr
-  , _observationHeader_n_obs = 0x10
-  }
+fromGpsObservationHeader :: MonadIO m => GpsObservationHeader -> m ObservationHeader
+fromGpsObservationHeader hdr = do
+  t <- toGPSTime hdr
+  return ObservationHeader
+    { _observationHeader_t     = t
+    , _observationHeader_n_obs = fromIntegral $ hdr ^. gpsObservationHeader_n
+    }
 
 toP :: GpsL1Observation -> GpsL1ExtObservation -> Word32
 toP l1 l1e = round $ p * 100 where
@@ -91,46 +96,50 @@ fromObservation1004 obs = PackedObsContent
     l1  = obs ^. observation1004_l1
     l1e = obs ^. observation1004_l1e
 
-fromMsg1005 :: Msg1005 -> MsgBasePosEcef
-fromMsg1005 msg = MsgBasePosEcef
-  { _msgBasePosEcef_x = fromEcefVal $ msg ^. msg1005_reference ^. antennaReference_ecef_x
-  , _msgBasePosEcef_y = fromEcefVal $ msg ^. msg1005_reference ^. antennaReference_ecef_y
-  , _msgBasePosEcef_z = fromEcefVal $ msg ^. msg1005_reference ^. antennaReference_ecef_z
-  }
+fromMsg1002 :: MonadIO m => Msg1002 -> m MsgObs
+fromMsg1002 msg = do
+  header <- fromGpsObservationHeader $ msg ^. msg1002_header
+  return MsgObs
+    { _msgObs_header = header
+    , _msgObs_obs    = map fromObservation1002 $ msg ^. msg1002_observations
+    }
 
-fromMsg1006 :: Msg1006 -> MsgBasePosEcef
-fromMsg1006 msg = MsgBasePosEcef
-  { _msgBasePosEcef_x = fromEcefVal $ msg ^. msg1006_reference ^. antennaReference_ecef_x
-  , _msgBasePosEcef_y = fromEcefVal $ msg ^. msg1006_reference ^. antennaReference_ecef_y
-  , _msgBasePosEcef_z = fromEcefVal $ msg ^. msg1006_reference ^. antennaReference_ecef_z
-  }
+fromMsg1004 :: MonadIO m => Msg1004 -> m MsgObs
+fromMsg1004 msg = do
+  header <- fromGpsObservationHeader $ msg ^. msg1004_header
+  return MsgObs
+    { _msgObs_header = header
+    , _msgObs_obs    = map fromObservation1004 $ msg ^. msg1004_observations
+    }
 
-fromMsg1002 :: Msg1002 -> MsgObs
-fromMsg1002 msg = MsgObs
-  { _msgObs_header = fromGpsObservationHeader $ msg ^. msg1002_header
-  , _msgObs_obs    = map fromObservation1002 $ msg ^. msg1002_observations
-  }
+fromMsg1005 :: MonadIO m => Msg1005 -> m MsgBasePosEcef
+fromMsg1005 msg =
+  return MsgBasePosEcef
+    { _msgBasePosEcef_x = fromEcefVal $ msg ^. msg1005_reference ^. antennaReference_ecef_x
+    , _msgBasePosEcef_y = fromEcefVal $ msg ^. msg1005_reference ^. antennaReference_ecef_y
+    , _msgBasePosEcef_z = fromEcefVal $ msg ^. msg1005_reference ^. antennaReference_ecef_z
+    }
 
-fromMsg1004 :: Msg1004 -> MsgObs
-fromMsg1004 msg = MsgObs
-  { _msgObs_header = fromGpsObservationHeader $ msg ^. msg1004_header
-  , _msgObs_obs    = map fromObservation1004 $ msg ^. msg1004_observations
-  }
+fromMsg1006 :: MonadIO m => Msg1006 -> m MsgBasePosEcef
+fromMsg1006 msg =
+  return MsgBasePosEcef
+    { _msgBasePosEcef_x = fromEcefVal $ msg ^. msg1006_reference ^. antennaReference_ecef_x
+    , _msgBasePosEcef_y = fromEcefVal $ msg ^. msg1006_reference ^. antennaReference_ecef_y
+    , _msgBasePosEcef_z = fromEcefVal $ msg ^. msg1006_reference ^. antennaReference_ecef_z
+    }
 
-convert :: RTCM3Msg -> Maybe SBPMsg
+convert :: MonadIO m => RTCM3Msg -> m (Maybe SBPMsg)
 convert = \case
-  (RTCM3Msg1002 msg _rtcm3) -> Just $
-    SBPMsgObs msg' $ toSBP msg' defaultSender where
-      msg' = fromMsg1002 msg
-  (RTCM3Msg1004 msg _rtcm3) -> Just $
-    SBPMsgObs msg' $ toSBP msg' defaultSender where
-      msg' = fromMsg1004 msg
-  (RTCM3Msg1005 msg _rtcm3) -> Just $
-    SBPMsgBasePosEcef msg' $ toSBP msg' defaultSender where
-      msg' = fromMsg1005 msg
-  (RTCM3Msg1006 msg _rtcm3) -> Just $
-    SBPMsgBasePosEcef msg' $ toSBP msg' defaultSender where
-      msg' = fromMsg1006 msg
-  _rtcm3Msg -> Nothing
-
-
+  (RTCM3Msg1002 msg _rtcm3) -> do
+    msg' <- fromMsg1002 msg
+    return $ Just $ SBPMsgObs msg' $ toSBP msg' defaultSender
+  (RTCM3Msg1004 msg _rtcm3) -> do
+    msg' <- fromMsg1004 msg
+    return $ Just $ SBPMsgObs msg' $ toSBP msg' defaultSender
+  (RTCM3Msg1005 msg _rtcm3) -> do
+    msg' <- fromMsg1005 msg
+    return $ Just $ SBPMsgBasePosEcef msg' $ toSBP msg' defaultSender
+  (RTCM3Msg1006 msg _rtcm3) -> do
+    msg' <- fromMsg1006 msg
+    return $ Just $ SBPMsgBasePosEcef msg' $ toSBP msg' defaultSender
+  _rtcm3Msg -> return $ Nothing
