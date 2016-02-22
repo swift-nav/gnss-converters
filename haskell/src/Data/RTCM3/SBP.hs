@@ -72,36 +72,38 @@ toSid sat = GnssSignal
   , _gnssSignal_constellation = 0
   }
 
-fromObservation1002 :: Observation1002 -> PackedObsContent
-fromObservation1002 obs = PackedObsContent
-  { _packedObsContent_P    = toP l1 l1e
-  , _packedObsContent_L    = toL l1 l1e
-  , _packedObsContent_cn0  = toCn0 l1e
-  , _packedObsContent_lock = toLock l1
-  , _packedObsContent_sid  = toSid sat
-  } where
-    sat = obs ^. observation1002_sat
-    l1  = obs ^. observation1002_l1
-    l1e = obs ^. observation1002_l1e
+fromObservation1002 :: Observation1002 -> Maybe PackedObsContent
+fromObservation1002 obs =
+  if obs ^. observation1002_l1 ^. gpsL1Observation_code then Nothing else Just PackedObsContent
+    { _packedObsContent_P    = toP l1 l1e
+    , _packedObsContent_L    = toL l1 l1e
+    , _packedObsContent_cn0  = toCn0 l1e
+    , _packedObsContent_lock = toLock l1
+    , _packedObsContent_sid  = toSid sat
+    } where
+      sat = obs ^. observation1002_sat
+      l1  = obs ^. observation1002_l1
+      l1e = obs ^. observation1002_l1e
 
-fromObservation1004 :: Observation1004 -> PackedObsContent
-fromObservation1004 obs = PackedObsContent
-  { _packedObsContent_P    = toP l1 l1e
-  , _packedObsContent_L    = toL l1 l1e
-  , _packedObsContent_cn0  = toCn0 l1e
-  , _packedObsContent_lock = toLock l1
-  , _packedObsContent_sid  = toSid sat
-  }  where
-    sat = obs ^. observation1004_sat
-    l1  = obs ^. observation1004_l1
-    l1e = obs ^. observation1004_l1e
+fromObservation1004 :: Observation1004 -> Maybe PackedObsContent
+fromObservation1004 obs =
+  if obs ^. observation1004_l1 ^. gpsL1Observation_code then Nothing else Just PackedObsContent
+    { _packedObsContent_P    = toP l1 l1e
+    , _packedObsContent_L    = toL l1 l1e
+    , _packedObsContent_cn0  = toCn0 l1e
+    , _packedObsContent_lock = toLock l1
+    , _packedObsContent_sid  = toSid sat
+    }  where
+      sat = obs ^. observation1004_sat
+      l1  = obs ^. observation1004_l1
+      l1e = obs ^. observation1004_l1e
 
 fromMsg1002 :: MonadIO m => Msg1002 -> m MsgObs
 fromMsg1002 msg = do
   header <- fromGpsObservationHeader $ msg ^. msg1002_header
   return MsgObs
     { _msgObs_header = header
-    , _msgObs_obs    = map fromObservation1002 $ msg ^. msg1002_observations
+    , _msgObs_obs    = mapMaybe fromObservation1002 $ msg ^. msg1002_observations
     }
 
 fromMsg1004 :: MonadIO m => Msg1004 -> m MsgObs
@@ -109,7 +111,7 @@ fromMsg1004 msg = do
   header <- fromGpsObservationHeader $ msg ^. msg1004_header
   return MsgObs
     { _msgObs_header = header
-    , _msgObs_obs    = map fromObservation1004 $ msg ^. msg1004_observations
+    , _msgObs_obs    = mapMaybe fromObservation1004 $ msg ^. msg1004_observations
     }
 
 fromMsg1005 :: MonadIO m => Msg1005 -> m MsgBasePosEcef
