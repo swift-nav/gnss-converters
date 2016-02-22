@@ -144,4 +144,4 @@ convert = \case
   (RTCM3Msg1006 msg _rtcm3) -> do
     msg' <- fromMsg1006 msg
     return $ Just $ SBPMsgBasePosEcef msg' $ toSBP msg' defaultSender
-  _rtcm3Msg -> return $ Nothing
+  _rtcm3Msg -> return Nothing
