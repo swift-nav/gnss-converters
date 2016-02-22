@@ -38,12 +38,12 @@ fromGpsObservationHeader hdr = do
   t <- toGPSTime hdr
   return ObservationHeader
     { _observationHeader_t     = t
-    , _observationHeader_n_obs = fromIntegral $ hdr ^. gpsObservationHeader_n
+    , _observationHeader_n_obs = 0x10
     }
 
 toP :: GpsL1Observation -> GpsL1ExtObservation -> Word32
 toP l1 l1e = round $ p * 100 where
-  p = 0.02 * fromIntegral (l1 ^. gpsL1Observation_pseudorange) +
+  p = (0.02 :: Double) * fromIntegral (l1 ^. gpsL1Observation_pseudorange) +
       299792.458 * fromIntegral (l1e ^. gpsL1ExtObservation_ambiguity)
 
 toL :: GpsL1Observation -> GpsL1ExtObservation -> CarrierPhase
