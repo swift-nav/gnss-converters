@@ -16,7 +16,6 @@ module Data.RTCM3.SBP
 
 import BasicPrelude
 import Control.Lens
-import Data.Bits
 import Data.Time
 import Data.Word
 import Data.RTCM3
