@@ -69,9 +69,9 @@ toLock _l1 = 0
 
 toSid :: Word8 -> GnssSignal
 toSid sat = GnssSignal
-  { _gnssSignal_sat           = fromIntegral $ sat - 1
-  , _gnssSignal_band          = 0
-  , _gnssSignal_constellation = 0
+  { _gnssSignal_sat      = fromIntegral $ sat - 1
+  , _gnssSignal_code     = 0
+  , _gnssSignal_reserved = 0
   }
 
 fromObservation1002 :: Observation1002 -> Maybe PackedObsContent
@@ -101,49 +101,49 @@ fromObservation1004 obs =
       l1e = obs ^. observation1004_l1e
 
 fromMsg1002 :: MonadIO m => Msg1002 -> m MsgObs
-fromMsg1002 msg = do
-  header <- fromGpsObservationHeader $ msg ^. msg1002_header
+fromMsg1002 m = do
+  header <- fromGpsObservationHeader $ m ^. msg1002_header
   return MsgObs
     { _msgObs_header = header
-    , _msgObs_obs    = mapMaybe fromObservation1002 $ msg ^. msg1002_observations
+    , _msgObs_obs    = mapMaybe fromObservation1002 $ m ^. msg1002_observations
     }
 
 fromMsg1004 :: MonadIO m => Msg1004 -> m MsgObs
-fromMsg1004 msg = do
-  header <- fromGpsObservationHeader $ msg ^. msg1004_header
+fromMsg1004 m = do
+  header <- fromGpsObservationHeader $ m ^. msg1004_header
   return MsgObs
     { _msgObs_header = header
-    , _msgObs_obs    = mapMaybe fromObservation1004 $ msg ^. msg1004_observations
+    , _msgObs_obs    = mapMaybe fromObservation1004 $ m ^. msg1004_observations
     }
 
 fromMsg1005 :: MonadIO m => Msg1005 -> m MsgBasePosEcef
-fromMsg1005 msg =
+fromMsg1005 m =
   return MsgBasePosEcef
-    { _msgBasePosEcef_x = fromEcefVal $ msg ^. msg1005_reference ^. antennaReference_ecef_x
-    , _msgBasePosEcef_y = fromEcefVal $ msg ^. msg1005_reference ^. antennaReference_ecef_y
-    , _msgBasePosEcef_z = fromEcefVal $ msg ^. msg1005_reference ^. antennaReference_ecef_z
+    { _msgBasePosEcef_x = fromEcefVal $ m ^. msg1005_reference ^. antennaReference_ecef_x
+    , _msgBasePosEcef_y = fromEcefVal $ m ^. msg1005_reference ^. antennaReference_ecef_y
+    , _msgBasePosEcef_z = fromEcefVal $ m ^. msg1005_reference ^. antennaReference_ecef_z
     }
 
 fromMsg1006 :: MonadIO m => Msg1006 -> m MsgBasePosEcef
-fromMsg1006 msg =
+fromMsg1006 m =
   return MsgBasePosEcef
-    { _msgBasePosEcef_x = fromEcefVal $ msg ^. msg1006_reference ^. antennaReference_ecef_x
-    , _msgBasePosEcef_y = fromEcefVal $ msg ^. msg1006_reference ^. antennaReference_ecef_y
-    , _msgBasePosEcef_z = fromEcefVal $ msg ^. msg1006_reference ^. antennaReference_ecef_z
+    { _msgBasePosEcef_x = fromEcefVal $ m ^. msg1006_reference ^. antennaReference_ecef_x
+    , _msgBasePosEcef_y = fromEcefVal $ m ^. msg1006_reference ^. antennaReference_ecef_y
+    , _msgBasePosEcef_z = fromEcefVal $ m ^. msg1006_reference ^. antennaReference_ecef_z
     }
 
 convert :: MonadIO m => RTCM3Msg -> m (Maybe SBPMsg)
 convert = \case
-  (RTCM3Msg1002 msg _rtcm3) -> do
-    msg' <- fromMsg1002 msg
-    return $ Just $ SBPMsgObs msg' $ toSBP msg' defaultSender
-  (RTCM3Msg1004 msg _rtcm3) -> do
-    msg' <- fromMsg1004 msg
-    return $ Just $ SBPMsgObs msg' $ toSBP msg' defaultSender
-  (RTCM3Msg1005 msg _rtcm3) -> do
-    msg' <- fromMsg1005 msg
-    return $ Just $ SBPMsgBasePosEcef msg' $ toSBP msg' defaultSender
-  (RTCM3Msg1006 msg _rtcm3) -> do
-    msg' <- fromMsg1006 msg
-    return $ Just $ SBPMsgBasePosEcef msg' $ toSBP msg' defaultSender
+  (RTCM3Msg1002 m _rtcm3) -> do
+    m' <- fromMsg1002 m
+    return $ Just $ SBPMsgObs m' $ toSBP m' defaultSender
+  (RTCM3Msg1004 m _rtcm3) -> do
+    m' <- fromMsg1004 m
+    return $ Just $ SBPMsgObs m' $ toSBP m' defaultSender
+  (RTCM3Msg1005 m _rtcm3) -> do
+    m' <- fromMsg1005 m
+    return $ Just $ SBPMsgBasePosEcef m' $ toSBP m' defaultSender
+  (RTCM3Msg1006 m _rtcm3) -> do
+    m' <- fromMsg1006 m
+    return $ Just $ SBPMsgBasePosEcef m' $ toSBP m' defaultSender
   _rtcm3Msg -> return Nothing

@@ -1,9 +1,9 @@
-resolver: lts-3.16
+resolver: lts-5.4
 packages:
 - '.'
 flags: {}
 extra-deps:
-- rtcm-0.1.3
-- sbp-0.52.1
+- rtcm-0.1.5
+- sbp-0.52.2
 - word24-1.0.7
 - binary-bits-0.5
