@@ -43,7 +43,7 @@ fromGpsObservationHeader hdr = do
 toP :: GpsL1Observation -> GpsL1ExtObservation -> Word32
 toP l1 l1e = round $ p * 100 where
   p = (0.02 :: Double) * fromIntegral (l1 ^. gpsL1Observation_pseudorange) +
-      299792.458 * fromIntegral (l1e ^. gpsL1ExtObservation_ambiguity)
+      299792.458 * 0.5 * fromIntegral (l1e ^. gpsL1ExtObservation_ambiguity)
 
 toL :: GpsL1Observation -> GpsL1ExtObservation -> CarrierPhase
 toL l1 l1e = CarrierPhase
@@ -51,7 +51,7 @@ toL l1 l1e = CarrierPhase
   , _carrierPhase_f = fromIntegral lf
   } where
     p = 0.02 * fromIntegral (l1 ^. gpsL1Observation_pseudorange) +
-        299792.458 * fromIntegral (l1e ^. gpsL1ExtObservation_ambiguity)
+        299792.458 * 0.5 * fromIntegral (l1e ^. gpsL1ExtObservation_ambiguity)
     lm :: Double
     lm = p + 0.0005 * fromIntegral (l1 ^. gpsL1Observation_carrierMinusCode)
     l = -lm / (299792458.0 / 1.57542e9)

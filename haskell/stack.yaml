@@ -4,6 +4,6 @@ packages:
 flags: {}
 extra-deps:
 - rtcm-0.1.5
-- sbp-0.52.2
+- sbp-1.0.0
 - word24-1.0.7
 - binary-bits-0.5
