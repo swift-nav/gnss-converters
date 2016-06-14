@@ -54,7 +54,7 @@ toL l1 l1e = CarrierPhase
         299792.458 * 0.5 * fromIntegral (l1e ^. gpsL1ExtObservation_ambiguity)
     lm :: Double
     lm = p + 0.0005 * fromIntegral (l1 ^. gpsL1Observation_carrierMinusCode)
-    l = -lm / (299792458.0 / 1.57542e9)
+    l = lm / (299792458.0 / 1.57542e9)
     li :: Int32
     li = floor (l)
     lf :: Word8
