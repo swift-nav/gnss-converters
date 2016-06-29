@@ -76,29 +76,31 @@ toSid sat = GnssSignal
 
 fromObservation1002 :: Observation1002 -> Maybe PackedObsContent
 fromObservation1002 obs =
-  if obs ^. observation1002_l1 ^. gpsL1Observation_code then Nothing else Just PackedObsContent
-    { _packedObsContent_P    = toP l1 l1e
-    , _packedObsContent_L    = toL l1 l1e
-    , _packedObsContent_cn0  = toCn0 l1e
-    , _packedObsContent_lock = toLock l1
-    , _packedObsContent_sid  = toSid sat
-    } where
-      sat = obs ^. observation1002_sat
-      l1  = obs ^. observation1002_l1
-      l1e = obs ^. observation1002_l1e
+  if sat > 32 then Nothing else
+    if obs ^. observation1002_l1 ^. gpsL1Observation_code then Nothing else Just PackedObsContent
+      { _packedObsContent_P    = toP l1 l1e
+      , _packedObsContent_L    = toL l1 l1e
+      , _packedObsContent_cn0  = toCn0 l1e
+      , _packedObsContent_lock = toLock l1
+      , _packedObsContent_sid  = toSid sat
+      } where
+        sat = obs ^. observation1002_sat
+        l1  = obs ^. observation1002_l1
+        l1e = obs ^. observation1002_l1e
 
 fromObservation1004 :: Observation1004 -> Maybe PackedObsContent
 fromObservation1004 obs =
-  if obs ^. observation1004_l1 ^. gpsL1Observation_code then Nothing else Just PackedObsContent
-    { _packedObsContent_P    = toP l1 l1e
-    , _packedObsContent_L    = toL l1 l1e
-    , _packedObsContent_cn0  = toCn0 l1e
-    , _packedObsContent_lock = toLock l1
-    , _packedObsContent_sid  = toSid sat
-    }  where
-      sat = obs ^. observation1004_sat
-      l1  = obs ^. observation1004_l1
-      l1e = obs ^. observation1004_l1e
+  if sat > 32 then Nothing else
+    if obs ^. observation1004_l1 ^. gpsL1Observation_code then Nothing else Just PackedObsContent
+      { _packedObsContent_P    = toP l1 l1e
+      , _packedObsContent_L    = toL l1 l1e
+      , _packedObsContent_cn0  = toCn0 l1e
+      , _packedObsContent_lock = toLock l1
+      , _packedObsContent_sid  = toSid sat
+      }  where
+        sat = obs ^. observation1004_sat
+        l1  = obs ^. observation1004_l1
+        l1e = obs ^. observation1004_l1e
 
 fromMsg1002 :: MonadIO m => Msg1002 -> m MsgObs
 fromMsg1002 m = do
