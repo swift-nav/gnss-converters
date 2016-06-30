@@ -137,26 +137,26 @@ fromMsg1006 m =
     , _msgBasePosEcef_z = fromEcefVal $ m ^. msg1006_reference ^. antennaReference_ecef_z
     }
 
+-- Sender Id is Station Id with high byte or'd in
+toSender :: Word16 -> Word16
+toSender = (.|. 0xf00)
+
 convert :: MonadIO m => RTCM3Msg -> m (Maybe SBPMsg)
 convert = \case
   (RTCM3Msg1002 m _rtcm3) -> do
     m' <- fromMsg1002 m
-    -- Sender Id is Station Id with high byte or'd in
-    let sender = m ^. msg1002_header ^. gpsObservationHeader_station .|. 0xf000
-    return $ Just $ SBPMsgObs m' $ toSBP m' sender
+    return $ Just $ SBPMsgObs m' $ toSBP m' $
+      toSender $ m ^. msg1002_header ^. gpsObservationHeader_station
   (RTCM3Msg1004 m _rtcm3) -> do
     m' <- fromMsg1004 m
-    -- Sender Id is Station Id with high byte or'd in
-    let sender = m ^. msg1004_header ^. gpsObservationHeader_station .|. 0xf000
-    return $ Just $ SBPMsgObs m' $ toSBP m' sender
+    return $ Just $ SBPMsgObs m' $ toSBP m' $
+      toSender $ m ^. msg1004_header ^. gpsObservationHeader_station
   (RTCM3Msg1005 m _rtcm3) -> do
     m' <- fromMsg1005 m
-    -- Sender Id is Station Id with high byte or'd in
-    let sender = m ^. msg1005_reference ^. antennaReference_station .|. 0xf000
-    return $ Just $ SBPMsgBasePosEcef m' $ toSBP m' sender
+    return $ Just $ SBPMsgBasePosEcef m' $ toSBP m' $
+      toSender $ m ^. msg1005_reference ^. antennaReference_station
   (RTCM3Msg1006 m _rtcm3) -> do
     m' <- fromMsg1006 m
-    -- Sender Id is Station Id with high byte or'd in
-    let sender = m ^. msg1006_reference ^. antennaReference_station .|. 0xf000
-    return $ Just $ SBPMsgBasePosEcef m' $ toSBP m' sender
+    return $ Just $ SBPMsgBasePosEcef m' $ toSBP m' $
+      toSender $ m ^. msg1006_reference ^. antennaReference_station
   _rtcm3Msg -> return Nothing
