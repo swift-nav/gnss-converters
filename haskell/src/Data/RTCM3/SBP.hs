@@ -76,6 +76,7 @@ toSid sat = GnssSignal
 
 fromObservation1002 :: Observation1002 -> Maybe PackedObsContent
 fromObservation1002 obs =
+  -- Only lower set of PRN numbers (1-32) are supported
   if sat > 32 then Nothing else
     if obs ^. observation1002_l1 ^. gpsL1Observation_code then Nothing else Just PackedObsContent
       { _packedObsContent_P    = toP l1 l1e
@@ -90,6 +91,7 @@ fromObservation1002 obs =
 
 fromObservation1004 :: Observation1004 -> Maybe PackedObsContent
 fromObservation1004 obs =
+  -- Only lower set of PRN numbers (1-32) are supported
   if sat > 32 then Nothing else
     if obs ^. observation1004_l1 ^. gpsL1Observation_code then Nothing else Just PackedObsContent
       { _packedObsContent_P    = toP l1 l1e
