@@ -9,7 +9,7 @@
 -- RTCM3 to SBP tool.
 
 import BasicPrelude
-import           Control.Monad.Trans.Resource
+import Control.Monad.Trans.Resource
 import Data.Conduit
 import Data.Conduit.Binary
 import qualified Data.Conduit.List as CL
@@ -22,5 +22,6 @@ main = runResourceT $
   sourceHandle stdin   =$=
   conduitDecode        =$=
   CL.mapMaybeM convert =$=
+  CL.concat            =$=
   conduitEncode        $$
   sinkHandle stdout
