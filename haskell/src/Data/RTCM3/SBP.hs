@@ -22,8 +22,10 @@ import Data.Word
 import Data.RTCM3
 import SwiftNav.SBP
 
-fromEcefVal :: Int64 -> Double
-fromEcefVal x = fromIntegral x / 10000
+
+--------------------------------------------------------------------------------
+-- SBP, GNSS, RTCM constant definitions
+
 
 -- | Two centimeters
 --
@@ -63,6 +65,64 @@ q32Width = 256
 -- See DF018, pg. 3-19 of the RTCM3 spec
 phaseRangeRes :: Double
 phaseRangeRes = 0.0005
+
+-- | SBP L1 GNSS signal value
+--
+-- See: https://github.com/swift-nav/libswiftnav/blob/master/include/libswiftnav/signal.h#L65
+l1CSidCode :: Word8
+l1CSidCode = 0
+
+-- | SBP L2CM GNSS signal value
+--
+-- See: https://github.com/swift-nav/libswiftnav/blob/master/include/libswiftnav/signal.h#L65
+l2CMSidCode :: Word8
+l2CMSidCode = 1
+
+-- | SBP L1P and L2P GNSS signal values
+--
+-- Note that libswiftnav currently does not support L1P or L2P observations,
+-- just L1C and L2C. This is a stop gap definition so that we can properly
+-- serialize out SBP observations with L1P and L2P observations from external
+-- receivers.
+l1PSidCode :: Word8
+l1PSidCode = 5
+
+l2PSidCode :: Word8
+l2PSidCode = 6
+
+-- | L2C code indicator value
+--
+-- See DF016, pg. 3-17 of the RTCM3 spec
+codeIndicator_L2C :: Word8
+codeIndicator_L2C = 0
+
+-- | L2P code indicator value
+--
+-- See DF016, pg. 3-17 of the RTCM3 spec
+codeIndicator_L2PD :: Word8
+codeIndicator_L2PD = 1
+
+-- | Map L2 codes to SBP GnssSignal codes
+--
+l2codeToSBPSignalCode :: HashMap Word8 Word8
+l2codeToSBPSignalCode = fromList [(0, l2CMSidCode), (1, l2PSidCode)]
+
+-- | Maximum number of packed observations to allow in a single SBP message.
+--
+maxObsPerMessage :: Int
+maxObsPerMessage = floor $ (maxPayloadSize - headerSize) / packedObsSize
+  where
+    maxPayloadSize = 255
+    headerSize     = 7
+    packedObsSize  = 16.0
+
+
+--------------------------------------------------------------------------------
+-- GNSS RTCM observation reconstruction utilities
+
+
+fromEcefVal :: Int64 -> Double
+fromEcefVal x = fromIntegral x / 10000
 
 toGPSTime :: MonadIO m => GpsObservationHeader -> m ObsGPSTime
 toGPSTime hdr = do
@@ -148,52 +208,6 @@ toLock_L1 _l1 = 0
 toLock_L2 :: GpsL2Observation -> Word16
 toLock_L2 _l2 = 0
 
--- | SBP L1 GNSS signal value
---
--- See: https://github.com/swift-nav/libswiftnav/blob/master/include/libswiftnav/signal.h#L65
-l1SidCode :: Word8
-l1SidCode = 0
-
--- | SBP L2CM GNSS signal value
---
--- See: https://github.com/swift-nav/libswiftnav/blob/master/include/libswiftnav/signal.h#L65
-l2CMSidCode :: Word8
-l2CMSidCode = 1
-
--- | SBP L2P GNSS signal value
---
--- Note that libswiftnav currently does not support L2P observations, just
--- L2C. This is a stop gap definition so that we can properly serialize out SBP
--- observations with L2P observations from external receivers.
-l2PSidCode :: Word8
-l2PSidCode = 5
-
--- | L2C code indicator value
---
--- See DF016, pg. 3-17 of the RTCM3 spec
-codeIndicator_L2C :: Word8
-codeIndicator_L2C = 0
-
--- | L2P code indicator value
---
--- See DF016, pg. 3-17 of the RTCM3 spec
-codeIndicator_L2PD :: Word8
-codeIndicator_L2PD = 1
-
--- | Map L2 codes to SBP GnssSignal codes
---
-l2codeToSBPSignalCode :: HashMap Word8 Word8
-l2codeToSBPSignalCode = fromList [(0, l2CMSidCode), (1, l2PSidCode)]
-
--- | Maximum number of packed observations to allow in a single SBP message.
---
-maxObsPerMessage :: Int
-maxObsPerMessage = floor $ (maxPayloadSize - headerSize) / packedObsSize
-  where
-    maxPayloadSize = 255
-    headerSize     = 7
-    packedObsSize  = 16.0
-
 -- | Construct sequenced SBP observation header
 --
 fromGpsObservationHeader :: MonadIO m
@@ -211,7 +225,41 @@ fromGpsObservationHeader totalMsgs n hdr = do
     , _observationHeader_n_obs = totalMsgs `shiftL` 4 .|. n
     }
 
--- | Construct SBP GPS observation message
+-- | Construct an L1 SBP PackedObsContent an RTCM satellite vehicle observation
+--
+fromL1SatelliteObservation :: Word8                -- ^ Satellite PRN
+                           -> GpsL1Observation
+                           -> GpsL1ExtObservation
+                           -> PackedObsContent
+fromL1SatelliteObservation sat l1 l1e =
+  -- Checks GPS L1 code indicator for RTCM message 1002.
+  -- See DF016, pg. 3-17 of the RTCM3 spec.
+  if l1 ^. gpsL1Observation_code then
+    PackedObsContent
+      { _packedObsContent_P    = toP_L1 l1 l1e
+      , _packedObsContent_L    = toL_L1 l1 l1e
+      , _packedObsContent_cn0  = toCn0_L1 l1e
+      , _packedObsContent_lock = toLock_L1 l1
+      , _packedObsContent_sid  = GnssSignal
+        { _gnssSignal_sat      = fromIntegral $ sat - 1
+        , _gnssSignal_code     = l1PSidCode
+        , _gnssSignal_reserved = 0
+        }
+      }
+  else
+    PackedObsContent
+      { _packedObsContent_P    = toP_L1 l1 l1e
+      , _packedObsContent_L    = toL_L1 l1 l1e
+      , _packedObsContent_cn0  = toCn0_L1 l1e
+      , _packedObsContent_lock = toLock_L1 l1
+      , _packedObsContent_sid  = GnssSignal
+        { _gnssSignal_sat      = fromIntegral $ sat - 1
+        , _gnssSignal_code     = l1CSidCode
+        , _gnssSignal_reserved = 0
+        }
+      }
+
+-- | Construct SBP GPS observation message (possibly chunked).
 --
 chunkToMsgObs :: MonadIO m
               => Msg1004            -- ^ RTCM 1004 observation message
@@ -231,28 +279,22 @@ chunkToMsgObs m totalMsgs n packed = do
 toSender :: Word16 -> Word16
 toSender = (.|. 0xf00)
 
+
+--------------------------------------------------------------------------------
+-- RTCM to SBP conversion utilities: RTCM Msgs. 1002 (L1 RTK), 1004 (L1+L2 RTK),
+-- 1005 (antenna position), 1006 (antenna position).
+
+
 -- | Construct an L1 SBP PackedObsContent from an RTCM Msg 1002.
 --
 fromObservation1002 :: Observation1002 -> Maybe PackedObsContent
 fromObservation1002 obs =
   -- Only lower set of PRN numbers (1-32) are supported
-  if sat > maxSats then Nothing else
-    -- Checks GPS L1 code indicator for RTCM message 1002.
-    -- See DF016, pg. 3-17 of the RTCM3 spec.
-    if l1 ^. gpsL1Observation_code then Nothing else Just PackedObsContent
-      { _packedObsContent_P    = toP_L1 l1 l1e
-      , _packedObsContent_L    = toL_L1 l1 l1e
-      , _packedObsContent_cn0  = toCn0_L1 l1e
-      , _packedObsContent_lock = toLock_L1 l1
-      , _packedObsContent_sid  = GnssSignal
-        { _gnssSignal_sat      = fromIntegral $ sat - 1
-        , _gnssSignal_code     = l1SidCode
-        , _gnssSignal_reserved = 0
-        }
-      } where
-        sat = obs ^. observation1002_sat
-        l1  = obs ^. observation1002_l1
-        l1e = obs ^. observation1002_l1e
+  if sat > maxSats then Nothing else Just (fromL1SatelliteObservation sat l1 l1e)
+    where
+      sat = obs ^. observation1002_sat
+      l1  = obs ^. observation1002_l1
+      l1e = obs ^. observation1002_l1e
 
 -- | Convert an RTCM L1 1002 observation into an SBP MsgObs.
 --
@@ -276,20 +318,7 @@ fromObservation1004 obs =
       l1e = obs ^. observation1004_l1e
       -- Checks GPS L1 code indicator for RTCM message 1004
       -- See DF016, pg. 3-17 of the RTCM3 spec.
-      obs1 = if l1 ^. gpsL1Observation_code then
-               Nothing
-             else
-               Just PackedObsContent
-                 { _packedObsContent_P    = toP_L1 l1 l1e
-                 , _packedObsContent_L    = toL_L1 l1 l1e
-                 , _packedObsContent_cn0  = toCn0_L1 l1e
-                 , _packedObsContent_lock = toLock_L1 l1
-                 , _packedObsContent_sid  = GnssSignal
-                   { _gnssSignal_sat      = fromIntegral $ sat - 1
-                   , _gnssSignal_code     = l1SidCode
-                   , _gnssSignal_reserved = 0
-                   }
-                 }
+      obs1 = Just (fromL1SatelliteObservation sat l1 l1e)
       l2   = obs ^. observation1004_l2
       l2e  = obs ^. observation1004_l2e
       code = l2 ^. gpsL2Observation_code

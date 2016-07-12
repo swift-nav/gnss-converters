@@ -49,7 +49,7 @@ basePosition msg' = ( msg' ^. msgBasePosEcef_x
                    )
 
 isL1 :: PackedObsContent -> Bool
-isL1 obs = (obs ^. packedObsContent_sid ^. gnssSignal_code) == l1SidCode
+isL1 obs = (obs ^. packedObsContent_sid ^. gnssSignal_code) == l1CSidCode
 
 isL2 :: PackedObsContent -> Bool
 isL2 obs = code == l2CMSidCode || code == l2PSidCode
@@ -59,14 +59,11 @@ isL2 obs = code == l2CMSidCode || code == l2PSidCode
 sat :: PackedObsContent -> Word16
 sat obs = obs ^. packedObsContent_sid ^. gnssSignal_sat
 
-cm_to_m :: Word32 -> Double
-cm_to_m v = (fromIntegral v) / 100
-
 cn0 :: PackedObsContent -> Double
 cn0 obs = 0.25 * fromIntegral (obs ^. packedObsContent_cn0)
 
 pseudorange :: PackedObsContent -> Double
-pseudorange obs = 2.0 * cm_to_m (obs ^. packedObsContent_P)
+pseudorange obs = fromIntegral (obs ^. packedObsContent_P) / sbpCMinM
 
 carrierPhase :: PackedObsContent -> Double
 carrierPhase obs = whole + fraction
@@ -89,8 +86,9 @@ assertObs :: HashMap Word16 (Double, Double, Double)
           -> PackedObsContent
           -> Double        -- ^ Pseudorange tolerance (meters)
           -> Double        -- ^ Carrier phase tolerance (cycles)
+          -> Word8         -- ^ Satellite band code
           -> Assertion
-assertObs truth obs ptol ctol = do
+assertObs truth obs ptol ctol sig = do
   let prn         = 1 + sat obs
       def         = (0, 0, 0)
       (p, c, snr) = lookupDefault def prn truth
@@ -101,7 +99,8 @@ assertObs truth obs ptol ctol = do
   -- Carrier phase representation error
   assertApproxEqual ("Incorrect carrier phase" ++ msg') ctol c $ carrierPhase obs
   -- SNRs/cn0 should be exact
-  assertEqual       ("Incorrect SNR" ++ msg')              snr $ cn0 obs
+  assertEqual ("Incorrect SNR" ++ msg')  snr $ cn0 obs
+  assertEqual ("Incorrect code" ++ msg') sig   code
 
 assertMsgObs :: SBPMsg -> Assertion
 assertMsgObs (SBPMsgObs obs' _) = do
@@ -110,8 +109,8 @@ assertMsgObs (SBPMsgObs obs' _) = do
       ctol_L2 = 0.004 -- carrier phase / L2 wavelength = 0.001m/0.250m cycles
   forM_ (obs' ^. msgObs_obs) $ \packed ->
     case () of
-      _ |  isL1 packed -> assertObs testObs_L1 packed ptol ctol_L1
-        |  isL2 packed -> assertObs testObs_L2 packed ptol ctol_L2
+      _ |  isL1 packed -> assertObs testObs_L1 packed ptol ctol_L1 l1CSidCode
+        |  isL2 packed -> assertObs testObs_L2 packed ptol ctol_L2 l2PSidCode
         |  otherwise   -> assertFailure "Not L1 or L2!"
 assertMsgObs _                  =  assertFailure "Invalid message type!"
 
