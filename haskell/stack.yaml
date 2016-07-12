@@ -7,3 +7,4 @@ extra-deps:
 - sbp-1.0.0
 - word24-1.0.7
 - binary-bits-0.5
+- HUnit-approx-1.0
