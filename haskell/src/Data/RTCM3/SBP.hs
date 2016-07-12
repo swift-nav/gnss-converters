@@ -15,7 +15,7 @@ module Data.RTCM3.SBP where
 import BasicPrelude
 import Control.Lens
 import Data.Bits
-import Data.HashMap.Strict
+import qualified Data.HashMap.Strict as H
 import Data.List.Extra hiding (concat, map)
 import Data.Time
 import Data.Word
@@ -104,8 +104,8 @@ codeIndicator_L2PD = 1
 
 -- | Map L2 codes to SBP GnssSignal codes
 --
-l2codeToSBPSignalCode :: HashMap Word8 Word8
-l2codeToSBPSignalCode = fromList [(0, l2CMSidCode), (1, l2PSidCode)]
+l2codeToSBPSignalCode :: H.HashMap Word8 Word8
+l2codeToSBPSignalCode = H.fromList [(0, l2CMSidCode), (1, l2PSidCode)]
 
 -- | Maximum number of packed observations to allow in a single SBP message.
 --
@@ -324,7 +324,7 @@ fromObservation1004 obs =
       code = l2 ^. gpsL2Observation_code
       -- Checks GPS L2 code indicator.
       -- See DF016, pg. 3-17 of the RTCM3 spec.
-      obs2 = if member code l2codeToSBPSignalCode then
+      obs2 = if H.member code l2codeToSBPSignalCode then
                Just PackedObsContent
                  { _packedObsContent_P    = toP_L2 l1 l1e l2
                  , _packedObsContent_L    = toL_L2 l1 l1e l2 l2e
@@ -332,7 +332,7 @@ fromObservation1004 obs =
                  , _packedObsContent_lock = toLock_L2 l2
                  , _packedObsContent_sid  = GnssSignal
                    { _gnssSignal_sat      = fromIntegral $ sat - 1
-                   , _gnssSignal_code     = l2codeToSBPSignalCode ! code
+                   , _gnssSignal_code     = l2codeToSBPSignalCode H.! code
                    , _gnssSignal_reserved = 0
                    }
                  }
