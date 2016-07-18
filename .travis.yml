@@ -1,0 +1,28 @@
+sudo: false
+
+language: c
+
+addons:
+  apt:
+    packages:
+    - libgmp-dev
+
+cache:
+  apt: true
+  directories:
+    - $HOME/.stack/
+
+before_install:
+  # Install stack
+  - mkdir -p $HOME/.local/bin $HOME/.local/include $HOME/.local/lib
+  - export PATH=~/.local/bin:$PATH
+  - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.local/lib
+  - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+
+install:
+  - (cd haskell && stack update)
+  - (cd haskell && stack setup)
+  - (cd haskell && stack build --only-dependencies)
+
+script:
+  - (cd haskell && stack build --test)
