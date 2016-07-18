@@ -110,11 +110,11 @@ l2codeToSBPSignalCode = H.fromList [(0, l2CMSidCode), (1, l2PSidCode)]
 -- | Maximum number of packed observations to allow in a single SBP message.
 --
 maxObsPerMessage :: Int
-maxObsPerMessage = floor $ (maxPayloadSize - headerSize) / packedObsSize
+maxObsPerMessage = (maxPayloadSize - headerSize) `div` packedObsSize
   where
     maxPayloadSize = 255
     headerSize     = 7
-    packedObsSize  = 16.0
+    packedObsSize  = 16
 
 
 --------------------------------------------------------------------------------
@@ -181,7 +181,7 @@ toL_L2 :: GpsL1Observation
        -> GpsL2Observation
        -> GpsL2ExtObservation
        -> CarrierPhase
-toL_L2 l1 l1e l2 l2e = CarrierPhase
+toL_L2 l1 l1e l2 _l2e = CarrierPhase
   { _carrierPhase_i = fromIntegral li
   , _carrierPhase_f = fromIntegral lf
   } where

@@ -1,6 +1,3 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module:      Test
 -- Copyright:   (c) 2016 Swift Navigation Inc.

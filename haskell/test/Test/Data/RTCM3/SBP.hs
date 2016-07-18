@@ -1,8 +1,4 @@
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE NoImplicitPrelude   #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- |
 -- Module:      Test.Data.RTCM3.SBP
@@ -16,20 +12,20 @@ module Test.Data.RTCM3.SBP
   ( tests
   ) where
 
-import BasicPrelude
-import Control.Lens
-import Control.Monad.Trans.Resource
-import Data.Conduit
-import Data.Conduit.Binary
-import Data.Conduit.Serialization.Binary
-import Data.HashMap.Strict
-import Data.RTCM3.SBP
-import qualified Data.Conduit.List as CL
-import Data.Word
-import SwiftNav.SBP
-import Test.HUnit.Approx
-import Test.Tasty
-import Test.Tasty.HUnit
+import           BasicPrelude
+import           Control.Lens
+import           Control.Monad.Trans.Resource
+import           Data.Conduit
+import           Data.Conduit.Binary
+import qualified Data.Conduit.List                 as CL
+import           Data.Conduit.Serialization.Binary
+import           Data.HashMap.Strict
+import           Data.RTCM3.SBP
+import           Data.Word
+import           SwiftNav.SBP
+import           Test.HUnit.Approx
+import           Test.Tasty
+import           Test.Tasty.HUnit
 
 decodeRTCMFile :: (MonadIO m, MonadBaseControl IO m, MonadThrow m)
                => FilePath
