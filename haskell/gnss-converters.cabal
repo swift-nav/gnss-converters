@@ -64,32 +64,20 @@ test-suite test
   hs-source-dirs:      test
   main-is:             Test.hs
   other-modules:       Test.Data.RTCM3.SBP
-  build-depends:       base
+  build-depends:       HUnit-approx
+                     , base
                      , basic-prelude
                      , binary-conduit
                      , bytestring
                      , conduit
                      , conduit-extra
                      , gnss-converters
-                     , HUnit-approx
                      , lens
                      , resourcet
                      , sbp
                      , tasty
                      , tasty-hunit
                      , unordered-containers
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
-  default-language:    Haskell2010
-  default-extensions:  NoImplicitPrelude
-
-benchmark bench
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      bench
-  main-is:             Bench.hs
-  build-depends:       base
-                     , basic-prelude
-                     , criterion
-                     , gnss-converters
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
   default-language:    Haskell2010
   default-extensions:  NoImplicitPrelude
