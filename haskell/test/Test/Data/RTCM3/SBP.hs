@@ -160,39 +160,39 @@ testMsg1004 =
         assertExpectedBase (msgs !! 5) expectedBasePos
         -- Message 1
         assertObsHeader (msgs !! 1) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86354000 1905
+            _observationHeader_t     = ObsGPSTime 86354000 1906
           , _observationHeader_n_obs = 32
           }
         assertMsgObsLength (msgs !! 1) 15
         assertMsgObs (msgs !! 1)
         -- Message 2
         assertObsHeader (msgs !! 2) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86354000 1905
+            _observationHeader_t     = ObsGPSTime 86354000 1906
           , _observationHeader_n_obs = 33
           }
         assertMsgObs (msgs !! 2)
         assertMsgObsLength (msgs !! 2) 1
         -- Message 3
         assertObsHeader (msgs !! 3) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86355000 1905
+            _observationHeader_t     = ObsGPSTime 86355000 1906
           , _observationHeader_n_obs = 32
           }
         assertMsgObsLength (msgs !! 3) 15
         -- Message 4
         assertObsHeader (msgs !! 4) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86355000 1905
+            _observationHeader_t     = ObsGPSTime 86355000 1906
           , _observationHeader_n_obs = 33
           }
         assertMsgObsLength (msgs !! 4) 1
         -- Message 6
         assertObsHeader (msgs !! 6) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86356000 1905
+            _observationHeader_t     = ObsGPSTime 86356000 1906
           , _observationHeader_n_obs = 32
           }
         assertMsgObsLength (msgs !! 6) 15
         -- Message 7
         assertObsHeader (msgs !! 7) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86356000 1905
+            _observationHeader_t     = ObsGPSTime 86356000 1906
           , _observationHeader_n_obs = 33
           }
         assertMsgObsLength (msgs !! 7) 1
