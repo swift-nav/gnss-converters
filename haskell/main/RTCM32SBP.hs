@@ -8,20 +8,22 @@
 --
 -- RTCM3 to SBP tool.
 
-import BasicPrelude
-import Control.Monad.Trans.Resource
-import Data.Conduit
-import Data.Conduit.Binary
-import qualified Data.Conduit.List as CL
-import Data.Conduit.Serialization.Binary
-import Data.RTCM3.SBP
-import System.IO
+import           BasicPrelude
+import           Control.Monad.Trans.Resource
+import           Data.Conduit
+import           Data.Conduit.Binary
+import qualified Data.Conduit.List                 as CL
+import           Data.Conduit.Serialization.Binary
+import           Data.RTCM3.SBP
+import           Data.RTCM3.SBP.Types
+import           System.IO
 
 main :: IO ()
-main = runResourceT $
-  sourceHandle stdin   =$=
-  conduitDecode        =$=
-  CL.mapMaybeM convert =$=
-  CL.concat            =$=
-  conduitEncode        $$
-  sinkHandle stdout
+main = do
+  s <- liftIO $ newStore
+  runResourceT $ runConvertT s $
+    sourceHandle stdin    =$=
+    conduitDecode         =$=
+    CL.concatMapM convert =$=
+    conduitEncode         $$
+    sinkHandle stdout

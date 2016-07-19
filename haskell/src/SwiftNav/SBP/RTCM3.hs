@@ -31,10 +31,10 @@ fromMsgBasePosEcef _basePosEcef = Msg1005
 
 convert :: SBPMsg -> Maybe RTCM3Msg
 convert = \case
-  (SBPMsgObs msg _sbp) -> Just $
-    RTCM3Msg1002 msg' $ toRTCM3 msg' where
-      msg' = fromMsgObs msg
-  (SBPMsgBasePosEcef msg _sbp) -> Just $
-    RTCM3Msg1005 msg' $ toRTCM3 msg' where
-      msg' = fromMsgBasePosEcef msg
+  (SBPMsgObs m _sbp) -> Just $
+    RTCM3Msg1002 m' $ toRTCM3 m' where
+      m' = fromMsgObs m
+  (SBPMsgBasePosEcef m _sbp) -> Just $
+    RTCM3Msg1005 m' $ toRTCM3 m' where
+      m' = fromMsgBasePosEcef m
   _sbpMsg -> Nothing

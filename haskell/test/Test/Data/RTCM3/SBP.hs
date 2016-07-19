@@ -20,22 +20,22 @@ import           Data.Conduit.Binary
 import qualified Data.Conduit.List                 as CL
 import           Data.Conduit.Serialization.Binary
 import           Data.HashMap.Strict
+import           Data.IORef
 import           Data.RTCM3.SBP
+import           Data.RTCM3.SBP.Types
 import           Data.Word
 import           SwiftNav.SBP
 import           Test.HUnit.Approx
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
-decodeRTCMFile :: (MonadIO m, MonadBaseControl IO m, MonadThrow m)
-               => FilePath
-               -> m [SBPMsg]
-decodeRTCMFile filename =
-  runResourceT . runConduit  $
-    sourceFile filename     =$=
-    conduitDecode           =$=
-    CL.mapMaybeM convert    =$=
-    CL.concat               $$
+decodeRTCMFile :: FilePath -> IO [SBPMsg]
+decodeRTCMFile filename = do
+  wn <- liftIO $ newIORef 1906
+  runResourceT $ runConvertT (Store wn) $ runConduit  $
+    sourceFile filename   =$=
+    conduitDecode         =$=
+    CL.concatMapM convert $$
     CL.consume
 
 basePosition :: MsgBasePosEcef -> (Double, Double, Double)
