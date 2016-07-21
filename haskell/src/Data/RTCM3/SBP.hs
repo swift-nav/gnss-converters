@@ -408,8 +408,8 @@ convert = \case
     m' <- fromMsg1006 m
     return [SBPMsgBasePosEcef m' $ toSBP m' $ toSender sender]
   (RTCM3Msg1013 m _rtcm3) -> do
-    wn' <- view storeWn
-    liftIO $ writeIORef wn' $ toWn $ m ^. msg1013_header ^. messageHeader_mjd
+    wn <- view storeWn
+    liftIO $ writeIORef wn $ toWn $ m ^. msg1013_header ^. messageHeader_mjd
     return mempty
   _rtcm3Msg -> return mempty
 
