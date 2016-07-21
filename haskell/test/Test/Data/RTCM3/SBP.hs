@@ -194,8 +194,26 @@ testMsg1004 =
         assertMsgObsLength (msgs !! 7) 1
      ]
 
+testToWn :: TestTree
+testToWn =
+  testGroup "MJD to GPS week number"
+    [ testCase "Day 0, Week 0" $
+       toWn mjdEpoch @?= 0
+    , testCase "Day 4, Week 1906" $
+       toWn 57590 @?= 1906
+    , testCase "Day 0, Week 1906" $
+       toWn 57586 @?= 1906
+    , testCase "Day 7, Week 1905" $
+       toWn 57585 @?= 1905
+    , testCase "Day 7, Week 1906" $
+       toWn 57592 @?= 1906
+    , testCase "Day 0, Week 1907" $
+       toWn 57593 @?= 1907
+    ]
+
 tests :: TestTree
 tests =
   testGroup "RTCM3 to SBP conversion tests"
     [ testMsg1004
+    , testToWn
     ]

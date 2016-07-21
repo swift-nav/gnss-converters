@@ -137,6 +137,16 @@ toGPSTime hdr = do
     , _obsGPSTime_wn  = wn
     }
 
+-- | MJD GPS Epoch - First day in GPS week 0. See DF051 of the RTCM3 spec
+mjdEpoch :: Word16
+mjdEpoch = 44244
+
+-- | Convert from MJD to GPS week number
+--
+-- See DF051 of the RTCM3 spec
+toWn :: Word16 -> Word16
+toWn mjd = (mjd - mjdEpoch) `div` 7
+
 -- | Construct metric pseudorange (meters!) from L1 RTCM observation.
 --
 -- See DF011, pg. 3-16 of the RTCM3 spec
@@ -397,6 +407,10 @@ convert = \case
     let sender = m ^. msg1006_reference ^. antennaReference_station
     m' <- fromMsg1006 m
     return [SBPMsgBasePosEcef m' $ toSBP m' $ toSender sender]
+  (RTCM3Msg1013 m _rtcm3) -> do
+    wn' <- view storeWn
+    liftIO $ writeIORef wn' $ toWn $ m ^. msg1013_header ^. messageHeader_mjd
+    return mempty
   _rtcm3Msg -> return mempty
 
 newStore :: IO Store
