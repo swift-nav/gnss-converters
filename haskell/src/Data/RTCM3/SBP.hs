@@ -12,15 +12,17 @@
 
 module Data.RTCM3.SBP where
 
-import BasicPrelude
-import Control.Lens
-import Data.Bits
-import qualified Data.HashMap.Strict as H
-import Data.List.Extra hiding (concat, map)
-import Data.Time
-import Data.Word
-import Data.RTCM3
-import SwiftNav.SBP
+import           BasicPrelude
+import           Control.Lens
+import           Data.Bits
+import qualified Data.HashMap.Strict  as M
+import           Data.IORef
+import           Data.List.Extra      hiding (concat, map)
+import           Data.RTCM3
+import           Data.RTCM3.SBP.Types
+import           Data.Time
+import           Data.Word
+import           SwiftNav.SBP
 
 
 --------------------------------------------------------------------------------
@@ -104,8 +106,11 @@ codeIndicator_L2PD = 1
 
 -- | Map L2 codes to SBP GnssSignal codes
 --
-l2codeToSBPSignalCode :: H.HashMap Word8 Word8
-l2codeToSBPSignalCode = H.fromList [(0, l2CMSidCode), (1, l2PSidCode)]
+l2codeToSBPSignalCode :: HashMap Word8 Word8
+l2codeToSBPSignalCode = M.fromList
+  [ (codeIndicator_L2C,  l2CMSidCode)
+  , (codeIndicator_L2PD, l2PSidCode)
+  ]
 
 -- | Maximum number of packed observations to allow in a single SBP message.
 --
@@ -124,12 +129,12 @@ maxObsPerMessage = (maxPayloadSize - headerSize) `div` packedObsSize
 fromEcefVal :: Int64 -> Double
 fromEcefVal x = fromIntegral x / 10000
 
-toGPSTime :: MonadIO m => GpsObservationHeader -> m ObsGPSTime
+toGPSTime :: MonadStore e m => GpsObservationHeader -> m ObsGPSTime
 toGPSTime hdr = do
-  today <- utctDay <$> liftIO getCurrentTime
+  wn <- view storeWn >>= liftIO . readIORef
   return ObsGPSTime
     { _obsGPSTime_tow = hdr ^. gpsObservationHeader_tow
-    , _obsGPSTime_wn  = fromIntegral $ div (diffDays today (fromGregorian 1980 1 6)) 7
+    , _obsGPSTime_wn  = wn
     }
 
 -- | Construct metric pseudorange (meters!) from L1 RTCM observation.
@@ -169,7 +174,7 @@ toL_L1 l1 l1e = CarrierPhase
     lm = p + phaseRangeRes * fromIntegral (l1 ^. gpsL1Observation_carrierMinusCode)
     l = lm / (lightSpeedMS / l1frequency)
     li :: Int32
-    li = floor (l)
+    li = floor l
     lf :: Word8
     lf = truncate ((l - fromIntegral li) * q32Width)
 
@@ -192,7 +197,7 @@ toL_L2 l1 l1e l2 _l2e = CarrierPhase
     lm = p + phaseRangeRes * fromIntegral (l2 ^. gpsL2Observation_carrierMinusCode)
     l = lm / (lightSpeedMS / l2frequency)
     li :: Int32
-    li = floor (l)
+    li = floor l
     lf :: Word8
     lf = truncate ((l - fromIntegral li) * q32Width)
 
@@ -210,7 +215,7 @@ toLock_L2 _l2 = 0
 
 -- | Construct sequenced SBP observation header
 --
-fromGpsObservationHeader :: MonadIO m
+fromGpsObservationHeader :: MonadStore e m
                          => Word8                -- ^ Total messages
                          -> Word8                -- ^ Message in sequence
                          -> GpsObservationHeader -- ^ RTCM observation header
@@ -234,41 +239,52 @@ fromL1SatelliteObservation :: Word8                -- ^ Satellite PRN
 fromL1SatelliteObservation sat l1 l1e =
   -- Checks GPS L1 code indicator for RTCM message 1002.
   -- See DF016, pg. 3-17 of the RTCM3 spec.
-  if l1 ^. gpsL1Observation_code then
-    PackedObsContent
-      { _packedObsContent_P    = toP_L1 l1 l1e
-      , _packedObsContent_L    = toL_L1 l1 l1e
-      , _packedObsContent_cn0  = toCn0_L1 l1e
-      , _packedObsContent_lock = toLock_L1 l1
-      , _packedObsContent_sid  = GnssSignal
-        { _gnssSignal_sat      = fromIntegral $ sat - 1
-        , _gnssSignal_code     = l1PSidCode
-        , _gnssSignal_reserved = 0
-        }
+  PackedObsContent
+    { _packedObsContent_P    = toP_L1 l1 l1e
+    , _packedObsContent_L    = toL_L1 l1 l1e
+    , _packedObsContent_cn0  = toCn0_L1 l1e
+    , _packedObsContent_lock = toLock_L1 l1
+    , _packedObsContent_sid  = GnssSignal
+      { _gnssSignal_sat      = fromIntegral $ sat - 1
+      , _gnssSignal_code     = if l1 ^. gpsL1Observation_code then l1PSidCode else l1CSidCode
+      , _gnssSignal_reserved = 0
       }
-  else
-    PackedObsContent
-      { _packedObsContent_P    = toP_L1 l1 l1e
-      , _packedObsContent_L    = toL_L1 l1 l1e
-      , _packedObsContent_cn0  = toCn0_L1 l1e
-      , _packedObsContent_lock = toLock_L1 l1
-      , _packedObsContent_sid  = GnssSignal
-        { _gnssSignal_sat      = fromIntegral $ sat - 1
-        , _gnssSignal_code     = l1CSidCode
-        , _gnssSignal_reserved = 0
-        }
+    }
+
+-- | Construct an L2 SBP PackedObsContent an RTCM satellite vehicle observation
+--
+fromL2SatelliteObservation :: Word8                  -- ^ Satellite PRN
+                           -> GpsL1Observation
+                           -> GpsL1ExtObservation
+                           -> GpsL2Observation
+                           -> GpsL2ExtObservation
+                           -> Maybe PackedObsContent
+fromL2SatelliteObservation sat l1 l1e l2 l2e = do
+  -- Checks GPS L2 code indicator.
+  -- See DF016, pg. 3-17 of the RTCM3 spec.
+  code <- M.lookup (l2 ^. gpsL2Observation_code) l2codeToSBPSignalCode
+  return PackedObsContent
+    { _packedObsContent_P    = toP_L2 l1 l1e l2
+    , _packedObsContent_L    = toL_L2 l1 l1e l2 l2e
+    , _packedObsContent_cn0  = toCn0_L2 l2e
+    , _packedObsContent_lock = toLock_L2 l2
+    , _packedObsContent_sid  = GnssSignal
+      { _gnssSignal_sat      = fromIntegral $ sat - 1
+      , _gnssSignal_code     = code
+      , _gnssSignal_reserved = 0
       }
+    }
 
 -- | Construct SBP GPS observation message (possibly chunked).
 --
-chunkToMsgObs :: MonadIO m
-              => Msg1004            -- ^ RTCM 1004 observation message
-              -> Word8              -- ^ Total messages
-              -> Word8              -- ^ Message in sequence
+chunkToMsgObs :: MonadStore e m
+              => GpsObservationHeader -- ^ RTCM observation header
+              -> Word8                -- ^ Total messages
+              -> Word8                -- ^ Message in sequence
               -> [PackedObsContent]
               -> m MsgObs
-chunkToMsgObs m totalMsgs n packed = do
-  header <- fromGpsObservationHeader totalMsgs n $ m ^. msg1004_header
+chunkToMsgObs hdr totalMsgs n packed = do
+  header <- fromGpsObservationHeader totalMsgs n hdr
   return MsgObs
     { _msgObs_header = header
     , _msgObs_obs    = packed
@@ -287,72 +303,63 @@ toSender = (.|. 0xf00)
 
 -- | Construct an L1 SBP PackedObsContent from an RTCM Msg 1002.
 --
-fromObservation1002 :: Observation1002 -> Maybe PackedObsContent
+fromObservation1002 :: Observation1002 -> [PackedObsContent]
 fromObservation1002 obs =
   -- Only lower set of PRN numbers (1-32) are supported
-  if sat > maxSats then Nothing else Just (fromL1SatelliteObservation sat l1 l1e)
+  if sat > maxSats then mempty else [fromL1SatelliteObservation sat l1 l1e]
     where
       sat = obs ^. observation1002_sat
       l1  = obs ^. observation1002_l1
       l1e = obs ^. observation1002_l1e
 
+
 -- | Convert an RTCM L1 1002 observation into an SBP MsgObs.
 --
-fromMsg1002 :: MonadIO m => Msg1002 -> m MsgObs
+-- This chunking takes places because the number of observations in a given 1002
+-- may very well exceed the maximum SBP supported payload size of 255 bytes.
+fromMsg1002 :: MonadStore e m => Msg1002 -> m [MsgObs]
 fromMsg1002 m = do
-  header <- fromGpsObservationHeader 1 0 (m ^. msg1002_header)
-  return MsgObs
-    { _msgObs_header = header
-    , _msgObs_obs    = mapMaybe fromObservation1002 $ m ^. msg1002_observations
-    }
+  let hdr       = m ^. msg1002_header
+      obs       = concatMap fromObservation1002 $ m ^. msg1002_observations
+      chunks    = zip [0..] $ chunksOf maxObsPerMessage obs
+      totalMsgs = fromIntegral $ length chunks
+  forM chunks $ uncurry $ chunkToMsgObs hdr totalMsgs
 
 -- | Construct an L1/L2 SBP PackedObsContent from an RTCM Msg 1004.
 --
-fromObservation1004 :: Observation1004 -> Maybe [PackedObsContent]
+fromObservation1004 :: Observation1004 -> [PackedObsContent]
 fromObservation1004 obs =
   -- Only lower set of PRN numbers (1-32) are supported
-  if sat > maxSats then Nothing else mapM id [obs1, obs2]
+  if sat > maxSats then mempty else
+    maybe [obs1] (: [obs1]) obs2
     where
       sat = obs ^. observation1004_sat
       l1  = obs ^. observation1004_l1
       l1e = obs ^. observation1004_l1e
       -- Checks GPS L1 code indicator for RTCM message 1004
       -- See DF016, pg. 3-17 of the RTCM3 spec.
-      obs1 = Just (fromL1SatelliteObservation sat l1 l1e)
+      obs1 = fromL1SatelliteObservation sat l1 l1e
       l2   = obs ^. observation1004_l2
       l2e  = obs ^. observation1004_l2e
-      code = l2 ^. gpsL2Observation_code
       -- Checks GPS L2 code indicator.
       -- See DF016, pg. 3-17 of the RTCM3 spec.
-      obs2 = if H.member code l2codeToSBPSignalCode then
-               Just PackedObsContent
-                 { _packedObsContent_P    = toP_L2 l1 l1e l2
-                 , _packedObsContent_L    = toL_L2 l1 l1e l2 l2e
-                 , _packedObsContent_cn0  = toCn0_L2 l2e
-                 , _packedObsContent_lock = toLock_L2 l2
-                 , _packedObsContent_sid  = GnssSignal
-                   { _gnssSignal_sat      = fromIntegral $ sat - 1
-                   , _gnssSignal_code     = l2codeToSBPSignalCode H.! code
-                   , _gnssSignal_reserved = 0
-                   }
-                 }
-             else
-               Nothing
+      obs2 = fromL2SatelliteObservation sat l1 l1e l2 l2e
 
 -- | Convert an RTCM L1+L2 1004 observation into multiple SBP MsgObs.
 --
 -- This chunking takes places because the number of observations in a given 1004
 -- may very well exceed the maximum SBP supported payload size of 255 bytes.
-fromMsg1004 :: MonadIO m => Msg1004 -> m [MsgObs]
+fromMsg1004 :: MonadStore e m => Msg1004 -> m [MsgObs]
 fromMsg1004 m = do
-  let obs       = concat $ mapMaybe fromObservation1004 $ m ^. msg1004_observations
+  let hdr       = m ^. msg1004_header
+      obs       = concatMap fromObservation1004 $ m ^. msg1004_observations
       chunks    = zip [0..] $ chunksOf maxObsPerMessage obs
       totalMsgs = fromIntegral $ length chunks
-  mapM (\(n, packed) -> chunkToMsgObs m totalMsgs n packed) chunks
+  forM chunks $ uncurry $ chunkToMsgObs hdr totalMsgs
 
 -- | Convert an RTCM 1005 antenna reference position message into an SBP
 -- MsgBasePosEcef.
-fromMsg1005 :: MonadIO m => Msg1005 -> m MsgBasePosEcef
+fromMsg1005 :: MonadStore e m => Msg1005 -> m MsgBasePosEcef
 fromMsg1005 m =
   return MsgBasePosEcef
     { _msgBasePosEcef_x = fromEcefVal $ m ^. msg1005_reference ^. antennaReference_ecef_x
@@ -362,7 +369,7 @@ fromMsg1005 m =
 
 -- | Convert an RTCM 1006 antenna reference position message into an SBP
 -- MsgBasePosEcef.
-fromMsg1006 :: MonadIO m => Msg1006 -> m MsgBasePosEcef
+fromMsg1006 :: MonadStore e m => Msg1006 -> m MsgBasePosEcef
 fromMsg1006 m =
   return MsgBasePosEcef
     { _msgBasePosEcef_x = fromEcefVal $ m ^. msg1006_reference ^. antennaReference_ecef_x
@@ -372,22 +379,29 @@ fromMsg1006 m =
 
 -- | Convert an RTCM message into possibly multiple SBP messages.
 --
-convert :: MonadIO m => RTCM3Msg -> m (Maybe [SBPMsg])
+convert :: MonadStore e m => RTCM3Msg -> m [SBPMsg]
 convert = \case
   (RTCM3Msg1002 m _rtcm3) -> do
     let sender = m ^. msg1002_header ^. gpsObservationHeader_station
     m' <- fromMsg1002 m
-    return $ Just [SBPMsgObs m' $ toSBP m' $ toSender sender]
+    return $ flip fmap m' $ \x -> SBPMsgObs x $ toSBP x $ toSender sender
   (RTCM3Msg1004 m _rtcm3) -> do
     let sender = m ^. msg1004_header ^. gpsObservationHeader_station
     m' <- fromMsg1004 m
-    return $ Just (fmap (\x -> SBPMsgObs x $ toSBP x $ toSender sender) m')
+    return $ flip fmap m' $ \x -> SBPMsgObs x $ toSBP x $ toSender sender
   (RTCM3Msg1005 m _rtcm3) -> do
     let sender =  m ^. msg1005_reference ^. antennaReference_station
     m' <- fromMsg1005 m
-    return $ Just [SBPMsgBasePosEcef m' $ toSBP m' $ toSender sender]
+    return [SBPMsgBasePosEcef m' $ toSBP m' $ toSender sender]
   (RTCM3Msg1006 m _rtcm3) -> do
     let sender = m ^. msg1006_reference ^. antennaReference_station
     m' <- fromMsg1006 m
-    return $ Just [SBPMsgBasePosEcef m' $ toSBP m' $ toSender sender]
-  _rtcm3Msg -> return Nothing
+    return [SBPMsgBasePosEcef m' $ toSBP m' $ toSender sender]
+  _rtcm3Msg -> return mempty
+
+newStore :: IO Store
+newStore = do
+  day <- utctDay <$> getCurrentTime
+  let wn = fromIntegral $ div (diffDays day (fromGregorian 1980 1 6)) 7
+  Store <$> newIORef wn
+
