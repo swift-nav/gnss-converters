@@ -20,7 +20,7 @@ import           System.IO
 
 main :: IO ()
 main = do
-  s <- liftIO $ newStore
+  s <- newStore
   runResourceT $ runConvertT s $
     sourceHandle stdin    =$=
     conduitDecode         =$=
