@@ -80,6 +80,7 @@ test-suite test
                      , gnss-converters
                      , lens
                      , resourcet
+                     , rtcm
                      , sbp
                      , tasty
                      , tasty-hunit

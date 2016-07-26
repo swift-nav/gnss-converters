@@ -21,6 +21,7 @@ import qualified Data.Conduit.List                 as CL
 import           Data.Conduit.Serialization.Binary
 import           Data.HashMap.Strict
 import           Data.IORef
+import           Data.RTCM3
 import           Data.RTCM3.SBP
 import           Data.RTCM3.SBP.Types
 import           Data.Word
@@ -31,8 +32,8 @@ import           Test.Tasty.HUnit
 
 decodeRTCMFile :: FilePath -> IO [SBPMsg]
 decodeRTCMFile filename = do
-  wn <- liftIO $ newIORef 1906
-  runResourceT $ runConvertT (Store wn) $ runConduit  $
+  s <- Store <$> newIORef 1906 <*> newIORef mempty
+  runResourceT $ runConvertT s $ runConduit  $
     sourceFile filename   =$=
     conduitDecode         =$=
     CL.concatMapM convert $$
@@ -42,7 +43,7 @@ basePosition :: MsgBasePosEcef -> (Double, Double, Double)
 basePosition msg' = ( msg' ^. msgBasePosEcef_x
                     , msg' ^. msgBasePosEcef_y
                     , msg' ^. msgBasePosEcef_z
-                   )
+                    )
 
 isL1 :: PackedObsContent -> Bool
 isL1 obs = (obs ^. packedObsContent_sid ^. gnssSignal_code) == l1CSidCode
@@ -211,9 +212,39 @@ testToWn =
        toWn 57593 @?= 1907
     ]
 
+testUpdateGPSTime :: TestTree
+testUpdateGPSTime =
+  testGroup "Update GPS Time"
+    [ testCase "old TOW < new TOW" $ do
+        let hdr = newHdr 2
+            old = ObsGPSTime 1 10
+            new = updateGPSTime hdr old
+        new ^. obsGPSTime_wn @?= 10
+    , testCase "old TOW = new TOW" $ do
+        let hdr = newHdr 1
+            old = ObsGPSTime 1 10
+            new = updateGPSTime hdr old
+        new ^. obsGPSTime_wn @?= 10
+    , testCase "old TOW > new TOW" $ do
+        let hdr = newHdr 0
+            old = ObsGPSTime 1 10
+            new = updateGPSTime hdr old
+        new ^. obsGPSTime_wn @?= 11
+    ] where
+      newHdr tow = GpsObservationHeader
+        { _gpsObservationHeader_num               = undefined
+        , _gpsObservationHeader_station           = undefined
+        , _gpsObservationHeader_tow               = tow
+        , _gpsObservationHeader_synchronous       = undefined
+        , _gpsObservationHeader_n                 = undefined
+        , _gpsObservationHeader_smoothing         = undefined
+        , _gpsObservationHeader_smoothingInterval = undefined
+        }
+
 tests :: TestTree
 tests =
   testGroup "RTCM3 to SBP conversion tests"
     [ testMsg1004
     , testToWn
+    , testUpdateGPSTime
     ]
