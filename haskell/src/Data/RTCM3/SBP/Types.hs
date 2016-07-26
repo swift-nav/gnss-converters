@@ -27,6 +27,9 @@ import Control.Monad.Trans.Control
 import Control.Monad.Trans.Resource
 import Data.IORef
 import Data.Word
+import SwiftNav.SBP
+
+type GPSTimeMap = HashMap Word16 ObsGPSTime
 
 newtype ConvertT e m a = ConvertT { unConvertT :: ReaderT e m a }
   deriving
@@ -58,7 +61,8 @@ instance MonadBase b m => MonadBase b (ConvertT r m) where
     liftBase = liftBaseDefault
 
 data Store = Store
-  { _storeWn :: IORef Word16
+  { _storeWn         :: IORef Word16
+  , _storeGPSTimeMap :: IORef GPSTimeMap
   } deriving ( Eq )
 
 $(makeClassy ''Store)

@@ -123,19 +123,48 @@ maxObsPerMessage = (maxPayloadSize - headerSize) `div` packedObsSize
 
 
 --------------------------------------------------------------------------------
+-- General utilities
+
+
+modifyIORef'' :: MonadIO m => IORef a -> (a -> (a, b)) -> m b
+modifyIORef'' ref f = do
+  x <- liftIO $ readIORef ref
+  let (x', y) = f x
+  liftIO $ writeIORef ref x'
+  x' `seq` return y
+
+
+--------------------------------------------------------------------------------
 -- GNSS RTCM observation reconstruction utilities
 
 
 fromEcefVal :: Int64 -> Double
 fromEcefVal x = fromIntegral x / 10000
 
-toGPSTime :: MonadStore e m => GpsObservationHeader -> m ObsGPSTime
-toGPSTime hdr = do
+newGPSTime :: MonadStore e m => GpsObservationHeader -> m ObsGPSTime
+newGPSTime hdr = do
   wn <- view storeWn >>= liftIO . readIORef
   return ObsGPSTime
     { _obsGPSTime_tow = hdr ^. gpsObservationHeader_tow
     , _obsGPSTime_wn  = wn
     }
+
+-- | If incoming TOW is less than stored TOW, rollover WN.
+updateGPSTime :: GpsObservationHeader -> ObsGPSTime -> ObsGPSTime
+updateGPSTime hdr gpsTime =
+  gpsTime & obsGPSTime_tow .~ hdr ^. gpsObservationHeader_tow &
+    if hdr ^. gpsObservationHeader_tow >= gpsTime ^. obsGPSTime_tow then id else
+      obsGPSTime_wn %~ (+ 1)
+
+-- | Produce GPS Time from Observation header, handling WN rollover.
+toGPSTime :: MonadStore e m => GpsObservationHeader -> m ObsGPSTime
+toGPSTime hdr = do
+  gpsTimeMap <- view storeGPSTimeMap
+  gpsTime    <- newGPSTime hdr
+  modifyIORef'' gpsTimeMap $ \gpsTimeMap' -> do
+    let station  = hdr ^. gpsObservationHeader_station
+        gpsTime' = updateGPSTime hdr $ M.lookupDefault gpsTime station gpsTimeMap'
+    (M.insert station gpsTime' gpsTimeMap', gpsTime')
 
 -- | MJD GPS Epoch - First day in GPS week 0. See DF051 of the RTCM3 spec
 mjdEpoch :: Word16
@@ -417,5 +446,5 @@ newStore :: IO Store
 newStore = do
   day <- utctDay <$> getCurrentTime
   let wn = fromIntegral $ div (diffDays day (fromGregorian 1980 1 6)) 7
-  Store <$> newIORef wn
+  Store <$> newIORef wn <*> newIORef mempty
 
