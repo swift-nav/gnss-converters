@@ -21,7 +21,6 @@ import qualified Data.Conduit.List                 as CL
 import           Data.Conduit.Serialization.Binary
 import           Data.HashMap.Strict
 import           Data.IORef
-import           Data.RTCM3
 import           Data.RTCM3.SBP
 import           Data.RTCM3.SBP.Types
 import           Data.Word
@@ -32,7 +31,7 @@ import           Test.Tasty.HUnit
 
 decodeRTCMFile :: FilePath -> IO [SBPMsg]
 decodeRTCMFile filename = do
-  s <- Store <$> newIORef 1906 <*> newIORef mempty
+  s <- Store <$> newIORef 1906 <*> newIORef mempty <*> newIORef mempty
   runResourceT $ runConvertT s $ runConduit  $
     sourceFile filename   =$=
     conduitDecode         =$=
@@ -216,30 +215,35 @@ testUpdateGPSTime :: TestTree
 testUpdateGPSTime =
   testGroup "Update GPS Time"
     [ testCase "old TOW < new TOW" $ do
-        let hdr = newHdr 2
-            old = ObsGPSTime 1 10
-            new = updateGPSTime hdr old
+        let old = ObsGPSTime 1 10
+            new = updateGPSTime 2 old
         new ^. obsGPSTime_wn @?= 10
     , testCase "old TOW = new TOW" $ do
-        let hdr = newHdr 1
-            old = ObsGPSTime 1 10
-            new = updateGPSTime hdr old
+        let old = ObsGPSTime 1 10
+            new = updateGPSTime 1 old
         new ^. obsGPSTime_wn @?= 10
     , testCase "old TOW > new TOW" $ do
-        let hdr = newHdr 0
-            old = ObsGPSTime 1 10
-            new = updateGPSTime hdr old
+        let old = ObsGPSTime 1 10
+            new = updateGPSTime 0 old
         new ^. obsGPSTime_wn @?= 11
-    ] where
-      newHdr tow = GpsObservationHeader
-        { _gpsObservationHeader_num               = undefined
-        , _gpsObservationHeader_station           = undefined
-        , _gpsObservationHeader_tow               = tow
-        , _gpsObservationHeader_synchronous       = undefined
-        , _gpsObservationHeader_n                 = undefined
-        , _gpsObservationHeader_smoothing         = undefined
-        , _gpsObservationHeader_smoothingInterval = undefined
-        }
+    ]
+
+testUpdateLock :: TestTree
+testUpdateLock =
+  testGroup "Update Lock"
+    [ testCase "old time < new time" $ do
+        let old = Lock 1 10
+            new = updateLock 2 old
+        new ^. lockCounter @?= 10
+    , testCase "old time = new time" $ do
+        let old = Lock 1 10
+            new = updateLock 1 old
+        new ^. lockCounter @?= 10
+    , testCase "old time > new time" $ do
+        let old = Lock 1 10
+            new = updateLock 0 old
+        new ^. lockCounter @?= 11
+    ]
 
 tests :: TestTree
 tests =
@@ -247,4 +251,5 @@ tests =
     [ testMsg1004
     , testToWn
     , testUpdateGPSTime
+    , testUpdateLock
     ]

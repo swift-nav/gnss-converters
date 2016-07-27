@@ -1,3 +1,4 @@
+{-# OPTIONS  -fno-warn-orphans          #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -29,7 +30,18 @@ import Data.IORef
 import Data.Word
 import SwiftNav.SBP
 
+data Lock = Lock
+  { _lockTime    :: Word8
+  , _lockCounter :: Word16
+  } deriving ( Eq )
+
+$(makeLenses ''Lock)
+
 type GPSTimeMap = HashMap Word16 ObsGPSTime
+type LockMap    = HashMap (Word16, GnssSignal) Lock
+
+instance Hashable GnssSignal where
+  hashWithSalt s g = hashWithSalt s (g ^. gnssSignal_sat, g ^. gnssSignal_code, g ^. gnssSignal_reserved)
 
 newtype ConvertT e m a = ConvertT { unConvertT :: ReaderT e m a }
   deriving
@@ -62,6 +74,7 @@ instance MonadBase b m => MonadBase b (ConvertT r m) where
 
 data Store = Store
   { _storeWn         :: IORef Word16
+  , _storeLockMap    :: IORef LockMap
   , _storeGPSTimeMap :: IORef GPSTimeMap
   } deriving ( Eq )
 
