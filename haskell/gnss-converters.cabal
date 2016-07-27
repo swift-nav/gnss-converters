@@ -29,6 +29,7 @@ library
                      , lens
                      , monad-control
                      , mtl
+                     , random
                      , resourcet
                      , rtcm
                      , sbp
