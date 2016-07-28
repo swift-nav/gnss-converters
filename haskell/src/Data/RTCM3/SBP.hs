@@ -197,6 +197,7 @@ invalid_L1 l1 =
 -- See DF011, DF012, and DF018 of the RTCM3 spec
 invalid_L2 :: GpsL2Observation -> Bool
 invalid_L2 l2 =
+  l2 ^. gpsL2Observation_pseudorangeDifference == 0x2000 ||
   l2 ^. gpsL2Observation_carrierMinusCode == 0x80000
 
 -- | Construct metric pseudorange (meters!) from L1 RTCM observation.
