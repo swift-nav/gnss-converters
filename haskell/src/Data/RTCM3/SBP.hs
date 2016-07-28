@@ -10,7 +10,19 @@
 --
 -- RTCMv3 to SBP Conversions.
 
-module Data.RTCM3.SBP where
+module Data.RTCM3.SBP
+  ( l1CSidCode
+  , l2CMSidCode
+  , l2PSidCode
+  , sbpCMinM
+  , q32Width
+  , toWn
+  , mjdEpoch
+  , updateGPSTime
+  , updateLock
+  , convert
+  , newStore
+  ) where
 
 import           BasicPrelude
 import           Control.Lens
