@@ -434,11 +434,11 @@ fromMsg1002 m = do
 fromObservation1004 :: MonadStore e m => Word16 -> Observation1004 -> m [PackedObsContent]
 fromObservation1004 station obs =
   -- Only lower set of PRN numbers (1-32) are supported
-  if sat > maxSats || invalid_L1 l1 then return mempty else do
-    obs1 <- fromL1SatelliteObservation station sat l1 l1e
-    if invalid_L2 l2 then return [obs1] else do
-      obs2 <- fromL2SatelliteObservation station sat l1 l1e l2 l2e
-      return $ maybe [obs1] (: [obs1]) obs2
+  if sat > maxSats || invalid_L2 l2 then return mempty else do
+    obs2 <- fromL2SatelliteObservation station sat l1 l1e l2 l2e
+    if invalid_L1 l1 then return $ maybeToList obs2 else do
+      obs1 <- fromL1SatelliteObservation station sat l1 l1e
+      return $ obs1 : maybeToList obs2
       where
         sat = obs ^. observation1004_sat
         l1  = obs ^. observation1004_l1
