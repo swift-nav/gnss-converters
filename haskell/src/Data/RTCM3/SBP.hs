@@ -184,6 +184,21 @@ mjdEpoch = 44244
 toWn :: Word16 -> Word16
 toWn mjd = (mjd - mjdEpoch) `div` 7
 
+-- | Determine whether an L1 RTCM observation is invalid.
+--
+-- See DF011 and DF012 of the RTCM3 spec
+invalid_L1 :: GpsL1Observation -> Bool
+invalid_L1 l1 =
+  l1 ^. gpsL1Observation_pseudorange == 0x80000      ||
+  l1 ^. gpsL1Observation_carrierMinusCode == 0x80000
+
+-- | Determine whether an L1 + L2 RTCM observation is invalid.
+--
+-- See DF011, DF012, and DF018 of the RTCM3 spec
+invalid_L2 :: GpsL1Observation -> GpsL2Observation -> Bool
+invalid_L2 l1 l2 = invalid_L1 l1                     ||
+  l2 ^. gpsL2Observation_carrierMinusCode == 0x80000
+
 -- | Construct metric pseudorange (meters!) from L1 RTCM observation.
 --
 -- See DF011, pg. 3-16 of the RTCM3 spec
@@ -392,7 +407,7 @@ toSender = (.|. 0xf00)
 fromObservation1002 :: MonadStore e m => Word16 -> Observation1002 -> m [PackedObsContent]
 fromObservation1002 station obs =
   -- Only lower set of PRN numbers (1-32) are supported
-  if sat > maxSats then return mempty else do
+  if sat > maxSats || invalid_L1 l1 then return mempty else do
     obs1 <- fromL1SatelliteObservation station sat l1 l1e
     return [obs1]
     where
@@ -418,7 +433,7 @@ fromMsg1002 m = do
 fromObservation1004 :: MonadStore e m => Word16 -> Observation1004 -> m [PackedObsContent]
 fromObservation1004 station obs =
   -- Only lower set of PRN numbers (1-32) are supported
-  if sat > maxSats then return mempty else do
+  if sat > maxSats || invalid_L2 l1 l2 then return mempty else do
     obs1 <- fromL1SatelliteObservation station sat l1 l1e
     obs2 <- fromL2SatelliteObservation station sat l1 l1e l2 l2e
     return $ maybe [obs1] (: [obs1]) obs2
