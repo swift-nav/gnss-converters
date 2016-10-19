@@ -112,18 +112,32 @@ l2PSidCode = 6
 codeIndicator_L2C :: Word8
 codeIndicator_L2C = 0
 
--- | L2P code indicator value
+-- | L2P code direct indicator value
 --
 -- See DF016, pg. 3-17 of the RTCM3 spec
-codeIndicator_L2PD :: Word8
-codeIndicator_L2PD = 1
+codeIndicator_L2P :: Word8
+codeIndicator_L2P = 1
+
+-- | L2P code cross-correlated indicator value
+--
+-- See DF016, pg. 3-17 of the RTCM3 spec
+codeIndicator_L2D :: Word8
+codeIndicator_L2D = 2
+
+-- | L2P code correlated indicator value
+--
+-- See DF016, pg. 3-17 of the RTCM3 spec
+codeIndicator_L2W :: Word8
+codeIndicator_L2W = 3
 
 -- | Map L2 codes to SBP GnssSignal codes
 --
 l2codeToSBPSignalCode :: HashMap Word8 Word8
 l2codeToSBPSignalCode = M.fromList
-  [ (codeIndicator_L2C,  l2CMSidCode)
-  , (codeIndicator_L2PD, l2PSidCode)
+  [ (codeIndicator_L2C, l2CMSidCode)
+  , (codeIndicator_L2P, l2PSidCode)
+  , (codeIndicator_L2D, l2PSidCode)
+  , (codeIndicator_L2W, l2PSidCode)
   ]
 
 -- | Maximum number of packed observations to allow in a single SBP message.
@@ -344,7 +358,7 @@ fromL1SatelliteObservation :: MonadStore e m
                            -> m PackedObsContent
 fromL1SatelliteObservation station sat l1 l1e = do
   -- Checks GPS L1 code indicator for RTCM message 1002.
-  -- See DF016, pg. 3-17 of the RTCM3 spec.
+  -- See DF010, pg. 3-17 of the RTCM3 spec.
   let sid = toL1GnssSignal sat l1
   lock    <- toLock station sid $ l1 ^. gpsL1Observation_lockTime
   return PackedObsContent
