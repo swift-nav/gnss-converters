@@ -358,7 +358,7 @@ fromL1SatelliteObservation :: MonadStore e m
                            -> m PackedObsContent
 fromL1SatelliteObservation station sat l1 l1e = do
   -- Checks GPS L1 code indicator for RTCM message 1002.
-  -- See DF016, pg. 3-17 of the RTCM3 spec.
+  -- See DF010, pg. 3-17 of the RTCM3 spec.
   let sid = toL1GnssSignal sat l1
   lock    <- toLock station sid $ l1 ^. gpsL1Observation_lockTime
   return PackedObsContent
