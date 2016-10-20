@@ -215,16 +215,16 @@ toWn mjd = (mjd - mjdEpoch) `div` 7
 -- See DF011 and DF012 of the RTCM3 spec
 invalid_L1 :: GpsL1Observation -> Bool
 invalid_L1 l1 =
-  l1 ^. gpsL1Observation_pseudorange == 0x80000      ||
-  l1 ^. gpsL1Observation_carrierMinusCode == 0x80000
+  l1 ^. gpsL1Observation_pseudorange == 524288 ||
+  l1 ^. gpsL1Observation_carrierMinusCode == -524288
 
 -- | Determine whether an L1 + L2 RTCM observation is invalid.
 --
 -- See DF011, DF012, and DF018 of the RTCM3 spec
 invalid_L2 :: GpsL2Observation -> Bool
 invalid_L2 l2 =
-  l2 ^. gpsL2Observation_pseudorangeDifference == 0x2000 ||
-  l2 ^. gpsL2Observation_carrierMinusCode == 0x80000
+  l2 ^. gpsL2Observation_pseudorangeDifference == -8192 ||
+  l2 ^. gpsL2Observation_carrierMinusCode == -524288
 
 -- | Construct metric pseudorange (meters!) from L1 RTCM observation.
 --
