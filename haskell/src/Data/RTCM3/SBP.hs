@@ -432,15 +432,18 @@ toSender = (.|. 0xf00)
 -- | Construct an L1 SBP PackedObsContent from an RTCM Msg 1002.
 --
 fromObservation1002 :: MonadStore e m => Word16 -> Observation1002 -> m [PackedObsContent]
-fromObservation1002 station obs =
-  -- Only lower set of PRN numbers (1-32) are supported
-  if sat > maxSats || invalid_L1 l1 then return mempty else do
-    obs1 <- fromL1SatelliteObservation station sat l1 l1e
-    return [obs1]
-    where
-      sat = obs ^. observation1002_sat
-      l1  = obs ^. observation1002_l1
-      l1e = obs ^. observation1002_l1e
+fromObservation1002 station obs = do
+  obs1 <- fromL1SatelliteObservation station sat l1 l1e
+  return $
+    -- Only lower set of PRN numbers (1-32) are supported
+    if sat > maxSats then mempty else
+      if invalid_L1 l1 then mempty else
+        [obs1]
+  where
+    sat = obs ^. observation1002_sat
+    l1  = obs ^. observation1002_l1
+    l1e = obs ^. observation1002_l1e
+
 
 -- | Convert an RTCM L1 1002 observation into an SBP MsgObs.
 --
@@ -458,19 +461,23 @@ fromMsg1002 m = do
 -- | Construct an L1/L2 SBP PackedObsContent from an RTCM Msg 1004.
 --
 fromObservation1004 :: MonadStore e m => Word16 -> Observation1004 -> m [PackedObsContent]
-fromObservation1004 station obs =
-  -- Only lower set of PRN numbers (1-32) are supported
-  if sat > maxSats || invalid_L2 l2 then return mempty else do
-    obs2 <- fromL2SatelliteObservation station sat l1 l1e l2 l2e
-    if invalid_L1 l1 then return $ maybeToList obs2 else do
-      obs1 <- fromL1SatelliteObservation station sat l1 l1e
-      return $ obs1 : maybeToList obs2
-      where
-        sat = obs ^. observation1004_sat
-        l1  = obs ^. observation1004_l1
-        l1e = obs ^. observation1004_l1e
-        l2  = obs ^. observation1004_l2
-        l2e = obs ^. observation1004_l2e
+fromObservation1004 station obs = do
+  obs1 <- fromL1SatelliteObservation station sat l1 l1e
+  obs2 <- fromL2SatelliteObservation station sat l1 l1e l2 l2e
+  return $
+    -- Only lower set of PRN numbers (1-32) are supported
+    if sat > maxSats then mempty else
+      if invalid_L1 l1 && invalid_L2 l2 then mempty else
+        if invalid_L1 l1 then maybeToList obs2 else
+          if invalid_L2 l2 then [obs1] else
+            obs1 : maybeToList obs2
+  where
+    sat = obs ^. observation1004_sat
+    l1  = obs ^. observation1004_l1
+    l1e = obs ^. observation1004_l1e
+    l2  = obs ^. observation1004_l2
+    l2e = obs ^. observation1004_l2e
+
 
 -- | Convert an RTCM L1+L2 1004 observation into multiple SBP MsgObs.
 --
