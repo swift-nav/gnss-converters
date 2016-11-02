@@ -18,7 +18,7 @@ module Data.RTCM3.SBP
   , q32Width
   , toWn
   , mjdEpoch
-  , updateGPSTime
+  , updateGpsTime
   , updateLock
   , convert
   , newStore
@@ -173,31 +173,31 @@ maybe' m b a = maybe b a m
 fromEcefVal :: Int64 -> Double
 fromEcefVal x = fromIntegral x / 10000
 
-newGPSTime :: MonadStore e m => Word32 -> m ObsGPSTime
-newGPSTime tow = do
+newGpsTime :: MonadStore e m => Word32 -> m GpsTime
+newGpsTime tow = do
   wn <- view storeWn >>= liftIO . readIORef
-  return ObsGPSTime
-    { _obsGPSTime_tow = tow
-    , _obsGPSTime_wn  = wn
+  return GpsTime
+    { _gpsTime_tow = tow
+    , _gpsTime_wn  = wn
     }
 
 -- | If incoming TOW is less than stored TOW, rollover WN.
 --
-updateGPSTime :: Word32 -> ObsGPSTime -> ObsGPSTime
-updateGPSTime tow gpsTime =
-  gpsTime & obsGPSTime_tow .~ tow &
-    if tow >= gpsTime ^. obsGPSTime_tow then id else
-      obsGPSTime_wn %~ (+ 1)
+updateGpsTime :: Word32 -> GpsTime -> GpsTime
+updateGpsTime tow gpsTime =
+  gpsTime & gpsTime_tow .~ tow &
+    if tow >= gpsTime ^. gpsTime_tow then id else
+      gpsTime_wn %~ (+ 1)
 
 -- | Produce GPS Time from Observation header, handling WN rollover.
 --
-toGPSTime :: MonadStore e m => GpsObservationHeader -> m ObsGPSTime
-toGPSTime hdr = do
+toGpsTime :: MonadStore e m => GpsObservationHeader -> m GpsTime
+toGpsTime hdr = do
   let tow      = hdr ^. gpsObservationHeader_tow
       station  = hdr ^. gpsObservationHeader_station
-  gpsTime      <- newGPSTime tow
-  gpsTimeMap   <- view storeGPSTimeMap
-  liftIO $ modifyMap gpsTimeMap gpsTime station $ updateGPSTime tow
+  gpsTime      <- newGpsTime tow
+  gpsTimeMap   <- view storeGpsTimeMap
+  liftIO $ modifyMap gpsTimeMap gpsTime station $ updateGpsTime tow
 
 -- | MJD GPS Epoch - First day in GPS week 0. See DF051 of the RTCM3 spec
 --
@@ -329,7 +329,7 @@ fromGpsObservationHeader :: MonadStore e m
                          -> GpsObservationHeader -- ^ RTCM observation header
                          -> m ObservationHeader
 fromGpsObservationHeader totalMsgs n hdr = do
-  t <- toGPSTime hdr
+  t <- toGpsTime hdr
   return ObservationHeader
     { _observationHeader_t     = t
     -- First nibble is the size of the sequence (n), second nibble is the

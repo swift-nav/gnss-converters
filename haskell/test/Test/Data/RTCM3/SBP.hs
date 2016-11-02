@@ -156,39 +156,39 @@ testMsg1004 =
         assertExpectedBase (msgs !! 5) expectedBasePos
         -- Message 1
         assertObsHeader (msgs !! 1) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86354000 1906
+            _observationHeader_t     = GpsTime 86354000 1906
           , _observationHeader_n_obs = 32
           }
         assertMsgObsLength (msgs !! 1) 15
         assertMsgObs (msgs !! 1)
         -- Message 2
         assertObsHeader (msgs !! 2) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86354000 1906
+            _observationHeader_t     = GpsTime 86354000 1906
           , _observationHeader_n_obs = 33
           }
         assertMsgObs (msgs !! 2)
         assertMsgObsLength (msgs !! 2) 1
         -- Message 3
         assertObsHeader (msgs !! 3) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86355000 1906
+            _observationHeader_t     = GpsTime 86355000 1906
           , _observationHeader_n_obs = 32
           }
         assertMsgObsLength (msgs !! 3) 15
         -- Message 4
         assertObsHeader (msgs !! 4) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86355000 1906
+            _observationHeader_t     = GpsTime 86355000 1906
           , _observationHeader_n_obs = 33
           }
         assertMsgObsLength (msgs !! 4) 1
         -- Message 6
         assertObsHeader (msgs !! 6) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86356000 1906
+            _observationHeader_t     = GpsTime 86356000 1906
           , _observationHeader_n_obs = 32
           }
         assertMsgObsLength (msgs !! 6) 15
         -- Message 7
         assertObsHeader (msgs !! 7) ObservationHeader {
-            _observationHeader_t     = ObsGPSTime 86356000 1906
+            _observationHeader_t     = GpsTime 86356000 1906
           , _observationHeader_n_obs = 33
           }
         assertMsgObsLength (msgs !! 7) 1
@@ -211,21 +211,21 @@ testToWn =
        toWn 57593 @?= 1907
     ]
 
-testUpdateGPSTime :: TestTree
-testUpdateGPSTime =
+testUpdateGpsTime :: TestTree
+testUpdateGpsTime =
   testGroup "Update GPS Time"
     [ testCase "old TOW < new TOW" $ do
-        let old = ObsGPSTime 1 10
-            new = updateGPSTime 2 old
-        new ^. obsGPSTime_wn @?= 10
+        let old = GpsTime 1 10
+            new = updateGpsTime 2 old
+        new ^. gpsTime_wn @?= 10
     , testCase "old TOW = new TOW" $ do
-        let old = ObsGPSTime 1 10
-            new = updateGPSTime 1 old
-        new ^. obsGPSTime_wn @?= 10
+        let old = GpsTime 1 10
+            new = updateGpsTime 1 old
+        new ^. gpsTime_wn @?= 10
     , testCase "old TOW > new TOW" $ do
-        let old = ObsGPSTime 1 10
-            new = updateGPSTime 0 old
-        new ^. obsGPSTime_wn @?= 11
+        let old = GpsTime 1 10
+            new = updateGpsTime 0 old
+        new ^. gpsTime_wn @?= 11
     ]
 
 testUpdateLock :: TestTree
@@ -250,6 +250,6 @@ tests =
   testGroup "RTCM3 to SBP conversion tests"
     [ testMsg1004
     , testToWn
-    , testUpdateGPSTime
+    , testUpdateGpsTime
     , testUpdateLock
     ]

@@ -4,7 +4,7 @@ packages:
 flags: {}
 extra-deps:
 - rtcm-0.1.5
-- sbp-1.0.0
+- sbp-1.2.7
 - word24-1.0.7
 - binary-bits-0.5
 - HUnit-approx-1.0

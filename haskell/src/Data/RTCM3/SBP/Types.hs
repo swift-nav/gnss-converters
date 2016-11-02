@@ -37,7 +37,7 @@ data Lock = Lock
 
 $(makeLenses ''Lock)
 
-type GPSTimeMap = HashMap Word16 ObsGPSTime
+type GpsTimeMap = HashMap Word16 GpsTime
 type LockMap    = HashMap (Word16, GnssSignal) Lock
 
 instance Hashable GnssSignal where
@@ -75,7 +75,7 @@ instance MonadBase b m => MonadBase b (ConvertT r m) where
 data Store = Store
   { _storeWn         :: IORef Word16
   , _storeLockMap    :: IORef LockMap
-  , _storeGPSTimeMap :: IORef GPSTimeMap
+  , _storeGpsTimeMap :: IORef GpsTimeMap
   } deriving ( Eq )
 
 $(makeClassy ''Store)
