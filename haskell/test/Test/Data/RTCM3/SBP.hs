@@ -44,27 +44,27 @@ basePosition msg' = ( msg' ^. msgBasePosEcef_x
                     , msg' ^. msgBasePosEcef_z
                     )
 
-isL1 :: PackedObsContent -> Bool
-isL1 obs = (obs ^. packedObsContent_sid ^. gnssSignal_code) == l1CSidCode
+isL1 :: PackedObsContentDepC -> Bool
+isL1 obs = (obs ^. packedObsContentDepC_sid ^. gnssSignal_code) == l1CSidCode
 
-isL2 :: PackedObsContent -> Bool
+isL2 :: PackedObsContentDepC -> Bool
 isL2 obs = code == l2CMSidCode || code == l2PSidCode
   where
-    code = obs ^. packedObsContent_sid ^. gnssSignal_code
+    code = obs ^. packedObsContentDepC_sid ^. gnssSignal_code
 
-sat :: PackedObsContent -> Word16
-sat obs = obs ^. packedObsContent_sid ^. gnssSignal_sat
+sat :: PackedObsContentDepC -> Word16
+sat obs = obs ^. packedObsContentDepC_sid ^. gnssSignal_sat
 
-cn0 :: PackedObsContent -> Double
-cn0 obs = 0.25 * fromIntegral (obs ^. packedObsContent_cn0)
+cn0 :: PackedObsContentDepC -> Double
+cn0 obs = 0.25 * fromIntegral (obs ^. packedObsContentDepC_cn0)
 
-pseudorange :: PackedObsContent -> Double
-pseudorange obs = fromIntegral (obs ^. packedObsContent_P) / sbpCMinM
+pseudorange :: PackedObsContentDepC -> Double
+pseudorange obs = fromIntegral (obs ^. packedObsContentDepC_P) / sbpCMinM
 
-carrierPhase :: PackedObsContent -> Double
+carrierPhase :: PackedObsContentDepC -> Double
 carrierPhase obs = whole + fraction
   where
-    phase    = obs ^. packedObsContent_L
+    phase    = obs ^. packedObsContentDepC_L
     whole    = fromIntegral (phase ^. carrierPhase_i)
     fraction = fromIntegral (phase ^. carrierPhase_f) / q32Width
 
@@ -73,13 +73,13 @@ assertExpectedBase (SBPMsgBasePosEcef posEcef _) pos =
   assertEqual "Base station position error!" pos $ basePosition posEcef
 assertExpectedBase _                             _   = assertFailure "Invalid message type!"
 
-assertObsHeader :: SBPMsg -> ObservationHeader -> Assertion
-assertObsHeader (SBPMsgObs obs _) header =
-  assertEqual "Observation header is not equal" header $ obs ^. msgObs_header
+assertObsHeader :: SBPMsg -> ObservationHeaderDep -> Assertion
+assertObsHeader (SBPMsgObsDepC obs _) header =
+  assertEqual "Observation header is not equal" header $ obs ^. msgObsDepC_header
 assertObsHeader _                 _      = assertFailure "Invalid message type!"
 
 assertObs :: HashMap Word16 (Double, Double, Double)
-          -> PackedObsContent
+          -> PackedObsContentDepC
           -> Double        -- ^ Pseudorange tolerance (meters)
           -> Double        -- ^ Carrier phase tolerance (cycles)
           -> Word8         -- ^ Satellite band code
@@ -88,7 +88,7 @@ assertObs truth obs ptol ctol sig = do
   let prn         = 1 + sat obs
       def         = (0, 0, 0)
       (p, c, snr) = lookupDefault def prn truth
-      code        = obs ^. packedObsContent_sid ^. gnssSignal_code
+      code        = obs ^. packedObsContentDepC_sid ^. gnssSignal_code
       msg'        = textToString $ "PRN=" ++ show prn ++ " CODE=" ++ show code
   -- Pseudorange representation error
   assertApproxEqual ("Incorrect pseudorange" ++ msg')   ptol p $ pseudorange obs
@@ -99,11 +99,11 @@ assertObs truth obs ptol ctol sig = do
   assertEqual ("Incorrect code" ++ msg') sig   code
 
 assertMsgObs :: SBPMsg -> Assertion
-assertMsgObs (SBPMsgObs obs' _) = do
+assertMsgObs (SBPMsgObsDepC obs' _) = do
   let ptol    = 0.020 -- 2cm representation errorn
       ctol_L1 = 0.005 -- carrier phase / L1 wavelength = 0.001m/0.190m cycles
       ctol_L2 = 0.004 -- carrier phase / L2 wavelength = 0.001m/0.250m cycles
-  forM_ (obs' ^. msgObs_obs) $ \packed ->
+  forM_ (obs' ^. msgObsDepC_obs) $ \packed ->
     case () of
       _ |  isL1 packed -> assertObs testObs_L1 packed ptol ctol_L1 l1CSidCode
         |  isL2 packed -> assertObs testObs_L2 packed ptol ctol_L2 l2PSidCode
@@ -111,7 +111,7 @@ assertMsgObs (SBPMsgObs obs' _) = do
 assertMsgObs _                  =  assertFailure "Invalid message type!"
 
 assertMsgObsLength :: SBPMsg -> Int -> Assertion
-assertMsgObsLength (SBPMsgObs obs' _) len = length (obs' ^. msgObs_obs) @?= len
+assertMsgObsLength (SBPMsgObsDepC obs' _) len = length (obs' ^. msgObsDepC_obs) @?= len
 assertMsgObsLength _                  _   = assertFailure "Invalid message type!"
 
 -- | L1 observations: PRN => Pseudorange, Carrier Phase, SNR
@@ -155,41 +155,41 @@ testMsg1004 =
         assertExpectedBase (msgs !! 0) expectedBasePos
         assertExpectedBase (msgs !! 5) expectedBasePos
         -- Message 1
-        assertObsHeader (msgs !! 1) ObservationHeader {
-            _observationHeader_t     = GpsTime 86354000 1906
-          , _observationHeader_n_obs = 32
+        assertObsHeader (msgs !! 1) ObservationHeaderDep {
+            _observationHeaderDep_t     = GpsTime 86354000 1906
+          , _observationHeaderDep_n_obs = 32
           }
         assertMsgObsLength (msgs !! 1) 15
         assertMsgObs (msgs !! 1)
         -- Message 2
-        assertObsHeader (msgs !! 2) ObservationHeader {
-            _observationHeader_t     = GpsTime 86354000 1906
-          , _observationHeader_n_obs = 33
+        assertObsHeader (msgs !! 2) ObservationHeaderDep {
+            _observationHeaderDep_t     = GpsTime 86354000 1906
+          , _observationHeaderDep_n_obs = 33
           }
         assertMsgObs (msgs !! 2)
         assertMsgObsLength (msgs !! 2) 1
         -- Message 3
-        assertObsHeader (msgs !! 3) ObservationHeader {
-            _observationHeader_t     = GpsTime 86355000 1906
-          , _observationHeader_n_obs = 32
+        assertObsHeader (msgs !! 3) ObservationHeaderDep {
+            _observationHeaderDep_t     = GpsTime 86355000 1906
+          , _observationHeaderDep_n_obs = 32
           }
         assertMsgObsLength (msgs !! 3) 15
         -- Message 4
-        assertObsHeader (msgs !! 4) ObservationHeader {
-            _observationHeader_t     = GpsTime 86355000 1906
-          , _observationHeader_n_obs = 33
+        assertObsHeader (msgs !! 4) ObservationHeaderDep {
+            _observationHeaderDep_t     = GpsTime 86355000 1906
+          , _observationHeaderDep_n_obs = 33
           }
         assertMsgObsLength (msgs !! 4) 1
         -- Message 6
-        assertObsHeader (msgs !! 6) ObservationHeader {
-            _observationHeader_t     = GpsTime 86356000 1906
-          , _observationHeader_n_obs = 32
+        assertObsHeader (msgs !! 6) ObservationHeaderDep {
+            _observationHeaderDep_t     = GpsTime 86356000 1906
+          , _observationHeaderDep_n_obs = 32
           }
         assertMsgObsLength (msgs !! 6) 15
         -- Message 7
-        assertObsHeader (msgs !! 7) ObservationHeader {
-            _observationHeader_t     = GpsTime 86356000 1906
-          , _observationHeader_n_obs = 33
+        assertObsHeader (msgs !! 7) ObservationHeaderDep {
+            _observationHeaderDep_t     = GpsTime 86356000 1906
+          , _observationHeaderDep_n_obs = 33
           }
         assertMsgObsLength (msgs !! 7) 1
      ]
