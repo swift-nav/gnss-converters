@@ -327,15 +327,15 @@ fromGpsObservationHeader :: MonadStore e m
                          => Word8                -- ^ Total messages
                          -> Word8                -- ^ Message in sequence
                          -> GpsObservationHeader -- ^ RTCM observation header
-                         -> m ObservationHeader
+                         -> m ObservationHeaderDep
 fromGpsObservationHeader totalMsgs n hdr = do
   t <- toGpsTime hdr
-  return ObservationHeader
-    { _observationHeader_t     = t
+  return ObservationHeaderDep
+    { _observationHeaderDep_t     = t
     -- First nibble is the size of the sequence (n), second nibble is the
     -- zero-indexed counter (ith packet of n). See observation header packing
     -- https://github.com/swift-nav/libsbp/blob/master/spec/yaml/swiftnav/sbp/observation.yaml#L63
-    , _observationHeader_n_obs = totalMsgs `shiftL` 4 .|. n
+    , _observationHeaderDep_n_obs = totalMsgs `shiftL` 4 .|. n
     }
 
 -- | Construct an L1 GnssSignal
@@ -355,18 +355,18 @@ fromL1SatelliteObservation :: MonadStore e m
                            -> Word8               -- ^ Satellite PRN
                            -> GpsL1Observation
                            -> GpsL1ExtObservation
-                           -> m PackedObsContent
+                           -> m PackedObsContentDepC
 fromL1SatelliteObservation station sat l1 l1e = do
   -- Checks GPS L1 code indicator for RTCM message 1002.
   -- See DF010, pg. 3-17 of the RTCM3 spec.
   let sid = toL1GnssSignal sat l1
   lock    <- toLock station sid $ l1 ^. gpsL1Observation_lockTime
-  return PackedObsContent
-    { _packedObsContent_P    = toP_L1 l1 l1e
-    , _packedObsContent_L    = toL_L1 l1 l1e
-    , _packedObsContent_cn0  = toCn0_L1 l1e
-    , _packedObsContent_lock = lock
-    , _packedObsContent_sid  = sid
+  return PackedObsContentDepC
+    { _packedObsContentDepC_P    = toP_L1 l1 l1e
+    , _packedObsContentDepC_L    = toL_L1 l1 l1e
+    , _packedObsContentDepC_cn0  = toCn0_L1 l1e
+    , _packedObsContentDepC_lock = lock
+    , _packedObsContentDepC_sid  = sid
     }
 
 -- | Construct an L2 GnssSignal
@@ -389,18 +389,18 @@ fromL2SatelliteObservation :: MonadStore e m
                            -> GpsL1ExtObservation
                            -> GpsL2Observation
                            -> GpsL2ExtObservation
-                           -> m (Maybe PackedObsContent)
+                           -> m (Maybe PackedObsContentDepC)
 fromL2SatelliteObservation station sat l1 l1e l2 l2e =
   -- Checks GPS L2 code indicator.
   -- See DF016, pg. 3-17 of the RTCM3 spec.
   maybe' (toL2GnssSignal sat l2) (return Nothing) $ \sid -> do
     lock <- toLock station sid $ l2 ^. gpsL2Observation_lockTime
-    return $ Just PackedObsContent
-      { _packedObsContent_P    = toP_L2 l1 l1e l2
-      , _packedObsContent_L    = toL_L2 l1 l1e l2 l2e
-      , _packedObsContent_cn0  = toCn0_L2 l2e
-      , _packedObsContent_lock = lock
-      , _packedObsContent_sid  = sid
+    return $ Just PackedObsContentDepC
+      { _packedObsContentDepC_P    = toP_L2 l1 l1e l2
+      , _packedObsContentDepC_L    = toL_L2 l1 l1e l2 l2e
+      , _packedObsContentDepC_cn0  = toCn0_L2 l2e
+      , _packedObsContentDepC_lock = lock
+      , _packedObsContentDepC_sid  = sid
       }
 
 -- | Construct SBP GPS observation message (possibly chunked).
@@ -409,13 +409,13 @@ chunkToMsgObs :: MonadStore e m
               => GpsObservationHeader -- ^ RTCM observation header
               -> Word8                -- ^ Total messages
               -> Word8                -- ^ Message in sequence
-              -> [PackedObsContent]
-              -> m MsgObs
+              -> [PackedObsContentDepC]
+              -> m MsgObsDepC
 chunkToMsgObs hdr totalMsgs n packed = do
   header <- fromGpsObservationHeader totalMsgs n hdr
-  return MsgObs
-    { _msgObs_header = header
-    , _msgObs_obs    = packed
+  return MsgObsDepC
+    { _msgObsDepC_header = header
+    , _msgObsDepC_obs    = packed
     }
 
 -- | Sender Id is Station Id with high byte or'd in
@@ -431,7 +431,7 @@ toSender = (.|. 0xf00)
 
 -- | Construct an L1 SBP PackedObsContent from an RTCM Msg 1002.
 --
-fromObservation1002 :: MonadStore e m => Word16 -> Observation1002 -> m [PackedObsContent]
+fromObservation1002 :: MonadStore e m => Word16 -> Observation1002 -> m [PackedObsContentDepC]
 fromObservation1002 station obs = do
   obs1 <- fromL1SatelliteObservation station sat l1 l1e
   return $
@@ -449,7 +449,7 @@ fromObservation1002 station obs = do
 --
 -- This chunking takes places because the number of observations in a given 1002
 -- may very well exceed the maximum SBP supported payload size of 255 bytes.
-fromMsg1002 :: MonadStore e m => Msg1002 -> m [MsgObs]
+fromMsg1002 :: MonadStore e m => Msg1002 -> m [MsgObsDepC]
 fromMsg1002 m = do
   let hdr     = m ^. msg1002_header
       station = hdr ^. gpsObservationHeader_station
@@ -460,7 +460,7 @@ fromMsg1002 m = do
 
 -- | Construct an L1/L2 SBP PackedObsContent from an RTCM Msg 1004.
 --
-fromObservation1004 :: MonadStore e m => Word16 -> Observation1004 -> m [PackedObsContent]
+fromObservation1004 :: MonadStore e m => Word16 -> Observation1004 -> m [PackedObsContentDepC]
 fromObservation1004 station obs = do
   obs1 <- fromL1SatelliteObservation station sat l1 l1e
   obs2 <- fromL2SatelliteObservation station sat l1 l1e l2 l2e
@@ -483,7 +483,7 @@ fromObservation1004 station obs = do
 --
 -- This chunking takes places because the number of observations in a given 1004
 -- may very well exceed the maximum SBP supported payload size of 255 bytes.
-fromMsg1004 :: MonadStore e m => Msg1004 -> m [MsgObs]
+fromMsg1004 :: MonadStore e m => Msg1004 -> m [MsgObsDepC]
 fromMsg1004 m = do
   let hdr     = m ^. msg1004_header
       station = hdr ^. gpsObservationHeader_station
@@ -519,11 +519,11 @@ convert = \case
   (RTCM3Msg1002 m _rtcm3) -> do
     let sender = m ^. msg1002_header ^. gpsObservationHeader_station
     m' <- fromMsg1002 m
-    return $ flip fmap m' $ \x -> SBPMsgObs x $ toSBP x $ toSender sender
+    return $ flip fmap m' $ \x -> SBPMsgObsDepC x $ toSBP x $ toSender sender
   (RTCM3Msg1004 m _rtcm3) -> do
     let sender = m ^. msg1004_header ^. gpsObservationHeader_station
     m' <- fromMsg1004 m
-    return $ flip fmap m' $ \x -> SBPMsgObs x $ toSBP x $ toSender sender
+    return $ flip fmap m' $ \x -> SBPMsgObsDepC x $ toSBP x $ toSender sender
   (RTCM3Msg1005 m _rtcm3) -> do
     let sender =  m ^. msg1005_reference ^. antennaReference_station
     m' <- fromMsg1005 m
