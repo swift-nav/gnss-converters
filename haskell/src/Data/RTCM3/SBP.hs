@@ -418,10 +418,10 @@ chunkToMsgObs hdr totalMsgs n packed = do
     , _msgObsDepC_obs    = packed
     }
 
--- | Sender Id is Station Id with high byte or'd in
+-- | 16 bit SBP Sender Id is 12 bit RTCM Station Id with high nibble or'd in
 --
 toSender :: Word16 -> Word16
-toSender = (.|. 0xf00)
+toSender = (.|. 0xf000)
 
 
 --------------------------------------------------------------------------------
@@ -543,4 +543,3 @@ newStore = do
   day <- utctDay <$> getCurrentTime
   let wn = fromIntegral $ div (diffDays day (fromGregorian 1980 1 6)) 7
   Store <$> newIORef wn <*> newIORef mempty <*> newIORef mempty
-
