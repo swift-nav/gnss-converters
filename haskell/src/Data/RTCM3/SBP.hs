@@ -295,6 +295,38 @@ toCn0_L1 = (^. gpsL1ExtObservation_cnr)
 toCn0_L2 :: GpsL2ExtObservation -> Word8
 toCn0_L2 = (^. gpsL2ExtObservation_cnr)
 
+-- | Convert between DF013 and DF019 lock time to DF402 lock time
+--
+toLock :: Word8 -> Word8
+toLock t =
+  if t' < 32 then 0 else
+    if t' < 64 then 1 else
+      if t' < 128 then 2 else
+        if t' < 256 then 3 else
+          if t' < 512 then 4 else
+            if t' < 1024 then 5 else
+              if t' < 2048 then 6 else
+                if t' < 4096 then 7 else
+                  if t' < 8192 then 8 else
+                    if t' < 16384 then 9 else
+                      if t' < 32768 then 10 else
+                        if t' < 65536 then 11 else
+                          if t' < 131072 then 12 else
+                            if t' < 262144 then 13 else
+                              if t' < 524288 then 14 else
+                                15
+  where
+    t' :: Word32
+    t' =
+      1000 *
+        if t <= 23 then fromIntegral t else
+          if t <= 47 then fromIntegral t * 2 - 24 else
+            if t <= 71 then fromIntegral t * 4 - 120 else
+              if t <= 95 then fromIntegral t * 8 - 408 else
+                if t <= 119 then fromIntegral t * 16 - 1176 else
+                  if t <= 126 then fromIntegral t * 32 - 3096 else
+                    937
+
 -- | Construct sequenced SBP observation header
 --
 fromGpsObservationHeader :: MonadStore e m
@@ -337,7 +369,7 @@ fromL1SatelliteObservation sat l1 l1e = do
     , _packedObsContent_L     = toL_L1 l1 l1e
     , _packedObsContent_D     = Doppler 0 0
     , _packedObsContent_cn0   = toCn0_L1 l1e
-    , _packedObsContent_lock  = l1 ^. gpsL1Observation_lockTime
+    , _packedObsContent_lock  = toLock $ l1 ^. gpsL1Observation_lockTime
     , _packedObsContent_sid   = sid
     , _packedObsContent_flags = 0x7 -- Doppler Invalid
                                     -- 1/2 cycle phase ambiguity resolved
@@ -373,7 +405,7 @@ fromL2SatelliteObservation sat l1 l1e l2 l2e =
       , _packedObsContent_L     = toL_L2 l1 l1e l2 l2e
       , _packedObsContent_D     = Doppler 0 0
       , _packedObsContent_cn0   = toCn0_L2 l2e
-      , _packedObsContent_lock  = l2 ^. gpsL2Observation_lockTime
+      , _packedObsContent_lock  = toLock $ l2 ^. gpsL2Observation_lockTime
       , _packedObsContent_sid   = sid
       , _packedObsContent_flags = 0x7 -- Doppler Invalid
                                       -- 1/2 cycle phase ambiguity resolved
