@@ -1,5 +1,5 @@
 name:                  gnss-converters
-version:               0.1.20
+version:               0.2.0
 synopsis:              GNSS Converters.
 description:           Haskell bindings for GNSS converters.
 homepage:              http://github.com/swift-nav/gnss-converters
