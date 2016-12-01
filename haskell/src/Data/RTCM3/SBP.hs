@@ -34,7 +34,6 @@ import           Data.RTCM3
 import           Data.RTCM3.SBP.Types
 import           Data.Time
 import           Data.Word
-import           GHC.Stack
 import           SwiftNav.SBP
 
 
@@ -336,11 +335,14 @@ fromL1SatelliteObservation sat l1 l1e = do
   return PackedObsContent
     { _packedObsContent_P     = toP_L1 l1 l1e
     , _packedObsContent_L     = toL_L1 l1 l1e
-    , _packedObsContent_D     = errorWithStackTrace "D"
+    , _packedObsContent_D     = Doppler 0 0
     , _packedObsContent_cn0   = toCn0_L1 l1e
     , _packedObsContent_lock  = l1 ^. gpsL1Observation_lockTime
     , _packedObsContent_sid   = sid
-    , _packedObsContent_flags = errorWithStackTrace "flags"
+    , _packedObsContent_flags = 0x7 -- Doppler Invalid
+                                    -- 1/2 cycle phase ambiguity resolved
+                                    -- carrier valid
+                                    -- pseudorange valid
     }
 
 -- | Construct an L2 GnssSignal
@@ -369,11 +371,14 @@ fromL2SatelliteObservation sat l1 l1e l2 l2e =
     return $ Just PackedObsContent
       { _packedObsContent_P     = toP_L2 l1 l1e l2
       , _packedObsContent_L     = toL_L2 l1 l1e l2 l2e
-      , _packedObsContent_D     = errorWithStackTrace "D"
+      , _packedObsContent_D     = Doppler 0 0
       , _packedObsContent_cn0   = toCn0_L2 l2e
       , _packedObsContent_lock  = l2 ^. gpsL2Observation_lockTime
       , _packedObsContent_sid   = sid
-      , _packedObsContent_flags = errorWithStackTrace "flags"  
+      , _packedObsContent_flags = 0x7 -- Doppler Invalid
+                                      -- 1/2 cycle phase ambiguity resolved
+                                      -- carrier valid
+                                      -- pseudorange valid
     }
 
 -- | Construct SBP GPS observation message (possibly chunked).
