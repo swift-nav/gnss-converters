@@ -30,15 +30,7 @@ import Data.IORef
 import Data.Word
 import SwiftNav.SBP
 
-data Lock = Lock
-  { _lockTime    :: Word8
-  , _lockCounter :: Word16
-  } deriving ( Eq )
-
-$(makeLenses ''Lock)
-
-type GpsTimeMap = HashMap Word16 GpsTime
-type LockMap    = HashMap (Word16, GnssSignal) Lock
+type GpsTimeMap = HashMap Word16 GpsTimeNano
 
 instance Hashable GnssSignal where
   hashWithSalt s g = hashWithSalt s (g ^. gnssSignal_sat, g ^. gnssSignal_code, g ^. gnssSignal_reserved)
@@ -74,7 +66,6 @@ instance MonadBase b m => MonadBase b (ConvertT r m) where
 
 data Store = Store
   { _storeWn         :: IORef Word16
-  , _storeLockMap    :: IORef LockMap
   , _storeGpsTimeMap :: IORef GpsTimeMap
   } deriving ( Eq )
 
