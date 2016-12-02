@@ -144,8 +144,8 @@ maxObsPerMessage :: Int
 maxObsPerMessage = (maxPayloadSize - headerSize) `div` packedObsSize
   where
     maxPayloadSize = 255
-    headerSize     = 7
-    packedObsSize  = 16
+    headerSize     = 11
+    packedObsSize  = 17
 
 
 --------------------------------------------------------------------------------
