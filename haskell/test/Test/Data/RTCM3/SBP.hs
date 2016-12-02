@@ -158,7 +158,7 @@ testMsg1004 =
             _observationHeader_t     = GpsTimeNano 86354000 0 1906
           , _observationHeader_n_obs = 32
           }
-        assertMsgObsLength (msgs !! 1) 15
+        assertMsgObsLength (msgs !! 1) 14
         assertMsgObs (msgs !! 1)
         -- Message 2
         assertObsHeader (msgs !! 2) ObservationHeader {
@@ -166,31 +166,31 @@ testMsg1004 =
           , _observationHeader_n_obs = 33
           }
         assertMsgObs (msgs !! 2)
-        assertMsgObsLength (msgs !! 2) 1
+        assertMsgObsLength (msgs !! 2) 2
         -- Message 3
         assertObsHeader (msgs !! 3) ObservationHeader {
             _observationHeader_t     = GpsTimeNano 86355000 0 1906
           , _observationHeader_n_obs = 32
           }
-        assertMsgObsLength (msgs !! 3) 15
+        assertMsgObsLength (msgs !! 3) 14
         -- Message 4
         assertObsHeader (msgs !! 4) ObservationHeader {
             _observationHeader_t     = GpsTimeNano 86355000 0 1906
           , _observationHeader_n_obs = 33
           }
-        assertMsgObsLength (msgs !! 4) 1
+        assertMsgObsLength (msgs !! 4) 2
         -- Message 6
         assertObsHeader (msgs !! 6) ObservationHeader {
             _observationHeader_t     = GpsTimeNano 86356000 0 1906
           , _observationHeader_n_obs = 32
           }
-        assertMsgObsLength (msgs !! 6) 15
+        assertMsgObsLength (msgs !! 6) 14
         -- Message 7
         assertObsHeader (msgs !! 7) ObservationHeader {
             _observationHeader_t     = GpsTimeNano 86356000 0 1906
           , _observationHeader_n_obs = 33
           }
-        assertMsgObsLength (msgs !! 7) 1
+        assertMsgObsLength (msgs !! 7) 2
      ]
 
 testToWn :: TestTree
