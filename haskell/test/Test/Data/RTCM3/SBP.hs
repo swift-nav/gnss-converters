@@ -15,6 +15,8 @@ module Test.Data.RTCM3.SBP
 import           BasicPrelude
 import           Control.Lens
 import           Control.Monad.Trans.Resource
+import           Data.Binary
+import qualified Data.ByteString.Lazy             as LBS
 import           Data.Conduit
 import           Data.Conduit.Binary
 import qualified Data.Conduit.List                 as CL
@@ -113,6 +115,9 @@ assertMsgObsLength :: SBPMsg -> Int -> Assertion
 assertMsgObsLength (SBPMsgObs obs' _) len = length (obs' ^. msgObs_obs) @?= len
 assertMsgObsLength _                  _   = assertFailure "Invalid message type!"
 
+assertMsgMaxLength :: SBPMsg -> Assertion
+assertMsgMaxLength m = assertBool "The message is too damn long" $ LBS.length (encode m) <= 255 + 2
+
 -- | L1 observations: PRN => Pseudorange, Carrier Phase, SNR
 --
 -- From fixtures/rinex/ucsf_bard_four_seconds.obs RINEX
@@ -158,6 +163,7 @@ testMsg1004 =
             _observationHeader_t     = GpsTimeNano 86354000 0 1906
           , _observationHeader_n_obs = 32
           }
+        assertMsgMaxLength (msgs !! 1)
         assertMsgObsLength (msgs !! 1) 14
         assertMsgObs (msgs !! 1)
         -- Message 2
@@ -166,30 +172,35 @@ testMsg1004 =
           , _observationHeader_n_obs = 33
           }
         assertMsgObs (msgs !! 2)
+        assertMsgMaxLength (msgs !! 2)
         assertMsgObsLength (msgs !! 2) 2
         -- Message 3
         assertObsHeader (msgs !! 3) ObservationHeader {
             _observationHeader_t     = GpsTimeNano 86355000 0 1906
           , _observationHeader_n_obs = 32
           }
+        assertMsgMaxLength (msgs !! 3)
         assertMsgObsLength (msgs !! 3) 14
         -- Message 4
         assertObsHeader (msgs !! 4) ObservationHeader {
             _observationHeader_t     = GpsTimeNano 86355000 0 1906
           , _observationHeader_n_obs = 33
           }
+        assertMsgMaxLength (msgs !! 4)
         assertMsgObsLength (msgs !! 4) 2
         -- Message 6
         assertObsHeader (msgs !! 6) ObservationHeader {
             _observationHeader_t     = GpsTimeNano 86356000 0 1906
           , _observationHeader_n_obs = 32
           }
+        assertMsgMaxLength (msgs !! 6)
         assertMsgObsLength (msgs !! 6) 14
         -- Message 7
         assertObsHeader (msgs !! 7) ObservationHeader {
             _observationHeader_t     = GpsTimeNano 86356000 0 1906
           , _observationHeader_n_obs = 33
           }
+        assertMsgMaxLength (msgs !! 7)
         assertMsgObsLength (msgs !! 7) 2
      ]
 
