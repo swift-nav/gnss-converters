@@ -2,7 +2,7 @@
 -- Module:      Test
 -- Copyright:   (c) 2016 Swift Navigation Inc.
 -- License:     AllRightsReserved
--- Maintainer:  Skylark Team <skylark@swift-nav.com>
+-- Maintainer:  Swift Navigation <dev@swift-nav.com>
 --
 -- Test module for GNSS converters
 

@@ -4,7 +4,7 @@
 -- Module:      Data.RTCM3.SBP
 -- Copyright:   Copyright (C) 2016 Swift Navigation, Inc.
 -- License:     LGPL-3
--- Maintainer:  Mark Fine <dev@swiftnav.com>
+-- Maintainer:  Swift Navigation <dev@swiftnav.com>
 -- Stability:   experimental
 -- Portability: portable
 --
@@ -21,6 +21,8 @@ module Data.RTCM3.SBP
   , updateGpsTime
   , convert
   , newStore
+  , validateIodcIode
+  , gpsUriToUra
   ) where
 
 import           BasicPrelude
@@ -147,6 +149,10 @@ maxObsPerMessage = (maxPayloadSize - headerSize) `div` packedObsSize
     headerSize     = 11
     packedObsSize  = 17
 
+-- | The official GPS value of Pi. This is the value used by the CS to curve
+-- fit ephemeris parameters and should be used in all ephemeris calculations.
+gpsPi :: Double
+gpsPi = 3.1415926535898
 
 --------------------------------------------------------------------------------
 -- General utilities
@@ -163,6 +169,8 @@ modifyMap r d k a = do
 maybe' :: Maybe a -> b -> (a -> b) -> b
 maybe' m b a = maybe b a m
 
+applyScaleFactor :: (Floating a, Integral b) => a -> a -> b -> a
+applyScaleFactor n p x = (n ** p)  * fromIntegral x
 
 --------------------------------------------------------------------------------
 -- GNSS RTCM observation reconstruction utilities
@@ -197,6 +205,27 @@ toGpsTime hdr = do
   gpsTime      <- newGpsTime tow
   gpsTimeMap   <- view storeGpsTimeMap
   liftIO $ modifyMap gpsTimeMap gpsTime station $ updateGpsTime tow
+
+-- | Produce GPS time from RTCM time (week-number % 1024, tow in seconds, scaled 2^4).
+-- Stateful but non-side-effecting.
+rtcmTimeToGpsTime :: MonadStore e m => Word16 -> Word16 -> m GpsTime
+rtcmTimeToGpsTime wn tow = do
+  stateWn <- view storeWn >>= liftIO . readIORef
+  let wn' = reconcileWn stateWn wn
+  return $ GpsTime
+    { _gpsTime_tow = 16 * (fromIntegral tow)
+    , _gpsTime_wn  = wn'
+    }
+
+-- | Reconcile a "stateful", current (system?) week number with a
+-- mod-1024 week number from RTCM. The idea here is that an RTCM message
+-- will say the week number is 913 when the current week number is actually
+-- 1937.
+reconcileWn :: Word16 -> Word16 -> Word16
+reconcileWn curr truncated =
+  if (truncated + 1024) <= curr
+    then reconcileWn curr (truncated + 1024)
+    else truncated
 
 -- | MJD GPS Epoch - First day in GPS week 0. See DF051 of the RTCM3 spec
 --
@@ -413,6 +442,32 @@ fromL2SatelliteObservation sat l1 l1e l2 l2e =
                                       -- pseudorange valid
     }
 
+-- | Validate IODE/IODC flags. The IODC and IODE flags (least significant bits) should be
+-- equal. IODC is Word16 while IODE is Word8, so we shift IODC to drop the most significant bits.
+-- We return a 1 if valid, 0 if invalid.
+validateIodcIode :: Word16 -> Word8 -> Word8
+validateIodcIode iodc iode =
+  let iodc' = fromIntegral $ iodc `shiftL` 8 `shiftR` 8 in
+  if  iodc' == iode then 1 else 0
+
+-- | Construct an EphemerisCommonContent from an RTCM 1019 message.
+toGpsEphemerisCommonContent :: MonadStore e m => Msg1019 -> m EphemerisCommonContent
+toGpsEphemerisCommonContent m = do
+  toe <- rtcmTimeToGpsTime (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toe)
+  return EphemerisCommonContent
+    { _ephemerisCommonContent_sid = GnssSignal
+      { _gnssSignal_sat      = fromIntegral $ m ^. msg1019_header ^. ephemerisHeader_sat - 1
+      -- ^ SBP GnssSignal sat ID is off-by-one; GnssSignal16 is not.
+      , _gnssSignal_code     = 0 -- there is an L2P status flag in msg 1019, but I don't think that applies
+      , _gnssSignal_reserved = 0
+      }
+    , _ephemerisCommonContent_toe          = toe
+    , _ephemerisCommonContent_ura          = gpsUriToUra (fromIntegral $ m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth)
+    , _ephemerisCommonContent_fit_interval = decodeFitInterval (m ^. msg1019_ephemeris ^. gpsEphemeris_fitInterval) (m ^. msg1019_ephemeris ^. gpsEphemeris_iodc)
+    , _ephemerisCommonContent_valid        = validateIodcIode (m ^. msg1019_ephemeris ^. gpsEphemeris_iodc) (m ^. msg1019_ephemeris ^. gpsEphemeris_iode)
+    , _ephemerisCommonContent_health_bits  = m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth
+    }
+
 -- | Construct SBP GPS observation message (possibly chunked).
 --
 chunkToMsgObs :: MonadStore e m
@@ -433,6 +488,33 @@ chunkToMsgObs hdr totalMsgs n packed = do
 toSender :: Word16 -> Word16
 toSender = (.|. 0xf000)
 
+-- | Decode SBP 'fitInterval' from RTCM/GPS 'fitIntervalFlag' and IODC.
+-- Implementation adapted from libswiftnav/ephemeris.c.
+decodeFitInterval :: Bool -> Word16 -> Word32
+decodeFitInterval fitInt iodc =
+  if not fitInt then 4 * 60 * 60 else
+    if iodc >= 240 && iodc <= 247 then 8 * 60 * 60 else
+      if (iodc >= 248 && iodc <= 255) || iodc == 496 then 14 * 60 * 60 else
+        if (iodc >= 497 && iodc <= 503) || (iodc >= 1021 && iodc <= 1023) then 26 * 60 * 60 else
+          if iodc >= 504 && iodc <= 510 then 50 * 60 * 60 else
+            if iodc == 511 || (iodc >= 752 && iodc <= 756) then 74 * 60 * 60 else
+              if iodc == 757 then 98 * 60 * 60 else
+                6 * 60 * 60
+
+-- | Convert between RTCM/GPS URA ("User Range Accuracy") index to a number in meters.
+-- See section 2.5.3, "User Range Accuracy", in the GPS signal specification.
+-- Indices 1, 3, and 5 are hard-coded according to spec, and 15 is hard-coded according
+-- to SBP/Piksi convention.
+gpsUriToUra :: Double -> Double
+gpsUriToUra uri =
+  if uri < 0 then -1 else
+    if uri == 1 then 2.8 else
+      if uri == 3 then 5.7 else
+        if uri == 5 then 11.3 else
+          if uri == 15 then 6144 else
+            if uri <= 6 then 2 ** (1 + (uri / 2)) else
+              if uri > 6 && uri < 15 then 2 ** (uri - 2) else
+                -1
 
 --------------------------------------------------------------------------------
 -- RTCM to SBP conversion utilities: RTCM Msgs. 1002 (L1 RTK), 1004 (L1+L2 RTK),
@@ -520,6 +602,37 @@ fromMsg1006 m =
     , _msgBasePosEcef_z = fromEcefVal $ m ^. msg1006_reference ^. antennaReference_ecef_z
     }
 
+-- | Convert an RTCM 1019 GPS ephemeris message into an SBP MsgEphemerisGps.
+fromMsg1019 :: MonadStore e m => Msg1019 -> m MsgEphemerisGps
+fromMsg1019 m = do
+  commonContent <- toGpsEphemerisCommonContent m
+  toc           <- rtcmTimeToGpsTime (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toc)
+  return MsgEphemerisGps
+    { _msgEphemerisGps_common   = commonContent
+    , _msgEphemerisGps_tgd      =          applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_tgd
+    , _msgEphemerisGps_c_rs     =          applyScaleFactor 2 (-5)  $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_rs
+    , _msgEphemerisGps_c_rc     =          applyScaleFactor 2 (-5)  $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_rc
+    , _msgEphemerisGps_c_uc     =          applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_uc
+    , _msgEphemerisGps_c_us     =          applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_us
+    , _msgEphemerisGps_c_ic     =          applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_ic
+    , _msgEphemerisGps_c_is     =          applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_is
+    , _msgEphemerisGps_dn       = gpsPi * (applyScaleFactor 2 (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_dn)
+    , _msgEphemerisGps_m0       = gpsPi * (applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_m0)
+    , _msgEphemerisGps_ecc      =          applyScaleFactor 2 (-33) $ m ^. msg1019_ephemeris ^. gpsEphemeris_ecc
+    , _msgEphemerisGps_sqrta    =          applyScaleFactor 2 (-19) $ m ^. msg1019_ephemeris ^. gpsEphemeris_sqrta
+    , _msgEphemerisGps_omega0   = gpsPi * (applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_omega0)
+    , _msgEphemerisGps_omegadot = gpsPi * (applyScaleFactor 2 (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_omegadot)
+    , _msgEphemerisGps_w        = gpsPi * (applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_w)
+    , _msgEphemerisGps_inc      = gpsPi * (applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_i0)
+    , _msgEphemerisGps_inc_dot  = gpsPi * (applyScaleFactor 2 (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_idot)
+    , _msgEphemerisGps_af0      =          applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af0
+    , _msgEphemerisGps_af1      =          applyScaleFactor 2 (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af1
+    , _msgEphemerisGps_af2      =          applyScaleFactor 2 (-55) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af2
+    , _msgEphemerisGps_iodc     =                                     m ^. msg1019_ephemeris ^. gpsEphemeris_iodc
+    , _msgEphemerisGps_iode     =                                     m ^. msg1019_ephemeris ^. gpsEphemeris_iode
+    , _msgEphemerisGps_toc      = toc
+    }
+
 -- | Convert an RTCM message into possibly multiple SBP messages.
 --
 convert :: MonadStore e m => RTCM3Msg -> m [SBPMsg]
@@ -544,6 +657,10 @@ convert = \case
     wn <- view storeWn
     liftIO $ writeIORef wn $ toWn $ m ^. msg1013_header ^. messageHeader_mjd
     return mempty
+  (RTCM3Msg1019 m _rtcm3) -> do
+    let sender = 0
+    m' <- fromMsg1019 m
+    return [SBPMsgEphemerisGps m' $ toSBP m' $ toSender sender]
   _rtcm3Msg -> return mempty
 
 newStore :: IO Store

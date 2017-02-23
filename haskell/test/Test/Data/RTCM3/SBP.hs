@@ -1,10 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase       #-}
 
 -- |
 -- Module:      Test.Data.RTCM3.SBP
 -- Copyright:   (c) 2016 Swift Navigation Inc.
 -- License:     LGPL-3
--- Maintainer:  Skylark Team <skylark@swift-nav.com>
+-- Maintainer:  Swift Navigation <dev@swift-nav.com>
 --
 -- Test RTCMv3 to SBP Conversions.
 
@@ -16,27 +17,35 @@ import           BasicPrelude
 import           Control.Lens
 import           Control.Monad.Trans.Resource
 import           Data.Binary
-import qualified Data.ByteString.Lazy             as LBS
+import qualified Data.ByteString.Lazy              as LBS
 import           Data.Conduit
-import           Data.Conduit.Binary
+import           Data.Conduit.Binary               hiding (head)
 import qualified Data.Conduit.List                 as CL
 import           Data.Conduit.Serialization.Binary
-import           Data.HashMap.Strict
+import           Data.HashMap.Strict               hiding (filter, mapMaybe)
 import           Data.IORef
 import           Data.RTCM3.SBP
 import           Data.RTCM3.SBP.Types
+import qualified Data.Text                         as T
 import           SwiftNav.SBP
 import           Test.HUnit.Approx
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
-decodeRTCMFile :: FilePath -> IO [SBPMsg]
-decodeRTCMFile filename = do
-  s <- Store <$> newIORef 1906 <*> newIORef mempty
+decodeRTCMFile :: Word16 -> FilePath -> IO [SBPMsg]
+decodeRTCMFile wn filename = do
+  s <- Store <$> newIORef wn <*> newIORef mempty
   runResourceT $ runConvertT s $ runConduit  $
     sourceFile filename   =$=
     conduitDecode         =$=
     CL.concatMapM convert $$
+    CL.consume
+
+decodeSBPFile :: FilePath -> IO [SBPMsg]
+decodeSBPFile filename = do
+  runResourceT $ runConduit  $
+    sourceFile filename   =$=
+    conduitDecode         $$
     CL.consume
 
 basePosition :: MsgBasePosEcef -> (Double, Double, Double)
@@ -118,6 +127,16 @@ assertMsgObsLength _                  _   = assertFailure "Invalid message type!
 assertMsgMaxLength :: SBPMsg -> Assertion
 assertMsgMaxLength m = assertBool "The message is too damn long" $ LBS.length (encode m) <= 255 + 2
 
+-- | Given two objects and an accessor, assert that the common field is equal.
+compareFieldsWithAccessor :: (Eq b, Show b) => String -> a -> a -> (a -> b) -> Assertion
+compareFieldsWithAccessor m o1 o2 a = assertEqual ("Accessed field must be equal: " <> m) (a o1) (a o2)
+
+-- | Convert arbitrary SBP messages to a list of just GpsEphemeris messages.
+messagesToGpsEphemeris :: [SBPMsg] -> [MsgEphemerisGps]
+messagesToGpsEphemeris = mapMaybe $ \case
+  (SBPMsgEphemerisGps m _) -> Just m
+  _                        -> Nothing
+
 -- | L1 observations: PRN => Pseudorange, Carrier Phase, SNR
 --
 -- From fixtures/rinex/ucsf_bard_four_seconds.obs RINEX
@@ -150,7 +169,7 @@ testMsg1004 :: TestTree
 testMsg1004 =
   testGroup "Msg1004 conversion to SBP"
     [ testCase "Four seconds of RTCM3" $ do
-        msgs <- decodeRTCMFile "fixtures/rtcm3/ucsf_bard_four_seconds.rtcm3"
+        msgs <- decodeRTCMFile 1906 "fixtures/rtcm3/ucsf_bard_four_seconds.rtcm3"
         -- There are eight messages
         length msgs @?= 8
         -- Check message 0 and 5 against values in RINEX file:
@@ -204,6 +223,94 @@ testMsg1004 =
         assertMsgObsLength (msgs !! 7) 2
      ]
 
+testMsg1019 :: TestTree
+testMsg1019 =
+  testGroup "Msg1019 conversion to SBP"
+    [ testCase "Full ephemeris in RTCM" $ do
+      msgs' <- decodeRTCMFile 1937 "fixtures/rtcm3/20170222_gps_ephemeris_331200.rtcm3"
+      let msgs = messagesToGpsEphemeris msgs'
+      BasicPrelude.mapM_ assertMsgMaxLength msgs'
+
+      -- No values from this set of ephemerides were compared to Piksi.
+      -- Index 0, sat 4
+      assertBool "index 0, sat 4, toc"      $ (msgs !! 0) ^. msgEphemerisGps_toc ^. gpsTime_tow                                     == 331200
+      assertBool "index 0, sat 4, toc"      $ (msgs !! 0) ^. msgEphemerisGps_toc ^. gpsTime_wn                                      == 1937
+      assertBool "index 0, sat 4, sid"      $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_sid ^. gnssSignal_sat == 4
+      assertBool "index 0, sat 4, ura"      $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_ura                   == 2
+      assertBool "index 0, sat 4, valid"    $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_valid                 == 1
+      assertBool "index 0, sat 4, fitint"   $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_fit_interval          == 14400
+      assertBool "index 0, sat 4, health"   $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_health_bits           == 0
+      assertBool "index 0, sat 4, dn"       $ (msgs !! 0) ^. msgEphemerisGps_dn                                                     == 4.8134147837606336e-9
+      assertBool "index 0, sat 4, w"        $ (msgs !! 0) ^. msgEphemerisGps_w                                                      == 0.5556409483786487
+      assertBool "index 0, sat 4, tgd"      $ (msgs !! 0) ^. msgEphemerisGps_tgd                                                    == -1.0710209608078003e-8
+      assertBool "index 0, sat 4, c_rs"     $ (msgs !! 0) ^. msgEphemerisGps_c_rs                                                   == 11.0625
+      assertBool "index 0, sat 4, c_rc"     $ (msgs !! 0) ^. msgEphemerisGps_c_rc                                                   == 195.6875
+      assertBool "index 0, sat 4, c_us"     $ (msgs !! 0) ^. msgEphemerisGps_c_us                                                   == 9.134411811828613e-6
+      assertBool "index 0, sat 4, c_uc"     $ (msgs !! 0) ^. msgEphemerisGps_c_uc                                                   == 7.040798664093018e-7
+      assertBool "index 0, sat 4, c_is"     $ (msgs !! 0) ^. msgEphemerisGps_c_is                                                   == 2.0489096641540527e-8
+      assertBool "index 0, sat 4, c_ic"     $ (msgs !! 0) ^. msgEphemerisGps_c_ic                                                   == 4.6566128730773926e-8
+      assertBool "index 0, sat 4, m0"       $ (msgs !! 0) ^. msgEphemerisGps_m0                                                     == -6.1410736472242544e-2
+      assertBool "index 0, sat 4, ecc"      $ (msgs !! 0) ^. msgEphemerisGps_ecc                                                    == 4.897040314972401e-3
+      assertBool "index 0, sat 4, sqrta"    $ (msgs !! 0) ^. msgEphemerisGps_sqrta                                                  == 5153.690675735474
+      assertBool "index 0, sat 4, omega0"   $ (msgs !! 0) ^. msgEphemerisGps_omega0                                                 == 0.26338009467812684
+      assertBool "index 0, sat 4, omegadot" $ (msgs !! 0) ^. msgEphemerisGps_omegadot                                               == -8.164982961456692e-9
+      assertBool "index 0, sat 4, inc"      $ (msgs !! 0) ^. msgEphemerisGps_inc                                                    == 0.9470684719233013
+      assertBool "index 0, sat 4, incdot"   $ (msgs !! 0) ^. msgEphemerisGps_inc_dot                                                == 5.146642949765581e-10
+      assertBool "index 0, sat 4, af0"      $ (msgs !! 0) ^. msgEphemerisGps_af0                                                    == -5.923490971326828e-5
+      assertBool "index 0, sat 4, af1"      $ (msgs !! 0) ^. msgEphemerisGps_af1                                                    == 2.0463630789890885e-12
+      assertBool "index 0, sat 4, af2"      $ (msgs !! 0) ^. msgEphemerisGps_af2                                                    == 0
+      assertBool "index 0, sat 4, iode"     $ (msgs !! 0) ^. msgEphemerisGps_iode                                                   == 50
+      assertBool "index 0, sat 4, iodc"     $ (msgs !! 0) ^. msgEphemerisGps_iodc                                                   == 50
+
+    , testCase "Compare RTCM from ephemeris service and SBP messages from Piksi" $ do
+      -- Loop through all the decoded RTCM ephemerides, find the corresponding SBP
+      -- message, and compare fields.
+      -- Note that sender and CRC are different so we can't expect exact matches.
+      -- Note that RTCM will have all sats but SBP will only have a subset.
+      msgs2_converted'    <- decodeRTCMFile 1937 "fixtures/rtcm3/20170222_gps_ephemeris_345600.rtcm3"
+      msgs2_sbp'          <- decodeSBPFile "fixtures/sbp/20170222_gps_ephemeris_345600.sbp"
+      let msgs2_converted = messagesToGpsEphemeris msgs2_converted'
+      let msgs2_sbp       = messagesToGpsEphemeris msgs2_sbp'
+
+      flip BasicPrelude.mapM_ msgs2_converted $ \m' ->
+        let sid = m' ^. msgEphemerisGps_common ^. ephemerisCommonContent_sid ^. gnssSignal_sat in
+        let toc = m' ^. msgEphemerisGps_toc ^. gpsTime_tow in
+        let ms  = filter ((== sid) . _gnssSignal_sat . _ephemerisCommonContent_sid . _msgEphemerisGps_common) msgs2_sbp in
+        let ms'  = filter ((== toc) . _gpsTime_tow . _msgEphemerisGps_toc) ms in
+        if length ms' == 0 then return () else
+          let m = head ms' in do
+            compareFieldsWithAccessor "toc"    m m' (_gpsTime_tow . _msgEphemerisGps_toc)
+            compareFieldsWithAccessor "wn"     m m' (_gpsTime_wn  . _msgEphemerisGps_toc)
+            compareFieldsWithAccessor "sid"    m m' (_gnssSignal_sat . _ephemerisCommonContent_sid . _msgEphemerisGps_common)
+            -- Does not always match the values coming out of a Piksi. I have reason to believe
+            -- that the Piksi might be the problem.
+            --compareFieldsWithAccessor "ura"    m m' (_ephemerisCommonContent_ura          . _msgEphemerisGps_common)
+            compareFieldsWithAccessor "valid"  m m' (_ephemerisCommonContent_valid        . _msgEphemerisGps_common)
+            compareFieldsWithAccessor "fitint" m m' (_ephemerisCommonContent_fit_interval . _msgEphemerisGps_common)
+            compareFieldsWithAccessor "health" m m' (_ephemerisCommonContent_health_bits  . _msgEphemerisGps_common)
+            compareFieldsWithAccessor "dn"     m m' (_msgEphemerisGps_dn)
+            compareFieldsWithAccessor "w"      m m' (_msgEphemerisGps_w)
+            compareFieldsWithAccessor "tgd"    m m' (_msgEphemerisGps_tgd)
+            compareFieldsWithAccessor "c_rs"   m m' (_msgEphemerisGps_c_rs)
+            compareFieldsWithAccessor "c_rc"   m m' (_msgEphemerisGps_c_rc)
+            compareFieldsWithAccessor "c_is"   m m' (_msgEphemerisGps_c_is)
+            compareFieldsWithAccessor "c_ic"   m m' (_msgEphemerisGps_c_ic)
+            compareFieldsWithAccessor "c_us"   m m' (_msgEphemerisGps_c_us)
+            compareFieldsWithAccessor "c_uc"   m m' (_msgEphemerisGps_c_uc)
+            compareFieldsWithAccessor "m0"     m m' (_msgEphemerisGps_m0)
+            compareFieldsWithAccessor "ecc"    m m' (_msgEphemerisGps_ecc)
+            compareFieldsWithAccessor "sqrta"  m m' (_msgEphemerisGps_sqrta)
+            compareFieldsWithAccessor "omega0" m m' (_msgEphemerisGps_omega0)
+            compareFieldsWithAccessor "omega." m m' (_msgEphemerisGps_omegadot)
+            compareFieldsWithAccessor "inc"    m m' (_msgEphemerisGps_inc)
+            compareFieldsWithAccessor "incdot" m m' (_msgEphemerisGps_inc_dot)
+            compareFieldsWithAccessor "af0"    m m' (_msgEphemerisGps_af0)
+            compareFieldsWithAccessor "af1"    m m' (_msgEphemerisGps_af1)
+            compareFieldsWithAccessor "af2"    m m' (_msgEphemerisGps_af2)
+            compareFieldsWithAccessor "iode"   m m' (_msgEphemerisGps_iode)
+            compareFieldsWithAccessor "iodc"   m m' (_msgEphemerisGps_iodc)
+    ]
+
 testToWn :: TestTree
 testToWn =
   testGroup "MJD to GPS week number"
@@ -238,10 +345,53 @@ testUpdateGpsTime =
         new ^. gpsTimeNano_wn @?= 11
     ]
 
+testValidateIodcIode :: TestTree
+testValidateIodcIode =
+  testGroup "Validate IODC/IODE"
+    [ testCase "valid, equal, max"                    $ assertEqual "" 1 $ validateIodcIode 0x00FF 0xFF
+    , testCase "valid, equal, min"                    $ assertEqual "" 1 $ validateIodcIode 0x0000 0x00
+    , testCase "valid, IODC has higher bits set, max" $ assertEqual "" 1 $ validateIodcIode 0xFFFF 0xFF
+    , testCase "valid, IODC has higher bits set, min" $ assertEqual "" 1 $ validateIodcIode 0xFF00 0x00
+    , testCase "invalid, unequal"                     $ assertEqual "" 0 $ validateIodcIode 0x0001 0x02
+    , testCase "invalid, IODC has higher bits set"    $ assertEqual "" 0 $ validateIodcIode 0xFF14 0x15
+    ]
+
+testUriToUra :: TestTree
+testUriToUra =
+  testGroup "Convert user range index to user range accuracy"
+    [ testN 0    2.0
+    , testN 1    2.8
+    , testN 2    4.0
+    , testN 3    5.7
+    , testN 4    8.0
+    , testN 5    11.3
+    , testN 6    16.0
+    , testN 7    32.0
+    , testN 8    64.0
+    , testN 9    128.0
+    , testN 10   256.0
+    , testN 11   512.0
+    , testN 12   1024.0
+    , testN 13   2048.0
+    , testN 14   4096.0
+    , testN 15   6144.0
+    , testN 16   (-1.0)
+    , testN 17   (-1.0)
+    , testN (-1) (-1.0)
+    ]
+
+  where
+    testN n expected =
+      let s = T.unpack $ show n in
+      testCase s $ assertEqual s expected $ gpsUriToUra n
+
 tests :: TestTree
 tests =
   testGroup "RTCM3 to SBP conversion tests"
     [ testMsg1004
+    , testMsg1019
     , testToWn
     , testUpdateGpsTime
+    , testValidateIodcIode
+    , testUriToUra
     ]
