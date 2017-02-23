@@ -213,7 +213,7 @@ rtcmTimeToGpsTime wn tow = do
   stateWn <- view storeWn >>= liftIO . readIORef
   let wn' = reconcileWn stateWn wn
   return $ GpsTime
-    { _gpsTime_tow = 16 * (fromIntegral tow)
+    { _gpsTime_tow = 16 * fromIntegral tow
     , _gpsTime_wn  = wn'
     }
 
@@ -447,8 +447,9 @@ fromL2SatelliteObservation sat l1 l1e l2 l2e =
 -- We return a 1 if valid, 0 if invalid.
 validateIodcIode :: Word16 -> Word8 -> Word8
 validateIodcIode iodc iode =
-  let iodc' = fromIntegral $ iodc `shiftL` 8 `shiftR` 8 in
-  if  iodc' == iode then 1 else 0
+  if iodc' == iode then 1 else 0
+  where
+    iodc' = fromIntegral $ iodc `shiftL` 8 `shiftR` 8
 
 -- | Construct an EphemerisCommonContent from an RTCM 1019 message.
 toGpsEphemerisCommonContent :: MonadStore e m => Msg1019 -> m EphemerisCommonContent
