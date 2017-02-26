@@ -223,9 +223,7 @@ rtcmTimeToGpsTime wn tow = do
 -- 1937.
 reconcileWn :: Word16 -> Word16 -> Word16
 reconcileWn curr truncated =
-  if (truncated + 1024) <= curr
-    then reconcileWn curr (truncated + 1024)
-    else truncated
+  (curr `div` 1024) * 1024 + truncated
 
 -- | MJD GPS Epoch - First day in GPS week 0. See DF051 of the RTCM3 spec
 --
