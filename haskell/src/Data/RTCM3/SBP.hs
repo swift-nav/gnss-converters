@@ -207,23 +207,15 @@ toGpsTime hdr = do
   liftIO $ modifyMap gpsTimeMap gpsTime station $ updateGpsTime tow
 
 -- | Produce GPS time from RTCM time (week-number % 1024, tow in seconds, scaled 2^4).
--- Stateful but non-side-effecting.
+-- Stateful but non-side-effecting. The week number is mod-1024 - add in the base
+-- wn from the stored wn masked to 10 bits.
 rtcmTimeToGpsTime :: MonadStore e m => Word16 -> Word16 -> m GpsTime
 rtcmTimeToGpsTime wn tow = do
   stateWn <- view storeWn >>= liftIO . readIORef
-  let wn' = reconcileWn stateWn wn
   return $ GpsTime
     { _gpsTime_tow = 16 * fromIntegral tow
-    , _gpsTime_wn  = wn'
+    , _gpsTime_wn  = stateWn `shiftR` 10 `shiftL` 10 + wn
     }
-
--- | Reconcile a "stateful", current (system?) week number with a
--- mod-1024 week number from RTCM. The idea here is that an RTCM message
--- will say the week number is 913 when the current week number is actually
--- 1937.
-reconcileWn :: Word16 -> Word16 -> Word16
-reconcileWn curr truncated =
-  (curr `div` 1024) * 1024 + truncated
 
 -- | MJD GPS Epoch - First day in GPS week 0. See DF051 of the RTCM3 spec
 --
