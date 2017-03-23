@@ -283,7 +283,7 @@ toL_L1 l1 l1e = CarrierPhase
     li :: Int32
     li = floor l
     lf :: Word8
-    lf = truncate ((l - fromIntegral li) * q32Width)
+    lf = round ((l - fromIntegral li) * q32Width)
 
 -- | Construct SBP L2 GPS carrier phase from L2 RTCM observation
 --
@@ -306,7 +306,7 @@ toL_L2 l1 l1e l2 _l2e = CarrierPhase
     li :: Int32
     li = floor l
     lf :: Word8
-    lf = truncate ((l - fromIntegral li) * q32Width)
+    lf = round ((l - fromIntegral li) * q32Width)
 
 toCn0_L1 :: GpsL1ExtObservation -> Word8
 toCn0_L1 = (^. gpsL1ExtObservation_cnr)
