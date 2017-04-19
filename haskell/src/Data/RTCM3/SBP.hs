@@ -183,9 +183,9 @@ newGpsTime :: MonadStore e m => Word32 -> m GpsTimeNano
 newGpsTime tow = do
   wn <- view storeWn >>= liftIO . readIORef
   return GpsTimeNano
-    { _gpsTimeNano_tow = tow
-    , _gpsTimeNano_ns  = 0
-    , _gpsTimeNano_wn  = wn
+    { _gpsTimeNano_tow         = tow
+    , _gpsTimeNano_ns_residual = 0
+    , _gpsTimeNano_wn          = wn
     }
 
 -- | If incoming TOW is less than stored TOW, rollover WN.
@@ -446,11 +446,9 @@ toGpsEphemerisCommonContent :: MonadStore e m => Msg1019 -> m EphemerisCommonCon
 toGpsEphemerisCommonContent m = do
   toe <- rtcmTimeToGpsTime (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toe)
   return EphemerisCommonContent
-    { _ephemerisCommonContent_sid = GnssSignal
-      { _gnssSignal_sat      = fromIntegral $ m ^. msg1019_header ^. ephemerisHeader_sat - 1
-      -- ^ SBP GnssSignal sat ID is off-by-one; GnssSignal16 is not.
-      , _gnssSignal_code     = 0 -- there is an L2P status flag in msg 1019, but I don't think that applies
-      , _gnssSignal_reserved = 0
+    { _ephemerisCommonContent_sid = GnssSignal16
+      { _gnssSignal16_sat  = m ^. msg1019_header ^. ephemerisHeader_sat
+      , _gnssSignal16_code = 0 -- there is an L2P status flag in msg 1019, but I don't think that applies
       }
     , _ephemerisCommonContent_toe          = toe
     , _ephemerisCommonContent_ura          = gpsUriToUra (fromIntegral $ m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth)
