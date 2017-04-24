@@ -1,4 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 -- |
 -- Module:      Data.RTCM3.SBP
@@ -447,7 +448,7 @@ toGpsEphemerisCommonContent m = do
   toe <- rtcmTimeToGpsTime (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toe)
   return EphemerisCommonContent
     { _ephemerisCommonContent_sid = GnssSignal16
-      { _gnssSignal16_sat  = m ^. msg1019_header ^. ephemerisHeader_sat
+      { _gnssSignal16_sat  = m ^. msg1019_header ^. gpsEphemerisHeader_sat
       , _gnssSignal16_code = 0 -- there is an L2P status flag in msg 1019, but I don't think that applies
       }
     , _ephemerisCommonContent_toe          = toe

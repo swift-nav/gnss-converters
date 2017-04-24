@@ -1,5 +1,7 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- |
 -- Module:      Test.Data.RTCM3.SBP
@@ -233,34 +235,34 @@ testMsg1019 =
 
       -- No values from this set of ephemerides were compared to Piksi.
       -- Index 0, sat 4
-      assertBool "index 0, sat 4, toc"      $ (msgs !! 0) ^. msgEphemerisGps_toc ^. gpsTime_tow                                     == 331200
-      assertBool "index 0, sat 4, toc"      $ (msgs !! 0) ^. msgEphemerisGps_toc ^. gpsTime_wn                                      == 1937
-      assertBool "index 0, sat 4, sid"      $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_sid ^. gnssSignal_sat == 4
-      assertBool "index 0, sat 4, ura"      $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_ura                   == 2
-      assertBool "index 0, sat 4, valid"    $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_valid                 == 1
-      assertBool "index 0, sat 4, fitint"   $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_fit_interval          == 14400
-      assertBool "index 0, sat 4, health"   $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_health_bits           == 0
-      assertBool "index 0, sat 4, dn"       $ (msgs !! 0) ^. msgEphemerisGps_dn                                                     == 4.8134147837606336e-9
-      assertBool "index 0, sat 4, w"        $ (msgs !! 0) ^. msgEphemerisGps_w                                                      == 0.5556409483786487
-      assertBool "index 0, sat 4, tgd"      $ (msgs !! 0) ^. msgEphemerisGps_tgd                                                    == -1.0710209608078003e-8
-      assertBool "index 0, sat 4, c_rs"     $ (msgs !! 0) ^. msgEphemerisGps_c_rs                                                   == 11.0625
-      assertBool "index 0, sat 4, c_rc"     $ (msgs !! 0) ^. msgEphemerisGps_c_rc                                                   == 195.6875
-      assertBool "index 0, sat 4, c_us"     $ (msgs !! 0) ^. msgEphemerisGps_c_us                                                   == 9.134411811828613e-6
-      assertBool "index 0, sat 4, c_uc"     $ (msgs !! 0) ^. msgEphemerisGps_c_uc                                                   == 7.040798664093018e-7
-      assertBool "index 0, sat 4, c_is"     $ (msgs !! 0) ^. msgEphemerisGps_c_is                                                   == 2.0489096641540527e-8
-      assertBool "index 0, sat 4, c_ic"     $ (msgs !! 0) ^. msgEphemerisGps_c_ic                                                   == 4.6566128730773926e-8
-      assertBool "index 0, sat 4, m0"       $ (msgs !! 0) ^. msgEphemerisGps_m0                                                     == -6.1410736472242544e-2
-      assertBool "index 0, sat 4, ecc"      $ (msgs !! 0) ^. msgEphemerisGps_ecc                                                    == 4.897040314972401e-3
-      assertBool "index 0, sat 4, sqrta"    $ (msgs !! 0) ^. msgEphemerisGps_sqrta                                                  == 5153.690675735474
-      assertBool "index 0, sat 4, omega0"   $ (msgs !! 0) ^. msgEphemerisGps_omega0                                                 == 0.26338009467812684
-      assertBool "index 0, sat 4, omegadot" $ (msgs !! 0) ^. msgEphemerisGps_omegadot                                               == -8.164982961456692e-9
-      assertBool "index 0, sat 4, inc"      $ (msgs !! 0) ^. msgEphemerisGps_inc                                                    == 0.9470684719233013
-      assertBool "index 0, sat 4, incdot"   $ (msgs !! 0) ^. msgEphemerisGps_inc_dot                                                == 5.146642949765581e-10
-      assertBool "index 0, sat 4, af0"      $ (msgs !! 0) ^. msgEphemerisGps_af0                                                    == -5.923490971326828e-5
-      assertBool "index 0, sat 4, af1"      $ (msgs !! 0) ^. msgEphemerisGps_af1                                                    == 2.0463630789890885e-12
-      assertBool "index 0, sat 4, af2"      $ (msgs !! 0) ^. msgEphemerisGps_af2                                                    == 0
-      assertBool "index 0, sat 4, iode"     $ (msgs !! 0) ^. msgEphemerisGps_iode                                                   == 50
-      assertBool "index 0, sat 4, iodc"     $ (msgs !! 0) ^. msgEphemerisGps_iodc                                                   == 50
+      assertBool "index 0, sat 4, toc"      $ (msgs !! 0) ^. msgEphemerisGps_toc ^. gpsTime_tow                                       == 331200
+      assertBool "index 0, sat 4, toc"      $ (msgs !! 0) ^. msgEphemerisGps_toc ^. gpsTime_wn                                        == 1937
+      assertBool "index 0, sat 4, sid"      $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_sid ^. gnssSignal16_sat == 5
+      assertBool "index 0, sat 4, ura"      $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_ura                     == 2
+      assertBool "index 0, sat 4, valid"    $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_valid                   == 1
+      assertBool "index 0, sat 4, fitint"   $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_fit_interval            == 14400
+      assertBool "index 0, sat 4, health"   $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_health_bits             == 0
+      assertBool "index 0, sat 4, dn"       $ (msgs !! 0) ^. msgEphemerisGps_dn                                                       == 4.8134147837606336e-9
+      assertBool "index 0, sat 4, w"        $ (msgs !! 0) ^. msgEphemerisGps_w                                                        == 0.5556409483786487
+      assertBool "index 0, sat 4, tgd"      $ (msgs !! 0) ^. msgEphemerisGps_tgd                                                      == -1.0710209608078003e-8
+      assertBool "index 0, sat 4, c_rs"     $ (msgs !! 0) ^. msgEphemerisGps_c_rs                                                     == 11.0625
+      assertBool "index 0, sat 4, c_rc"     $ (msgs !! 0) ^. msgEphemerisGps_c_rc                                                     == 195.6875
+      assertBool "index 0, sat 4, c_us"     $ (msgs !! 0) ^. msgEphemerisGps_c_us                                                     == 9.134411811828613e-6
+      assertBool "index 0, sat 4, c_uc"     $ (msgs !! 0) ^. msgEphemerisGps_c_uc                                                     == 7.040798664093018e-7
+      assertBool "index 0, sat 4, c_is"     $ (msgs !! 0) ^. msgEphemerisGps_c_is                                                     == 2.0489096641540527e-8
+      assertBool "index 0, sat 4, c_ic"     $ (msgs !! 0) ^. msgEphemerisGps_c_ic                                                     == 4.6566128730773926e-8
+      assertBool "index 0, sat 4, m0"       $ (msgs !! 0) ^. msgEphemerisGps_m0                                                       == -6.1410736472242544e-2
+      assertBool "index 0, sat 4, ecc"      $ (msgs !! 0) ^. msgEphemerisGps_ecc                                                      == 4.897040314972401e-3
+      assertBool "index 0, sat 4, sqrta"    $ (msgs !! 0) ^. msgEphemerisGps_sqrta                                                    == 5153.690675735474
+      assertBool "index 0, sat 4, omega0"   $ (msgs !! 0) ^. msgEphemerisGps_omega0                                                   == 0.26338009467812684
+      assertBool "index 0, sat 4, omegadot" $ (msgs !! 0) ^. msgEphemerisGps_omegadot                                                 == -8.164982961456692e-9
+      assertBool "index 0, sat 4, inc"      $ (msgs !! 0) ^. msgEphemerisGps_inc                                                      == 0.9470684719233013
+      assertBool "index 0, sat 4, incdot"   $ (msgs !! 0) ^. msgEphemerisGps_inc_dot                                                  == 5.146642949765581e-10
+      assertBool "index 0, sat 4, af0"      $ (msgs !! 0) ^. msgEphemerisGps_af0                                                      == -5.923490971326828e-5
+      assertBool "index 0, sat 4, af1"      $ (msgs !! 0) ^. msgEphemerisGps_af1                                                      == 2.0463630789890885e-12
+      assertBool "index 0, sat 4, af2"      $ (msgs !! 0) ^. msgEphemerisGps_af2                                                      == 0
+      assertBool "index 0, sat 4, iode"     $ (msgs !! 0) ^. msgEphemerisGps_iode                                                     == 50
+      assertBool "index 0, sat 4, iodc"     $ (msgs !! 0) ^. msgEphemerisGps_iodc                                                     == 50
 
     , testCase "Compare RTCM from ephemeris service and SBP messages from Piksi" $ do
       -- Loop through all the decoded RTCM ephemerides, find the corresponding SBP
@@ -273,15 +275,15 @@ testMsg1019 =
       let msgs2_sbp       = messagesToGpsEphemeris msgs2_sbp'
 
       flip BasicPrelude.mapM_ msgs2_converted $ \m' ->
-        let sid = m' ^. msgEphemerisGps_common ^. ephemerisCommonContent_sid ^. gnssSignal_sat in
+        let sid = m' ^. msgEphemerisGps_common ^. ephemerisCommonContent_sid ^. gnssSignal16_sat in
         let toc = m' ^. msgEphemerisGps_toc ^. gpsTime_tow in
-        let ms  = filter ((== sid) . _gnssSignal_sat . _ephemerisCommonContent_sid . _msgEphemerisGps_common) msgs2_sbp in
+        let ms  = filter ((== sid) . _gnssSignal16_sat . _ephemerisCommonContent_sid . _msgEphemerisGps_common) msgs2_sbp in
         let ms'  = filter ((== toc) . _gpsTime_tow . _msgEphemerisGps_toc) ms in
         if length ms' == 0 then return () else
           let m = head ms' in do
             compareFieldsWithAccessor "toc"    m m' (_gpsTime_tow . _msgEphemerisGps_toc)
             compareFieldsWithAccessor "wn"     m m' (_gpsTime_wn  . _msgEphemerisGps_toc)
-            compareFieldsWithAccessor "sid"    m m' (_gnssSignal_sat . _ephemerisCommonContent_sid . _msgEphemerisGps_common)
+            compareFieldsWithAccessor "sid"    m m' (_gnssSignal16_sat . _ephemerisCommonContent_sid . _msgEphemerisGps_common)
             -- Does not always match the values coming out of a Piksi. I have reason to believe
             -- that the Piksi might be the problem.
             --compareFieldsWithAccessor "ura"    m m' (_ephemerisCommonContent_ura          . _msgEphemerisGps_common)

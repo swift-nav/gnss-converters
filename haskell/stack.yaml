@@ -3,7 +3,7 @@ packages:
 - '.'
 flags: {}
 extra-deps:
-- rtcm-0.1.9
+- rtcm-0.1.11
 - sbp-2.2.0
 - word24-2.0.1
 - binary-bits-0.5

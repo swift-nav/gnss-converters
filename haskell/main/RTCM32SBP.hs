@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 -- |
 -- Module:      RTCM32SBP
 -- Copyright:   (c) 2015 Mark Fine
