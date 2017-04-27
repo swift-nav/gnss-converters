@@ -272,8 +272,8 @@ toP_L2 l1 l1e l2 = round $ p * sbpCMinM where
 -- See DF012, pg. 3-16 of the RTCM3 spec
 toL_L1 :: GpsL1Observation -> GpsL1ExtObservation -> CarrierPhase
 toL_L1 l1 l1e = CarrierPhase
-  { _carrierPhase_i = fromIntegral li
-  , _carrierPhase_f = fromIntegral lf
+  { _carrierPhase_i = fromIntegral li'
+  , _carrierPhase_f = fromIntegral lf'
   } where
     p = metricPseudorange l1 l1e
     -- Convert to SBP carrier phase representation per
@@ -283,9 +283,12 @@ toL_L1 l1 l1e = CarrierPhase
     l = lm / (lightSpeedMS / l1frequency)
     li :: Int32
     li = floor l
-    lf :: Word8
+    lf :: Word16
     lf = round ((l - fromIntegral li) * q32Width)
-
+    li' :: Int32
+    li' = if lf == 256 then li + 1 else li
+    lf' :: Word8
+    lf' = if lf == 256 then 0 else fromIntegral lf
 -- | Construct SBP L2 GPS carrier phase from L2 RTCM observation
 --
 -- See DF018, pg. 3-18 of the RTCM3 spec
