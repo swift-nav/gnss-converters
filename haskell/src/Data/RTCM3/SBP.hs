@@ -19,7 +19,7 @@ module Data.RTCM3.SBP
   , q32Width
   , toWn
   , mjdEpoch
-  , updateGpsTime
+  , updateGpsTimeNano
   , convert
   , newStore
   , validateIodcIode
@@ -191,31 +191,31 @@ newGpsTime tow = do
 
 -- | If incoming TOW is less than stored TOW, rollover WN.
 --
-updateGpsTime :: Word32 -> GpsTimeNano -> GpsTimeNano
-updateGpsTime tow gpsTime =
+updateGpsTimeNano :: Word32 -> GpsTimeNano -> GpsTimeNano
+updateGpsTimeNano tow gpsTime =
   gpsTime & gpsTimeNano_tow .~ tow &
     if tow >= gpsTime ^. gpsTimeNano_tow then id else
       gpsTimeNano_wn %~ (+ 1)
 
 -- | Produce GPS Time from Observation header, handling WN rollover.
 --
-toGpsTime :: MonadStore e m => GpsObservationHeader -> m GpsTimeNano
-toGpsTime hdr = do
+toGpsTimeNano :: MonadStore e m => GpsObservationHeader -> m GpsTimeNano
+toGpsTimeNano hdr = do
   let tow      = hdr ^. gpsObservationHeader_tow
       station  = hdr ^. gpsObservationHeader_station
   gpsTime      <- newGpsTime tow
   gpsTimeMap   <- view storeGpsTimeMap
-  liftIO $ modifyMap gpsTimeMap gpsTime station $ updateGpsTime tow
+  liftIO $ modifyMap gpsTimeMap gpsTime station $ updateGpsTimeNano tow
 
 -- | Produce GPS time from RTCM time (week-number % 1024, tow in seconds, scaled 2^4).
 -- Stateful but non-side-effecting. The week number is mod-1024 - add in the base
 -- wn from the stored wn masked to 10 bits.
-rtcmTimeToGpsTime :: MonadStore e m => Word16 -> Word16 -> m GpsTime
-rtcmTimeToGpsTime wn tow = do
+toGpsTimeSec :: MonadStore e m => Word16 -> Word16 -> m GpsTimeSec
+toGpsTimeSec wn tow = do
   stateWn <- view storeWn >>= liftIO . readIORef
-  return $ GpsTime
-    { _gpsTime_tow = 16 * fromIntegral tow
-    , _gpsTime_wn  = stateWn `shiftR` 10 `shiftL` 10 + wn
+  return $ GpsTimeSec
+    { _gpsTimeSec_tow = 16 * fromIntegral tow
+    , _gpsTimeSec_wn  = stateWn `shiftR` 10 `shiftL` 10 + wn
     }
 
 -- | MJD GPS Epoch - First day in GPS week 0. See DF051 of the RTCM3 spec
@@ -358,7 +358,7 @@ fromGpsObservationHeader :: MonadStore e m
                          -> GpsObservationHeader -- ^ RTCM observation header
                          -> m ObservationHeader
 fromGpsObservationHeader totalMsgs n hdr = do
-  t <- toGpsTime hdr
+  t <- toGpsTimeNano hdr
   return ObservationHeader
     { _observationHeader_t     = t
     -- First nibble is the size of the sequence (n), second nibble is the
@@ -448,7 +448,7 @@ validateIodcIode iodc iode =
 -- | Construct an EphemerisCommonContent from an RTCM 1019 message.
 toGpsEphemerisCommonContent :: MonadStore e m => Msg1019 -> m EphemerisCommonContent
 toGpsEphemerisCommonContent m = do
-  toe <- rtcmTimeToGpsTime (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toe)
+  toe <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toe)
   return EphemerisCommonContent
     { _ephemerisCommonContent_sid = GnssSignal16
       { _gnssSignal16_sat  = m ^. msg1019_header ^. gpsEphemerisHeader_sat
@@ -599,7 +599,7 @@ fromMsg1006 m =
 fromMsg1019 :: MonadStore e m => Msg1019 -> m MsgEphemerisGps
 fromMsg1019 m = do
   commonContent <- toGpsEphemerisCommonContent m
-  toc           <- rtcmTimeToGpsTime (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toc)
+  toc           <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toc)
   return MsgEphemerisGps
     { _msgEphemerisGps_common   = commonContent
     , _msgEphemerisGps_tgd      =          applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_tgd

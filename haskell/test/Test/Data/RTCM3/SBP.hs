@@ -235,8 +235,8 @@ testMsg1019 =
 
       -- No values from this set of ephemerides were compared to Piksi.
       -- Index 0, sat 4
-      assertBool "index 0, sat 4, toc"      $ (msgs !! 0) ^. msgEphemerisGps_toc ^. gpsTime_tow                                       == 331200
-      assertBool "index 0, sat 4, toc"      $ (msgs !! 0) ^. msgEphemerisGps_toc ^. gpsTime_wn                                        == 1937
+      assertBool "index 0, sat 4, toc"      $ (msgs !! 0) ^. msgEphemerisGps_toc ^. gpsTimeSec_tow                                    == 331200
+      assertBool "index 0, sat 4, toc"      $ (msgs !! 0) ^. msgEphemerisGps_toc ^. gpsTimeSec_wn                                     == 1937
       assertBool "index 0, sat 4, sid"      $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_sid ^. gnssSignal16_sat == 5
       assertBool "index 0, sat 4, ura"      $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_ura                     == 2
       assertBool "index 0, sat 4, valid"    $ (msgs !! 0) ^. msgEphemerisGps_common ^. ephemerisCommonContent_valid                   == 1
@@ -276,13 +276,13 @@ testMsg1019 =
 
       flip BasicPrelude.mapM_ msgs2_converted $ \m' ->
         let sid = m' ^. msgEphemerisGps_common ^. ephemerisCommonContent_sid ^. gnssSignal16_sat in
-        let toc = m' ^. msgEphemerisGps_toc ^. gpsTime_tow in
+        let toc = m' ^. msgEphemerisGps_toc ^. gpsTimeSec_tow in
         let ms  = filter ((== sid) . _gnssSignal16_sat . _ephemerisCommonContent_sid . _msgEphemerisGps_common) msgs2_sbp in
-        let ms'  = filter ((== toc) . _gpsTime_tow . _msgEphemerisGps_toc) ms in
+        let ms'  = filter ((== toc) . _gpsTimeSec_tow . _msgEphemerisGps_toc) ms in
         if length ms' == 0 then return () else
           let m = head ms' in do
-            compareFieldsWithAccessor "toc"    m m' (_gpsTime_tow . _msgEphemerisGps_toc)
-            compareFieldsWithAccessor "wn"     m m' (_gpsTime_wn  . _msgEphemerisGps_toc)
+            compareFieldsWithAccessor "toc"    m m' (_gpsTimeSec_tow . _msgEphemerisGps_toc)
+            compareFieldsWithAccessor "wn"     m m' (_gpsTimeSec_wn  . _msgEphemerisGps_toc)
             compareFieldsWithAccessor "sid"    m m' (_gnssSignal16_sat . _ephemerisCommonContent_sid . _msgEphemerisGps_common)
             -- Does not always match the values coming out of a Piksi. I have reason to believe
             -- that the Piksi might be the problem.
@@ -330,20 +330,20 @@ testToWn =
        toWn 57593 @?= 1907
     ]
 
-testUpdateGpsTime :: TestTree
-testUpdateGpsTime =
+testUpdateGpsTimeNano :: TestTree
+testUpdateGpsTimeNano =
   testGroup "Update GPS Time"
     [ testCase "old TOW < new TOW" $ do
         let old = GpsTimeNano 1 0 10
-            new = updateGpsTime 2 old
+            new = updateGpsTimeNano 2 old
         new ^. gpsTimeNano_wn @?= 10
     , testCase "old TOW = new TOW" $ do
         let old = GpsTimeNano 1 0 10
-            new = updateGpsTime 1 old
+            new = updateGpsTimeNano 1 old
         new ^. gpsTimeNano_wn @?= 10
     , testCase "old TOW > new TOW" $ do
         let old = GpsTimeNano 1 0 10
-            new = updateGpsTime 0 old
+            new = updateGpsTimeNano 0 old
         new ^. gpsTimeNano_wn @?= 11
     ]
 
@@ -393,7 +393,7 @@ tests =
     [ testMsg1004
     , testMsg1019
     , testToWn
-    , testUpdateGpsTime
+    , testUpdateGpsTimeNano
     , testValidateIodcIode
     , testUriToUra
     ]
