@@ -1,0 +1,12 @@
+[submodule "librtcm/libsbp"]
+	path = librtcm/libsbp
+	url = git@github.com:swift-nav/libsbp.git
+[submodule "librtcm/tests/googletest"]
+	path = librtcm/tests/googletest
+	url = https://github.com/google/googletest.git
+[submodule "librtcm/third_party/googletest"]
+	path = librtcm/third_party/googletest
+	url = https://github.com/google/googletest.git
+[submodule "librtcm/third_party/libsbp"]
+	path = librtcm/third_party/libsbp
+	url = git@github.com:swift-nav/libsbp.git
