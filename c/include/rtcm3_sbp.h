@@ -10,70 +10,29 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef GNSS_CONVERTERS_RTCM3_SBP_H
-#define GNSS_CONVERTERS_RTCM3_SBP_H
+#ifndef GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
+#define GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
 
-#include <rtcm3_messages.h>
-#include <rtcm3_sbp_interface.h>
+#include <libsbp/observation.h>
 
-#define MSG_OBS_P_MULTIPLIER ((double)5e1)
-#define MSG_OBS_CN0_MULTIPLIER ((float)4)
-#define MSG_OBS_LF_MULTIPLIER ((double)(1 << 8))
-#define MSG_OBS_FLAGS_CODE_VALID ((u8)(1 << 0))
-#define MSG_OBS_FLAGS_PHASE_VALID ((u8)(1 << 1))
-#define MSG_OBS_FLAGS_HALF_CYCLE_KNOWN ((u8)(1 << 2))
-
-#define SBP_HEADER_SIZE 11
-#define SBP_OBS_SIZE 17
-#define MAX_SBP_PAYLOAD 255
-#define MAX_OBS_IN_SBP ((MAX_SBP_PAYLOAD - SBP_HEADER_SIZE) / SBP_OBS_SIZE)
 #define MAX_OBS_PER_EPOCH 56
 
-extern bool rtcm3_debug;
+struct rtcm3_sbp_state {
+  gps_time_sec_t time_from_rover_obs;
+  bool gps_time_updated;
+  s8 leap_seconds;
+  bool leap_second_known;
+  msg_obs_t *sbp_obs_buffer;
+  u8 obs_buffer[sizeof(observation_header_t) + MAX_OBS_PER_EPOCH * sizeof(packed_obs_content_t)];
+  void (*cb)(u8 msg_id, u8 buff, u8 *len);
+};
 
-/** Code identifier. */
-typedef enum code {
-  CODE_INVALID = -1,
-  CODE_GPS_L1CA = 0,
-  CODE_GPS_L2CM = 1,
-  CODE_SBAS_L1CA = 2,
-  CODE_GLO_L1CA = 3,
-  CODE_GLO_L2CA = 4,
-  CODE_GPS_L1P = 5,
-  CODE_GPS_L2P = 6,
-  CODE_GPS_L2CL = 7,
-  CODE_COUNT,
-} code_t;
+void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct rtcm3_sbp_state *state);
 
-/** Number of milliseconds in a second. */
-#define SECS_MS 1000
+void rtcm2sbp_set_gps_time(gps_time_sec_t *current_time, struct rtcm3_sbp_state* state);
 
-u8 encode_lock_time(double nm_lock_time);
-double decode_lock_time(u8 sbp_lock_time);
+void rtcm2sbp_set_leap_second(s8 leap_seconds, struct rtcm3_sbp_state *state);
 
-void sbp_to_rtcm3_obs(const msg_obs_t *sbp_obs, const u8 msg_size,
-                      rtcm_obs_message *rtcm_obs);
+void rtcm2sbp_init(struct rtcm3_sbp_state *state, void (*cb)(u8 msg_id, u8 length, u8 *buffer));
 
-void rtcm3_1005_to_sbp(const rtcm_msg_1005 *rtcm_1005,
-                       msg_base_pos_ecef_t *sbp_base_pos);
-void sbp_to_rtcm3_1005(const msg_base_pos_ecef_t *sbp_base_pos,
-                       rtcm_msg_1005 *rtcm_1005);
-
-void rtcm3_1006_to_sbp(const rtcm_msg_1006 *rtcm_1006,
-                       msg_base_pos_ecef_t *sbp_base_pos);
-void sbp_to_rtcm3_1006(const msg_base_pos_ecef_t *sbp_base_pos,
-                       rtcm_msg_1006 *rtcm_1006);
-
-void encode_RTCM_obs(const rtcm_obs_message *rtcm_msg);
-
-void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *sbp_obs);
-
-void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sbp_state *state);
-
-void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *new_sbp_obs, struct rtcm3_sbp_state *state);
-
-void compute_gps_time(double tow, gps_time_sec_t *new_sbp_obs, const gps_time_sec_t *rover_time);
-
-void send_observations(struct rtcm3_sbp_state *state);
-
-#endif // GNSS_CONVERTERS_RTCM3_SBP_H
+#endif //GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H

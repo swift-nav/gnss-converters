@@ -10,17 +10,9 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
-#define GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
+#ifndef GNSS_CONVERTERS_RTCM3_SBP_TEST_C_H
+#define GNSS_CONVERTERS_RTCM3_SBP_TEST_C_H
 
-#include <libsbp/observation.h>
+void test_RTCM3_decode(void);
 
-struct rtcm3_sbp_state;
-
-void rtcm3_decode_frame(const uint8_t *frame, uint32_t frame_length, struct rtcm3_sbp_state *state);
-
-void set_gps_time(gps_time_sec_t *current_time, struct rtcm3_sbp_state* state);
-
-void init(struct rtcm3_sbp_state *state, void (*cb)(u8 msg_id, u8 buff, u8 *len));
-
-#endif //GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
+#endif //GNSS_CONVERTERS_RTCM3_SBP_TEST_C_H

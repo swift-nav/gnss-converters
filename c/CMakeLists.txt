@@ -50,4 +50,4 @@ set(CMAKE_C_FLAGS "-Wall -Wextra -Wno-strict-prototypes -Werror -std=gnu99 -fno-
 
 add_subdirectory (librtcm/c)
 add_subdirectory (src)
-# add_subdirectory (test)
+add_subdirectory (tests)
