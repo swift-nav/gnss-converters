@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2017 Swift Navigation Inc.
- * Contact: Jacob McNamee <jacob@swiftnav.com>
+ * Contact: Swift Navigation <dev@swiftnav.com>
  *
  * This source is subject to the license found in the file 'LICENSE' which must
  * be be distributed together with this source. All other rights reserved.
@@ -10,12 +10,11 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef PIKSI_BUILDROOT_SBP_RTCM3_H
-#define PIKSI_BUILDROOT_SBP_RTCM3_H
+#ifndef GNSS_CONVERTERS_RTCM3_SBP_H
+#define GNSS_CONVERTERS_RTCM3_SBP_H
 
-#include "rtcm3_messages.h"
-#include <libsbp/observation.h>
-#include <libpiksi/logging.h>
+#include <rtcm3_messages.h>
+#include <rtcm3_sbp_interface.h>
 
 #define MSG_OBS_P_MULTIPLIER ((double)5e1)
 #define MSG_OBS_CN0_MULTIPLIER ((float)4)
@@ -52,26 +51,6 @@ typedef enum code {
 u8 encode_lock_time(double nm_lock_time);
 double decode_lock_time(u8 sbp_lock_time);
 
-/** Semi-major axis of the Earth, \f$ a \f$, in meters.
- * This is a defining parameter of the WGS84 ellipsoid. */
-#define WGS84_A 6378137.0
-/** Inverse flattening of the Earth, \f$ 1/f \f$.
- * This is a defining parameter of the WGS84 ellipsoid. */
-#define WGS84_IF 298.257223563
-/** The flattening of the Earth, \f$ f \f$. */
-#define WGS84_F (1 / WGS84_IF)
-/** Semi-minor axis of the Earth in meters, \f$ b = a(1-f) \f$. */
-#define WGS84_B (WGS84_A * (1 - WGS84_F))
-/** Eccentricity of the Earth, \f$ e \f$ where \f$ e^2 = 2f - f^2 \f$ */
-#define WGS84_E (sqrt(2 * WGS84_F - WGS84_F * WGS84_F))
-
-static void wgsllh2ecef(const double llh[3], double ecef[3]);
-static void wgsecef2llh(const double ecef[3], double llh[3]);
-
-void rtcm3_decode_frame(const uint8_t *frame, uint32_t frame_length);
-
-u8 rtcm3_obs_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *sbp_obs[4],
-                    u8 sizes[4]);
 void sbp_to_rtcm3_obs(const msg_obs_t *sbp_obs, const u8 msg_size,
                       rtcm_obs_message *rtcm_obs);
 
@@ -85,18 +64,16 @@ void rtcm3_1006_to_sbp(const rtcm_msg_1006 *rtcm_1006,
 void sbp_to_rtcm3_1006(const msg_base_pos_ecef_t *sbp_base_pos,
                        rtcm_msg_1006 *rtcm_1006);
 
-void set_gps_time(u16 sender_id, u8 len, u8 msg[], void *context);
-
 void encode_RTCM_obs(const rtcm_obs_message *rtcm_msg);
 
-void add_obs_to_buffer(rtcm_obs_message *rtcm_obs_buffer,rtcm_obs_message *new_rtcm_obs);
+void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *sbp_obs);
 
-u8 rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *sbp_obs);
+void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sbp_state *state);
 
-void add_gps_obs_to_buffer(msg_obs_t *sbp_obs_buffer,rtcm_obs_message *new_rtcm_obs);
+void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *new_sbp_obs, struct rtcm3_sbp_state *state);
 
-void compute_gps_time(double tow, msg_obs_t *sbp_obs);
+void compute_gps_time(double tow, gps_time_sec_t *new_sbp_obs, const gps_time_sec_t *rover_time);
 
-void send_observations(const msg_obs_t *sbp_obs_buffer);
+void send_observations(struct rtcm3_sbp_state *state);
 
-#endif // PIKSI_BUILDROOT_SBP_RTCM3_H
+#endif // GNSS_CONVERTERS_RTCM3_SBP_H
