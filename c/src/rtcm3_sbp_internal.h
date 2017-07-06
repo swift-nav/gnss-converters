@@ -23,10 +23,7 @@
 #define MSG_OBS_FLAGS_PHASE_VALID ((u8)(1 << 1))
 #define MSG_OBS_FLAGS_HALF_CYCLE_KNOWN ((u8)(1 << 2))
 
-#define SBP_HEADER_SIZE 11
-#define SBP_OBS_SIZE 17
 #define MAX_SBP_PAYLOAD 255
-#define MAX_OBS_IN_SBP ((MAX_SBP_PAYLOAD - SBP_HEADER_SIZE) / SBP_OBS_SIZE)
 
 #define MS_TO_S 1e-3
 #define S_TO_MS 1e3
@@ -49,6 +46,9 @@ typedef enum code {
 
 /** Number of milliseconds in a second. */
 #define SECS_MS 1000
+#define SEC_IN_DAY 86400
+#define SEC_IN_WEEK 604800
+#define SEC_IN_HOUR 3600
 
 u8 encode_lock_time(double nm_lock_time);
 double decode_lock_time(u8 sbp_lock_time);
@@ -70,15 +70,20 @@ void encode_RTCM_obs(const rtcm_obs_message *rtcm_msg);
 
 void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *sbp_obs);
 
-void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sbp_state *state);
+void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
+                           struct rtcm3_sbp_state *state);
 
-void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sbp_state *state);
+void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
+                           struct rtcm3_sbp_state *state);
 
-void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *new_sbp_obs, struct rtcm3_sbp_state *state);
+void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
+                       gps_time_sec_t *new_sbp_obs, struct rtcm3_sbp_state *state);
 
-void compute_gps_time(double tow_ms, gps_time_sec_t *new_sbp_obs, const gps_time_sec_t *rover_time);
+void compute_gps_time(double tow_ms, gps_time_sec_t *new_sbp_obs,
+                      const gps_time_sec_t *rover_time);
 
-void compute_glo_time(double tod_ms, gps_time_sec_t *obs_time, const gps_time_sec_t *rover_time, const s8 leap_second);
+void compute_glo_time(double tod_ms, gps_time_sec_t *obs_time,
+                      const gps_time_sec_t *rover_time, const s8 leap_second);
 
 void send_observations(struct rtcm3_sbp_state *state);
 

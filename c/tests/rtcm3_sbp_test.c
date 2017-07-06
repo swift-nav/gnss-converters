@@ -18,7 +18,8 @@
 
 #define MAX_FILE_SIZE 26000
 
-void sbp_callback(u8 msg_id, u8 length, u8 *buffer){
+void sbp_callback (u8 msg_id, u8 length, u8 *buffer)
+{
   (void) length;
   (void) buffer;
   static uint32_t msg_count = 0;
@@ -30,9 +31,8 @@ void sbp_callback(u8 msg_id, u8 length, u8 *buffer){
   msg_count++;
 }
 
-void test_RTCM3_decode(void){
-
-
+void test_RTCM3_decode(void)
+{
   struct rtcm3_sbp_state state;
   rtcm2sbp_init(&state, sbp_callback);
   gps_time_sec_t current_time;
@@ -45,12 +45,11 @@ void test_RTCM3_decode(void){
 
   u8 buffer[MAX_FILE_SIZE];
 
-  if(fp == NULL){
+  if(fp == NULL) {
     fprintf(stderr, "Can't open input file!\n");
     exit(1);
   }
-
-
+  
   uint32_t file_size = fread(buffer, 1, MAX_FILE_SIZE, fp);
   uint32_t buffer_index = 0;
   while (buffer_index < file_size) {
@@ -61,10 +60,10 @@ void test_RTCM3_decode(void){
     buffer_index++;
   }
 
-
   return;
 }
 
-int main(void) {
+int main(void)
+{
   test_RTCM3_decode();
 }

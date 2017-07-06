@@ -14,9 +14,10 @@
 #include <rtcm3_decode.h>
 #include <math.h>
 #include <string.h>
+#include <assert.h>
 
-void rtcm2sbp_init(struct rtcm3_sbp_state *state, void (*cb)(u8 msg_id, u8 length, u8 *buffer)) {
-
+void rtcm2sbp_init(struct rtcm3_sbp_state *state, void (*cb)(u8 msg_id, u8 length, u8 *buffer))
+{
   state->time_from_rover_obs.wn = 0;
   state->time_from_rover_obs.tow = 0;
   state->gps_time_updated = false;
@@ -32,12 +33,12 @@ static double gps_diff_time(const gps_time_sec_t *end, const gps_time_sec_t *beg
 {
   int week_diff = end->wn - beginning->wn;
   double dt = (double)end->tow - (double)beginning->tow;
-  dt += week_diff * 604800;
+  dt += week_diff * SEC_IN_WEEK;
   return dt;
 }
 
-void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct rtcm3_sbp_state *state) {
-
+void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct rtcm3_sbp_state *state)
+{
   if (state->gps_time_updated == false || frame_length < 1) {
     return;
   }
@@ -110,25 +111,26 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct r
   default:
     break;
   }
-
 }
 
-void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sbp_state *state) {
+void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sbp_state *state)
+{
   gps_time_sec_t obs_time;
   compute_glo_time(new_rtcm_obs->header.tow_ms, &obs_time, &state->time_from_rover_obs, state->leap_seconds);
 
   add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
 }
 
-void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sbp_state *state) {
+void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sbp_state *state)
+{
   gps_time_sec_t obs_time;
   compute_gps_time(new_rtcm_obs->header.tow_ms, &obs_time, &state->time_from_rover_obs);
 
   add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
 }
 
-void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *obs_time, struct rtcm3_sbp_state *state) {
-
+void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *obs_time, struct rtcm3_sbp_state *state)
+{
   // Transform the newly received obs to sbp
   msg_obs_t *new_sbp_obs;
   u8 new_obs[sizeof(observation_header_t) + MAX_OBS_PER_EPOCH * sizeof(packed_obs_content_t)];
@@ -169,28 +171,33 @@ void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *obs
 /**
  * Send the sbp message obs buffer
  */
-void send_observations(struct rtcm3_sbp_state *state) {
+void send_observations(struct rtcm3_sbp_state *state)
+{
   const msg_obs_t *sbp_obs_buffer = state->sbp_obs_buffer;
 
   u8 obs_count = 0;
   u8 sizes[4];
-  u8 obs_data[4 * sizeof(observation_header_t) +
-              4 * sbp_obs_buffer->header.n_obs * sizeof(packed_obs_content_t)];
+  uint32_t header_size = sizeof(observation_header_t);
+  uint32_t obs_size = sizeof(packed_obs_content_t);
+  u8 obs_data[4 * header_size + 4 * sbp_obs_buffer->header.n_obs * obs_size];
   msg_obs_t *sbp_obs[4];
+  uint32_t max_obs_in_sbp = ((MAX_SBP_PAYLOAD - header_size) / obs_size);
+
   u8 msg_num = 0;
   for (msg_num = 0; msg_num < 4; ++msg_num) {
     sbp_obs[msg_num] =
-      (msg_obs_t * )(obs_data + (msg_num * sizeof(observation_header_t) +
-                                 MAX_OBS_IN_SBP * msg_num *
-                                 sizeof(packed_obs_content_t)));
+      (msg_obs_t * )(obs_data + (msg_num * header_size +
+        max_obs_in_sbp * msg_num * obs_size));
+
     sbp_obs[msg_num]->header.t = sbp_obs_buffer->header.t;
     sbp_obs[msg_num]->header.n_obs = 0;
+
     u8 obs_index;
-    for (obs_index = 0; obs_index < MAX_OBS_IN_SBP && obs_count < sbp_obs_buffer->header.n_obs; obs_index++) {
+    for (obs_index = 0; obs_index < max_obs_in_sbp && obs_count < sbp_obs_buffer->header.n_obs; obs_index++) {
       sbp_obs[msg_num]->obs[obs_index] = sbp_obs_buffer->obs[obs_count++];
       sbp_obs[msg_num]->header.n_obs++;
     }
-    sizes[msg_num] = sizeof(observation_header_t) + obs_index * sizeof(packed_obs_content_t);
+    sizes[msg_num] = header_size + obs_index * obs_size;
   }
 
   for (u8 msg = 0; msg < msg_num; ++msg) {
@@ -198,6 +205,7 @@ void send_observations(struct rtcm3_sbp_state *state) {
       state->cb(SBP_MSG_OBS, sizes[msg], (u8 *) sbp_obs[msg]);
     }
   }
+
   memset((void*)sbp_obs_buffer,0, sizeof(*sbp_obs_buffer));
 }
 
@@ -210,8 +218,9 @@ void send_observations(struct rtcm3_sbp_state *state) {
  * \param nm_lock_time Navigation measurement lock time [s]
  * \return SBP lock time
  */
-u8 encode_lock_time(double nm_lock_time) {
-//  assert(nm_lock_time >= 0.0);
+u8 encode_lock_time(double nm_lock_time)
+{
+  assert(nm_lock_time >= 0.0);
 
   /* Convert to milliseconds */
   u32 ms_lock_time;
@@ -244,7 +253,8 @@ u8 encode_lock_time(double nm_lock_time) {
  * \param sbp_lock_time SBP lock time
  * \return Minimum possible lock time [s]
  */
-double decode_lock_time(u8 sbp_lock_time) {
+double decode_lock_time(u8 sbp_lock_time)
+{
   /* MSB nibble is reserved */
   sbp_lock_time &= 0x0F;
 
@@ -259,21 +269,24 @@ double decode_lock_time(u8 sbp_lock_time) {
   return (double)ms_lock_time / SECS_MS;
 }
 
-bool gps_obs_message(u16 msg_num) {
+bool gps_obs_message(u16 msg_num)
+{
   if(msg_num == 1001 || msg_num == 1002 || msg_num == 1003 || msg_num == 1004) {
     return true;
   }
   return false;
 }
 
-bool glo_obs_message(u16 msg_num) {
+bool glo_obs_message(u16 msg_num)
+{
   if(msg_num == 1009 || msg_num == 1010 || msg_num == 1011 || msg_num == 1012) {
     return true;
   }
   return false;
 }
 
-code_t get_gps_sbp_code(u8 freq, u8 rtcm_code) {
+code_t get_gps_sbp_code(u8 freq, u8 rtcm_code)
+{
   code_t code = CODE_INVALID;
   if (freq == L1_FREQ) {
     if (rtcm_code == 0) {
@@ -291,7 +304,8 @@ code_t get_gps_sbp_code(u8 freq, u8 rtcm_code) {
   return code;
 }
 
-code_t get_glo_sbp_code(u8 freq, u8 rtcm_code) {
+code_t get_glo_sbp_code(u8 freq, u8 rtcm_code)
+{
   code_t code = CODE_INVALID;
   if (freq == L1_FREQ) {
     if (rtcm_code == 0) {
@@ -307,8 +321,8 @@ code_t get_glo_sbp_code(u8 freq, u8 rtcm_code) {
   return code;
 }
 
-void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *new_sbp_obs) {
-
+void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *new_sbp_obs)
+{
   new_sbp_obs->header.n_obs = 0;
   for (u8 sat = 0; sat < rtcm_obs->header.n_sat; ++sat) {
     for (u8 freq = 0; freq < NUM_FREQS; ++freq) {
@@ -327,7 +341,7 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *new_sbp_obs) {
         sbp_freq->lock = 0.0;
 
         sbp_freq->sid.sat = rtcm_obs->sats[sat].svId;
-        if(gps_obs_message(rtcm_obs->header.msg_num)) {
+        if (gps_obs_message(rtcm_obs->header.msg_num)) {
           get_gps_sbp_code(freq,rtcm_obs->sats[sat].obs[freq].code);
         } else if (glo_obs_message(rtcm_obs->header.msg_num)) {
           get_glo_sbp_code(freq,rtcm_obs->sats[sat].obs[freq].code);
@@ -342,22 +356,25 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *new_sbp_obs) {
           sbp_freq->L.i = (s32)floor(rtcm_freq->carrier_phase);
           u16 frac_part = (u16)roundl((rtcm_freq->carrier_phase - (double)sbp_freq->L.i) *
                                       MSG_OBS_LF_MULTIPLIER);
-          if( frac_part == 256 ) {
-            frac_part -= 256;
+          if (frac_part == 256) {
+            frac_part = 0;
             sbp_freq->L.i += 1;
           }
           sbp_freq->L.f = (u8) frac_part;
           sbp_freq->flags |= MSG_OBS_FLAGS_PHASE_VALID;
           sbp_freq->flags |= MSG_OBS_FLAGS_HALF_CYCLE_KNOWN;
         }
+
         if (rtcm_freq->flags.valid_cnr == 1) {
           sbp_freq->cn0 = (u8)roundl(rtcm_freq->cnr * MSG_OBS_CN0_MULTIPLIER);
         } else {
           sbp_freq->cn0 = 0;
         }
+
         if (rtcm_freq->flags.valid_lock == 1) {
           sbp_freq->lock = encode_lock_time(rtcm_freq->lock);
         }
+
         new_sbp_obs->header.n_obs++;
       }
     }
@@ -365,21 +382,24 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *new_sbp_obs) {
 }
 
 void rtcm3_1005_to_sbp(const rtcm_msg_1005 *rtcm_1005,
-                       msg_base_pos_ecef_t *sbp_base_pos) {
+                       msg_base_pos_ecef_t *sbp_base_pos)
+{
   sbp_base_pos->x = rtcm_1005->arp_x;
   sbp_base_pos->y = rtcm_1005->arp_y;
   sbp_base_pos->z = rtcm_1005->arp_z;
 }
 
 void sbp_to_rtcm3_1005(const msg_base_pos_ecef_t *sbp_base_pos,
-                       rtcm_msg_1005 *rtcm_1005) {
+                       rtcm_msg_1005 *rtcm_1005)
+{
   rtcm_1005->arp_x = sbp_base_pos->x;
   rtcm_1005->arp_y = sbp_base_pos->y;
   rtcm_1005->arp_z = sbp_base_pos->z;
 }
 
 void rtcm3_1006_to_sbp(const rtcm_msg_1006 *rtcm_1006,
-                       msg_base_pos_ecef_t *sbp_base_pos) {
+                       msg_base_pos_ecef_t *sbp_base_pos)
+{
   sbp_base_pos->x = rtcm_1006->msg_1005.arp_x;
   sbp_base_pos->y = rtcm_1006->msg_1005.arp_y;
   sbp_base_pos->z = rtcm_1006->msg_1005.arp_z;
@@ -405,32 +425,33 @@ void rtcm2sbp_set_leap_second(s8 leap_seconds, struct rtcm3_sbp_state *state) {
   state->leap_second_known = true;
 }
 
-void compute_gps_time(double tow_ms, gps_time_sec_t *obs_time, const gps_time_sec_t *rover_time) {
-
+void compute_gps_time(double tow_ms, gps_time_sec_t *obs_time, const gps_time_sec_t *rover_time)
+{
   obs_time->tow = tow_ms * MS_TO_S;
   obs_time->wn = rover_time->wn;
   double timediff = gps_diff_time(obs_time, rover_time);
-  if (timediff < -302400) {
+  if (timediff < -SEC_IN_WEEK / 2) {
     obs_time->wn = rover_time->wn + 1;
-  } else if (timediff > 302400) {
+  } else if (timediff > SEC_IN_WEEK / 2) {
     obs_time->wn = rover_time->wn - 1;
   }
 }
 
-void compute_glo_time(double tod_ms, gps_time_sec_t *obs_time, const gps_time_sec_t *rover_time, const s8 leap_second){
-  //Need to work out DOW from GPS time first
-  int rover_dow = rover_time->tow / 86400;
-  int rover_tod = rover_time->tow - rover_dow * 86400;
+void compute_glo_time(double tod_ms, gps_time_sec_t *obs_time, const gps_time_sec_t *rover_time, const s8 leap_second)
+{
+  /* Need to work out DOW from GPS time first */
+  int rover_dow = rover_time->tow / SEC_IN_DAY;
+  int rover_tod = rover_time->tow - rover_dow * SEC_IN_DAY;
 
-  double glo_tod_sec = tod_ms / S_TO_MS - 3 * 3600 + leap_second;
+  double glo_tod_sec = tod_ms / S_TO_MS - 3 * SEC_IN_HOUR + leap_second;
 
   obs_time->wn = rover_time->wn;
-  // Check for day rollover
-  if(glo_tod_sec - rover_tod > 43200) {
+  /* Check for day rollover */
+  if (glo_tod_sec - rover_tod > SEC_IN_DAY / 2) {
     rover_dow = (rover_dow + 1) % 7;
-  } else if(rover_tod - glo_tod_sec > 43200) {
+  } else if (rover_tod - glo_tod_sec > SEC_IN_DAY / 2) {
     rover_dow = (rover_dow - 1) % 7;
   }
-  obs_time->tow = rover_dow * 86400 + glo_tod_sec;
 
+  obs_time->tow = rover_dow * SEC_IN_DAY + glo_tod_sec;
 }

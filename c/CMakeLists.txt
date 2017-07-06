@@ -30,8 +30,7 @@ add_library(sbp SHARED IMPORTED GLOBAL)
 
 # This tells where the static libsbp binary will end up.  I have no
 # idea how to control this and just found it with `locate`.
-set_property(TARGET sbp
-        PROPERTY IMPORTED_LOCATION "${binary_dir}/src/libsbp-static.a")
+set_property(TARGET sbp PROPERTY IMPORTED_LOCATION "${binary_dir}/src/libsbp-static.a")
 
 # This makes the sbp library depend on the libsbp external
 # project, so that when you ask to link against sbp, the external
