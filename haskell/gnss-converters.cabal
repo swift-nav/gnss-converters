@@ -1,5 +1,5 @@
 name:                  gnss-converters
-version:               0.2.9
+version:               0.2.10
 synopsis:              GNSS Converters.
 description:           Haskell bindings for GNSS converters.
 homepage:              http://github.com/swift-nav/gnss-converters
@@ -9,7 +9,7 @@ maintainer:            Swift Navigation <dev@swiftnav.com>
 copyright:             Copyright (C) 2016, 2017 Swift Navigation, Inc.
 category:              Network
 build-type:            Simple
-cabal-version:         >= 1.10
+cabal-version:         >= 1.22
 
 source-repository head
   type:                git
@@ -21,7 +21,7 @@ library
                      , Data.RTCM3.SBP.Types
                      , SwiftNav.SBP.RTCM3
   ghc-options:         -Wall
-  build-depends:       base >= 4.7 && < 5
+  build-depends:       base >= 4.8 && < 5
                      , basic-prelude
                      , conduit-extra
                      , exceptions

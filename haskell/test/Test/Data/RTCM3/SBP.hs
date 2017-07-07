@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE NoImplicitPrelude #-}
@@ -28,7 +29,6 @@ import           Data.HashMap.Strict               hiding (filter, mapMaybe)
 import           Data.IORef
 import           Data.RTCM3.SBP
 import           Data.RTCM3.SBP.Types
-import qualified Data.Text                         as T
 import           SwiftNav.SBP
 import           Test.HUnit.Approx
 import           Test.Tasty
@@ -101,7 +101,11 @@ assertObs truth obs ptol ctol sig = do
       def         = (0, 0, 0)
       (p, c, snr) = lookupDefault def prn truth
       code        = obs ^. packedObsContent_sid ^. gnssSignal16_code
+#if MIN_VERSION_basic_prelude(0,6,1)
+      msg'        = "PRN=" ++ show prn ++ " CODE=" ++ show code
+#else
       msg'        = textToString $ "PRN=" ++ show prn ++ " CODE=" ++ show code
+#endif
   -- Pseudorange representation error
   assertApproxEqual ("Incorrect pseudorange" ++ msg')   ptol p $ pseudorange obs
   -- Carrier phase representation error
@@ -384,7 +388,11 @@ testUriToUra =
 
   where
     testN n expected =
-      let s = T.unpack $ show n in
+#if MIN_VERSION_basic_prelude(0,6,1)
+      let s = show n in
+#else
+      let s = textToString $ show n in
+#endif
       testCase s $ assertEqual s expected $ gpsUriToUra n
 
 tests :: TestTree
