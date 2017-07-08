@@ -17,7 +17,7 @@ function build_c() {
     mkdir build
     cd build
     cmake ../
-    make -j4
+    make -j4 VERBOSE=1
     cd ../
     cd ../
 }

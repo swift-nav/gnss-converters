@@ -14,6 +14,7 @@
 #define GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
 
 #include <libsbp/observation.h>
+#include <libsbp/gnss.h>
 
 #define MAX_OBS_PER_EPOCH 56
 

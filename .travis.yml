@@ -31,6 +31,13 @@ before_install:
   - sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 084ECFC5828AB726
   - sudo apt-get update
   - sudo apt-get install cmake
+  # Install the required libsbp library
+  - git clone https://github.com/swift-nav/libsbp.git
+  - mkdir libsbp/c/build
+  - cd libsbp/c/build
+  - cmake ../
+  - sudo make install
+  - cd ../../../
 
 install:
   - (cd haskell && stack update)

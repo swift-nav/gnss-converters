@@ -49,7 +49,7 @@ void test_RTCM3_decode(void)
     fprintf(stderr, "Can't open input file!\n");
     exit(1);
   }
-  
+
   uint32_t file_size = fread(buffer, 1, MAX_FILE_SIZE, fp);
   uint32_t buffer_index = 0;
   while (buffer_index < file_size) {
