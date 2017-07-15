@@ -1,0 +1,3 @@
+[submodule "c/librtcm"]
+	path = c/librtcm
+	url = ../librtcm.git
