@@ -108,6 +108,12 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct r
     }
     break;
   }
+  case 1230: {
+    rtcm_msg_1230 msg_1230;
+    if (rtcm3_decode_1230(&frame[byte], &msg_1230) == 0) {
+      /* 1230 Message needs SBP message support to send */
+    }
+  }
   default:
     break;
   }
