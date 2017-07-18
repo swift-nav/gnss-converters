@@ -29,6 +29,11 @@ void sbp_callback (u8 msg_id, u8 length, u8 *buffer)
     assert(msg_id == SBP_MSG_OBS);
   }
   msg_count++;
+
+//  if(msg_id == SBP_MSG_OBS) {
+//    msg_obs_t* sbp_msg = (msg_obs_t*)buffer;
+//    printf("Msg Id %u, %u, %u, %u\n",msg_id,(sbp_msg->header.n_obs >> 4), sbp_msg->header.n_obs & 0x0F ,sbp_msg->header.t.tow);
+//  }
 }
 
 void test_RTCM3_decode(void)

@@ -8,9 +8,5 @@ IF (EXISTS ${CMAKE_SOURCE_DIR}/librtcm/c)
     add_subdirectory (librtcm/c)
 ENDIF (EXISTS ${CMAKE_SOURCE_DIR}/librtcm/c)
 
-IF (EXISTS ${CMAKE_SOURCE_DIR}/libsbp/c)
-    add_subdirectory (libsbp/c)
-ENDIF (EXISTS ${CMAKE_SOURCE_DIR}/libsbp/c)
-
 add_subdirectory (src)
 add_subdirectory (tests)

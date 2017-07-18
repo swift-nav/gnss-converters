@@ -111,7 +111,10 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct r
   case 1230: {
     rtcm_msg_1230 msg_1230;
     if (rtcm3_decode_1230(&frame[byte], &msg_1230) == 0) {
-      /* 1230 Message needs SBP message support to send */
+      /* 1230 Message needs SBP message support to send
+      msg_glo_code_phase_bias_t sbp_glo_cpb;
+      rtcm3_1230_to_sbp(&msg_1230, &sbp_glo_cpb);
+      state->cb(SBP_MSG_GLO_CODE_PHASE_BIAS, (u8)sizeof(sbp_glo_cpb), (u8 *)&sbp_glo_cpb); */
     }
   }
   default:
@@ -189,6 +192,7 @@ void send_observations(struct rtcm3_sbp_state *state)
   msg_obs_t *sbp_obs[4];
   uint32_t max_obs_in_sbp = ((MAX_SBP_PAYLOAD - header_size) / obs_size);
 
+  u8 total_messages = 0;
   u8 msg_num = 0;
   for (msg_num = 0; msg_num < 4; ++msg_num) {
     sbp_obs[msg_num] =
@@ -201,15 +205,17 @@ void send_observations(struct rtcm3_sbp_state *state)
     u8 obs_index;
     for (obs_index = 0; obs_index < max_obs_in_sbp && obs_count < sbp_obs_buffer->header.n_obs; obs_index++) {
       sbp_obs[msg_num]->obs[obs_index] = sbp_obs_buffer->obs[obs_count++];
-      sbp_obs[msg_num]->header.n_obs++;
+    }
+
+    if(obs_index > 0) {
+      total_messages++;
     }
     sizes[msg_num] = header_size + obs_index * obs_size;
   }
 
-  for (u8 msg = 0; msg < msg_num; ++msg) {
-    if(sbp_obs[msg]->header.n_obs > 0) {
-      state->cb(SBP_MSG_OBS, sizes[msg], (u8 *) sbp_obs[msg]);
-    }
+  for (u8 msg = 0; msg < total_messages; ++msg) {
+    sbp_obs[msg]->header.n_obs = (total_messages << 4) + msg;
+    state->cb(SBP_MSG_OBS, sizes[msg], (u8 *) sbp_obs[msg]);
   }
 
   memset((void*)sbp_obs_buffer,0, sizeof(*sbp_obs_buffer));
