@@ -307,7 +307,7 @@ code_t get_gps_sbp_code(u8 freq, u8 rtcm_code)
       code = CODE_GPS_L1P;
     }
   } else if (freq == L2_FREQ) {
-    if (rtcm_code == 1) {
+    if (rtcm_code == 0) {
       code = CODE_GPS_L2CM;
     } else {
       code = CODE_GPS_L2P;
@@ -320,14 +320,10 @@ code_t get_glo_sbp_code(u8 freq, u8 rtcm_code)
 {
   code_t code = CODE_INVALID;
   if (freq == L1_FREQ) {
-    if (rtcm_code == 0) {
-      code = CODE_GLO_L1CA;
-    }
+    code = CODE_GLO_L1CA;
     /* CODE_GLO_L1P currently not supported in sbp */
   } else if (freq == L2_FREQ) {
-    if (rtcm_code == 1) {
-      code = CODE_GLO_L2CA;
-    }
+    code = CODE_GLO_L2CA;
     /* CODE_GLO_L2P currently not supported in sbp */
   }
   return code;
@@ -354,9 +350,9 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *new_sbp_obs)
 
         sbp_freq->sid.sat = rtcm_obs->sats[sat].svId;
         if (gps_obs_message(rtcm_obs->header.msg_num)) {
-          get_gps_sbp_code(freq,rtcm_obs->sats[sat].obs[freq].code);
+          sbp_freq->sid.code = get_gps_sbp_code(freq,rtcm_obs->sats[sat].obs[freq].code);
         } else if (glo_obs_message(rtcm_obs->header.msg_num)) {
-          get_glo_sbp_code(freq,rtcm_obs->sats[sat].obs[freq].code);
+          sbp_freq->sid.code = get_glo_sbp_code(freq,rtcm_obs->sats[sat].obs[freq].code);
         }
 
         if (rtcm_freq->flags.valid_pr == 1) {
