@@ -318,6 +318,7 @@ code_t get_gps_sbp_code(u8 freq, u8 rtcm_code)
 
 code_t get_glo_sbp_code(u8 freq, u8 rtcm_code)
 {
+  (void) rtcm_code;
   code_t code = CODE_INVALID;
   if (freq == L1_FREQ) {
     code = CODE_GLO_L1CA;
