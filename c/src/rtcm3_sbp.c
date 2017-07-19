@@ -307,7 +307,7 @@ code_t get_gps_sbp_code(u8 freq, u8 rtcm_code)
       code = CODE_GPS_L1P;
     }
   } else if (freq == L2_FREQ) {
-    if (rtcm_code == 0) {
+    if (rtcm_code == 1) {
       code = CODE_GPS_L2CM;
     } else {
       code = CODE_GPS_L2P;
@@ -325,7 +325,7 @@ code_t get_glo_sbp_code(u8 freq, u8 rtcm_code)
     }
     /* CODE_GLO_L1P currently not supported in sbp */
   } else if (freq == L2_FREQ) {
-    if (rtcm_code == 0) {
+    if (rtcm_code == 1) {
       code = CODE_GLO_L2CA;
     }
     /* CODE_GLO_L2P currently not supported in sbp */
