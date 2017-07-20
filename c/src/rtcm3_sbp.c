@@ -16,7 +16,8 @@
 #include <string.h>
 #include <assert.h>
 
-void rtcm2sbp_init(struct rtcm3_sbp_state *state, void (*cb)(u8 msg_id, u8 length, u8 *buffer))
+void rtcm2sbp_init(struct rtcm3_sbp_state *state,
+                   void (*cb)(u8 msg_id, u8 length, u8 *buffer, u16 sender_id))
 {
   state->time_from_rover_obs.wn = 0;
   state->time_from_rover_obs.tow = 0;
@@ -35,6 +36,12 @@ static double gps_diff_time(const gps_time_sec_t *end, const gps_time_sec_t *beg
   double dt = (double)end->tow - (double)beginning->tow;
   dt += week_diff * SEC_IN_WEEK;
   return dt;
+}
+
+static u16 rtcm_2_sbp_sender_id(u16 rtcm_id){
+  /* To avoid conflicts with reserved low number sender ID's we or
+   * on the highest nibble as RTCM sender ID's are 12 bit */
+  return rtcm_id | 0xF000;
 }
 
 void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct rtcm3_sbp_state *state)
@@ -78,7 +85,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct r
     if (0 == rtcm3_decode_1005(&frame[byte], &msg_1005)) {
       msg_base_pos_ecef_t sbp_base_pos;
       rtcm3_1005_to_sbp(&msg_1005, &sbp_base_pos);
-      state->cb(SBP_MSG_BASE_POS_ECEF, (u8)sizeof(sbp_base_pos), (u8 *)&sbp_base_pos);
+      state->cb(SBP_MSG_BASE_POS_ECEF, (u8)sizeof(sbp_base_pos),
+                (u8 *)&sbp_base_pos, rtcm_2_sbp_sender_id(msg_1005.stn_id));
     }
     break;
   }
@@ -87,7 +95,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct r
     if (0 == rtcm3_decode_1006(&frame[byte], &msg_1006)) {
       msg_base_pos_ecef_t sbp_base_pos;
       rtcm3_1006_to_sbp(&msg_1006, &sbp_base_pos);
-      state->cb(SBP_MSG_BASE_POS_ECEF, (u8)sizeof(sbp_base_pos), (u8 *)&sbp_base_pos);
+      state->cb(SBP_MSG_BASE_POS_ECEF, (u8)sizeof(sbp_base_pos),
+                (u8 *)&sbp_base_pos, rtcm_2_sbp_sender_id(msg_1006.msg_1005.stn_id));
     }
     break;
   }
@@ -114,7 +123,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct r
       /* 1230 Message needs SBP message support to send
       msg_glo_code_phase_bias_t sbp_glo_cpb;
       rtcm3_1230_to_sbp(&msg_1230, &sbp_glo_cpb);
-      state->cb(SBP_MSG_GLO_CODE_PHASE_BIAS, (u8)sizeof(sbp_glo_cpb), (u8 *)&sbp_glo_cpb); */
+      state->cb(SBP_MSG_GLO_CODE_PHASE_BIAS, (u8)sizeof(sbp_glo_cpb),
+       (u8 *)&sbp_glo_cpb, rtcm_2_sbp_sender_id(msg1230.stn_id)); */
     }
   }
   default:
@@ -156,7 +166,8 @@ void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *obs
 
   // Check if the buffer already has obs of the same time
   if(sbp_obs_buffer->header.n_obs != 0 &&
-     (sbp_obs_buffer->header.t.tow != new_sbp_obs->header.t.tow)) {
+     (sbp_obs_buffer->header.t.tow != new_sbp_obs->header.t.tow
+      || state->sender_id != rtcm_2_sbp_sender_id(new_rtcm_obs->header.stn_id))) {
     // We either have missed a message, or we have a new station. Either way,
     // send through the current buffer and clear before adding new obs
     send_observations(state);
@@ -164,6 +175,7 @@ void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *obs
 
   // Copy new obs into buffer
   u8 obs_index_buffer = sbp_obs_buffer->header.n_obs;
+  state->sender_id = rtcm_2_sbp_sender_id(new_rtcm_obs->header.stn_id);
   for(u8 obs_count = 0; obs_count < new_sbp_obs->header.n_obs; obs_count++) {
     sbp_obs_buffer->obs[obs_index_buffer] = new_sbp_obs->obs[obs_count];
     obs_index_buffer++;
@@ -215,7 +227,7 @@ void send_observations(struct rtcm3_sbp_state *state)
 
   for (u8 msg = 0; msg < total_messages; ++msg) {
     sbp_obs[msg]->header.n_obs = (total_messages << 4) + msg;
-    state->cb(SBP_MSG_OBS, sizes[msg], (u8 *) sbp_obs[msg]);
+    state->cb(SBP_MSG_OBS, sizes[msg], (u8 *) sbp_obs[msg], state->sender_id);
   }
 
   memset((void*)sbp_obs_buffer,0, sizeof(*sbp_obs_buffer));

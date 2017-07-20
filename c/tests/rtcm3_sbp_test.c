@@ -18,10 +18,11 @@
 
 #define MAX_FILE_SIZE 26000
 
-void sbp_callback (u8 msg_id, u8 length, u8 *buffer)
+void sbp_callback (u8 msg_id, u8 length, u8 *buffer, u16 sender_id)
 {
   (void) length;
   (void) buffer;
+  (void) sender_id;
   static uint32_t msg_count = 0;
   if(msg_count == 3 || msg_count == 19 || msg_count == 41) {
     assert(msg_id == SBP_MSG_BASE_POS_ECEF);
