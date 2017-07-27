@@ -5,6 +5,6 @@ flags: {}
 pvp-bounds: lower
 extra-deps:
 - rtcm-0.2.2
-- sbp-2.2.10
+- sbp-2.2.11
 - word24-2.0.1
 - HUnit-approx-1.1
