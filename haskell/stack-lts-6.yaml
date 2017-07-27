@@ -4,7 +4,7 @@ packages:
 flags: {}
 pvp-bounds: lower
 extra-deps:
-- rtcm-0.1.12
-- sbp-2.2.7
+- rtcm-0.2.2
+- sbp-2.2.10
 - word24-2.0.1
 - HUnit-approx-1.1
