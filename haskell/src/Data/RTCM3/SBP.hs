@@ -39,6 +39,7 @@ import           Data.Time
 import           Data.Word
 import           SwiftNav.SBP
 
+{-# ANN module ("HLint: ignore Redundant if"::String) #-}
 
 --------------------------------------------------------------------------------
 -- SBP, GNSS, RTCM constant definitions
@@ -422,7 +423,7 @@ fromL2SatelliteObservation :: MonadStore e m
 fromL2SatelliteObservation sat l1 l1e l2 l2e =
   -- Checks GPS L2 code indicator.
   -- See DF016, pg. 3-17 of the RTCM3 spec.
-  maybe' (toL2GnssSignal sat l2) (return Nothing) $ \sid -> do
+  maybe' (toL2GnssSignal sat l2) (return Nothing) $ \sid ->
     return $ Just PackedObsContent
       { _packedObsContent_P     = toP_L2 l1 l1e l2
       , _packedObsContent_L     = toL_L2 l1 l1e l2 l2e
@@ -484,30 +485,30 @@ toSender = (.|. 0xf000)
 -- | Decode SBP 'fitInterval' from RTCM/GPS 'fitIntervalFlag' and IODC.
 -- Implementation adapted from libswiftnav/ephemeris.c.
 decodeFitInterval :: Bool -> Word16 -> Word32
-decodeFitInterval fitInt iodc =
-  if not fitInt then 4 * 60 * 60 else
-    if iodc >= 240 && iodc <= 247 then 8 * 60 * 60 else
-      if (iodc >= 248 && iodc <= 255) || iodc == 496 then 14 * 60 * 60 else
-        if (iodc >= 497 && iodc <= 503) || (iodc >= 1021 && iodc <= 1023) then 26 * 60 * 60 else
-          if iodc >= 504 && iodc <= 510 then 50 * 60 * 60 else
-            if iodc == 511 || (iodc >= 752 && iodc <= 756) then 74 * 60 * 60 else
-              if iodc == 757 then 98 * 60 * 60 else
-                6 * 60 * 60
+decodeFitInterval fitInt iodc
+  | not fitInt = 4 * 60 * 60
+  | iodc >= 240 && iodc <= 247 = 8 * 60 * 60
+  | (iodc >= 248 && iodc <= 255) || iodc == 496 = 14 * 60 * 60
+  | (iodc >= 497 && iodc <= 503) || (iodc >= 1021 && iodc <= 1023) = 26 * 60 * 60
+  | iodc >= 504 && iodc <= 510 = 50 * 60 * 60
+  | iodc == 511 || (iodc >= 752 && iodc <= 756) = 74 * 60 * 60
+  | iodc == 757 = 98 * 60 * 60
+  | otherwise = 6 * 60 * 60
 
 -- | Convert between RTCM/GPS URA ("User Range Accuracy") index to a number in meters.
 -- See section 2.5.3, "User Range Accuracy", in the GPS signal specification.
 -- Indices 1, 3, and 5 are hard-coded according to spec, and 15 is hard-coded according
 -- to SBP/Piksi convention.
 gpsUriToUra :: Double -> Double
-gpsUriToUra uri =
-  if uri < 0 then -1 else
-    if uri == 1 then 2.8 else
-      if uri == 3 then 5.7 else
-        if uri == 5 then 11.3 else
-          if uri == 15 then 6144 else
-            if uri <= 6 then 2 ** (1 + (uri / 2)) else
-              if uri > 6 && uri < 15 then 2 ** (uri - 2) else
-                -1
+gpsUriToUra uri
+  | uri < 0 = -1
+  | uri == 1 = 2.8
+  | uri == 3 = 5.7
+  | uri == 5 = 11.3
+  | uri == 15 = 6144
+  | uri <= 6 = 2 ** (1 + (uri / 2))
+  | uri > 6 && uri < 15 = 2 ** (uri - 2)
+  | otherwise = -1
 
 --------------------------------------------------------------------------------
 -- RTCM to SBP conversion utilities: RTCM Msgs. 1002 (L1 RTK), 1004 (L1+L2 RTK),
@@ -602,27 +603,27 @@ fromMsg1019 m = do
   toc           <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toc)
   return MsgEphemerisGps
     { _msgEphemerisGps_common   = commonContent
-    , _msgEphemerisGps_tgd      =          applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_tgd
-    , _msgEphemerisGps_c_rs     =          applyScaleFactor 2 (-5)  $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_rs
-    , _msgEphemerisGps_c_rc     =          applyScaleFactor 2 (-5)  $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_rc
-    , _msgEphemerisGps_c_uc     =          applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_uc
-    , _msgEphemerisGps_c_us     =          applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_us
-    , _msgEphemerisGps_c_ic     =          applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_ic
-    , _msgEphemerisGps_c_is     =          applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_is
-    , _msgEphemerisGps_dn       = gpsPi * (applyScaleFactor 2 (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_dn)
-    , _msgEphemerisGps_m0       = gpsPi * (applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_m0)
-    , _msgEphemerisGps_ecc      =          applyScaleFactor 2 (-33) $ m ^. msg1019_ephemeris ^. gpsEphemeris_ecc
-    , _msgEphemerisGps_sqrta    =          applyScaleFactor 2 (-19) $ m ^. msg1019_ephemeris ^. gpsEphemeris_sqrta
-    , _msgEphemerisGps_omega0   = gpsPi * (applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_omega0)
-    , _msgEphemerisGps_omegadot = gpsPi * (applyScaleFactor 2 (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_omegadot)
-    , _msgEphemerisGps_w        = gpsPi * (applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_w)
-    , _msgEphemerisGps_inc      = gpsPi * (applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_i0)
-    , _msgEphemerisGps_inc_dot  = gpsPi * (applyScaleFactor 2 (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_idot)
-    , _msgEphemerisGps_af0      =          applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af0
-    , _msgEphemerisGps_af1      =          applyScaleFactor 2 (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af1
-    , _msgEphemerisGps_af2      =          applyScaleFactor 2 (-55) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af2
-    , _msgEphemerisGps_iodc     =                                     m ^. msg1019_ephemeris ^. gpsEphemeris_iodc
-    , _msgEphemerisGps_iode     =                                     m ^. msg1019_ephemeris ^. gpsEphemeris_iode
+    , _msgEphemerisGps_tgd      =         applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_tgd
+    , _msgEphemerisGps_c_rs     =         applyScaleFactor 2 (-5)  $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_rs
+    , _msgEphemerisGps_c_rc     =         applyScaleFactor 2 (-5)  $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_rc
+    , _msgEphemerisGps_c_uc     =         applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_uc
+    , _msgEphemerisGps_c_us     =         applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_us
+    , _msgEphemerisGps_c_ic     =         applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_ic
+    , _msgEphemerisGps_c_is     =         applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_is
+    , _msgEphemerisGps_dn       = gpsPi * applyScaleFactor 2 (-43)  (m ^. msg1019_ephemeris ^. gpsEphemeris_dn)
+    , _msgEphemerisGps_m0       = gpsPi * applyScaleFactor 2 (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_m0)
+    , _msgEphemerisGps_ecc      =         applyScaleFactor 2 (-33) $ m ^. msg1019_ephemeris ^. gpsEphemeris_ecc
+    , _msgEphemerisGps_sqrta    =         applyScaleFactor 2 (-19) $ m ^. msg1019_ephemeris ^. gpsEphemeris_sqrta
+    , _msgEphemerisGps_omega0   = gpsPi * applyScaleFactor 2 (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_omega0)
+    , _msgEphemerisGps_omegadot = gpsPi * applyScaleFactor 2 (-43)  (m ^. msg1019_ephemeris ^. gpsEphemeris_omegadot)
+    , _msgEphemerisGps_w        = gpsPi * applyScaleFactor 2 (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_w)
+    , _msgEphemerisGps_inc      = gpsPi * applyScaleFactor 2 (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_i0)
+    , _msgEphemerisGps_inc_dot  = gpsPi * applyScaleFactor 2 (-43)  (m ^. msg1019_ephemeris ^. gpsEphemeris_idot)
+    , _msgEphemerisGps_af0      =         applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af0
+    , _msgEphemerisGps_af1      =         applyScaleFactor 2 (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af1
+    , _msgEphemerisGps_af2      =         applyScaleFactor 2 (-55) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af2
+    , _msgEphemerisGps_iodc     =                                    m ^. msg1019_ephemeris ^. gpsEphemeris_iodc
+    , _msgEphemerisGps_iode     =                                    m ^. msg1019_ephemeris ^. gpsEphemeris_iode
     , _msgEphemerisGps_toc      = toc
     }
 
