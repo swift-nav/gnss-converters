@@ -1,8 +1,6 @@
-resolver: lts-8.23
+resolver: lts-8.24
 packages:
 - .
-flags: {}
-pvp-bounds: lower
 extra-deps:
 - rtcm-0.2.2
 - sbp-2.2.11

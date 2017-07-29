@@ -6,5 +6,5 @@
 *.*~
 .hsenv
 .stack-work/
-dist
+.build/
 

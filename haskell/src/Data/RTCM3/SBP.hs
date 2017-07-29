@@ -213,7 +213,7 @@ toGpsTimeNano hdr = do
 toGpsTimeSec :: MonadStore e m => Word16 -> Word16 -> m GpsTimeSec
 toGpsTimeSec wn tow = do
   stateWn <- view storeWn >>= liftIO . readIORef
-  return $ GpsTimeSec
+  return GpsTimeSec
     { _gpsTimeSec_tow = 16 * fromIntegral tow
     , _gpsTimeSec_wn  = stateWn `shiftR` 10 `shiftL` 10 + wn
     }
@@ -321,23 +321,23 @@ toCn0_L2 = (^. gpsL2ExtObservation_cnr)
 -- | Convert between DF013 and DF019 lock time to DF402 lock time
 --
 toLock :: Word8 -> Word8
-toLock t =
-  if t' < 32 then 0 else
-    if t' < 64 then 1 else
-      if t' < 128 then 2 else
-        if t' < 256 then 3 else
-          if t' < 512 then 4 else
-            if t' < 1024 then 5 else
-              if t' < 2048 then 6 else
-                if t' < 4096 then 7 else
-                  if t' < 8192 then 8 else
-                    if t' < 16384 then 9 else
-                      if t' < 32768 then 10 else
-                        if t' < 65536 then 11 else
-                          if t' < 131072 then 12 else
-                            if t' < 262144 then 13 else
-                              if t' < 524288 then 14 else
-                                15
+toLock t
+  | t' < 32 = 0
+  | t' < 64 = 1
+  | t' < 128 = 2
+  | t' < 256 = 3
+  | t' < 512 = 4
+  | t' < 1024 = 5
+  | t' < 2048 = 6
+  | t' < 4096 = 7
+  | t' < 8192 = 8
+  | t' < 16384 = 9
+  | t' < 32768 = 10
+  | t' < 65536 = 11
+  | t' < 131072 = 12
+  | t' < 262144 = 13
+  | t' < 524288 = 14
+  | otherwise = 15
   where
     t' :: Word32
     t' =
