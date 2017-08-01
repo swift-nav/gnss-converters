@@ -86,8 +86,9 @@ assertExpectedBase (SBPMsgBasePosEcef posEcef _) pos =
 assertExpectedBase _                             _   = assertFailure "Invalid message type!"
 
 assertObsHeader :: SBPMsg -> ObservationHeader -> Assertion
-assertObsHeader (SBPMsgObs obs _) header =
-  assertEqual "Observation header is not equal" header $ obs ^. msgObs_header
+assertObsHeader (SBPMsgObs obs _) header = do
+  assertEqual "Observation header is not equal" (header ^. observationHeader_n_obs) $ obs ^. msgObs_header ^. observationHeader_n_obs
+  assertEqual "Observation header is not equal" (header ^. observationHeader_t ^. gpsTimeNano_tow) $ obs ^. msgObs_header ^. observationHeader_t ^. gpsTimeNano_tow
 assertObsHeader _                 _      = assertFailure "Invalid message type!"
 
 assertObs :: HashMap Word8 (Double, Double, Double)

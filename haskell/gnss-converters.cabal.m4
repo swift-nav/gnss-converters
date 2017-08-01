@@ -18,6 +18,8 @@ source-repository head
 library
   hs-source-dirs:      src
   exposed-modules:     Data.RTCM3.SBP
+                     , Data.RTCM3.SBP.Observations
+                     , Data.RTCM3.SBP.Time
                      , Data.RTCM3.SBP.Types
                      , SwiftNav.SBP.RTCM3
   ghc-options:         -Wall

@@ -21,6 +21,7 @@ module Data.RTCM3.SBP
   , mjdEpoch
   , updateGpsTimeNano
   , convert
+  , convert2
   , newStore
   , validateIodcIode
   , gpsUriToUra
@@ -34,6 +35,7 @@ import qualified Data.HashMap.Strict  as M
 import           Data.IORef
 import           Data.List.Extra      hiding (concat, map)
 import           Data.RTCM3
+import           Data.RTCM3.SBP.Observations
 import           Data.RTCM3.SBP.Types
 import           Data.Time
 import           Data.Word
@@ -651,6 +653,28 @@ convert = \case
     wn <- view storeWn
     liftIO $ writeIORef wn $ toWn $ m ^. msg1013_header ^. messageHeader_mjd
     return mempty
+  (RTCM3Msg1019 m _rtcm3) -> do
+    let sender = 0
+    m' <- fromMsg1019 m
+    return [SBPMsgEphemerisGps m' $ toSBP m' $ toSender sender]
+  _rtcm3Msg -> return mempty
+
+-- | Convert an RTCM message into possibly multiple SBP messages.
+--
+convert2 :: MonadStore e m => RTCM3Msg -> m [SBPMsg]
+convert2 = \case
+  (RTCM3Msg1002 m _rtcm3) -> toSBPMsgObs m
+  (RTCM3Msg1004 m _rtcm3) -> toSBPMsgObs m
+  (RTCM3Msg1005 m _rtcm3) -> do
+    let sender =  m ^. msg1005_reference ^. antennaReference_station
+    m' <- fromMsg1005 m
+    return [SBPMsgBasePosEcef m' $ toSBP m' $ toSender sender]
+  (RTCM3Msg1006 m _rtcm3) -> do
+    let sender = m ^. msg1006_reference ^. antennaReference_station
+    m' <- fromMsg1006 m
+    return [SBPMsgBasePosEcef m' $ toSBP m' $ toSender sender]
+  (RTCM3Msg1010 m _rtcm3) -> toSBPMsgObs m
+  (RTCM3Msg1012 m _rtcm3) -> toSBPMsgObs m
   (RTCM3Msg1019 m _rtcm3) -> do
     let sender = 0
     m' <- fromMsg1019 m
