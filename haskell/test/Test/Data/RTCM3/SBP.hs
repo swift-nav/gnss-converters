@@ -57,10 +57,10 @@ basePosition msg' = ( msg' ^. msgBasePosEcef_x
                     )
 
 isL1 :: PackedObsContent -> Bool
-isL1 obs = (obs ^. packedObsContent_sid ^. gnssSignal16_code) == l1CSidCode
+isL1 obs = (obs ^. packedObsContent_sid ^. gnssSignal16_code) == 0
 
 isL2 :: PackedObsContent -> Bool
-isL2 obs = code == l2CMSidCode || code == l2PSidCode
+isL2 obs = code == 1 || code == 6
   where
     code = obs ^. packedObsContent_sid ^. gnssSignal16_code
 
@@ -71,14 +71,14 @@ cn0 :: PackedObsContent -> Double
 cn0 obs = 0.25 * fromIntegral (obs ^. packedObsContent_cn0)
 
 pseudorange :: PackedObsContent -> Double
-pseudorange obs = fromIntegral (obs ^. packedObsContent_P) / sbpCMinM
+pseudorange obs = fromIntegral (obs ^. packedObsContent_P) / 50
 
 carrierPhase :: PackedObsContent -> Double
 carrierPhase obs = whole + fraction
   where
     phase    = obs ^. packedObsContent_L
     whole    = fromIntegral (phase ^. carrierPhase_i)
-    fraction = fromIntegral (phase ^. carrierPhase_f) / q32Width
+    fraction = fromIntegral (phase ^. carrierPhase_f) / 256
 
 assertExpectedBase :: SBPMsg -> (Double, Double, Double) -> Assertion
 assertExpectedBase (SBPMsgBasePosEcef posEcef _) pos =
@@ -122,8 +122,8 @@ assertMsgObs (SBPMsgObs obs' _) = do
       ctol_L2 = 0.004 -- carrier phase / L2 wavelength = 0.001m/0.250m cycles
   forM_ (obs' ^. msgObs_obs) $ \packed ->
     case () of
-      _ |  isL1 packed -> assertObs testObs_L1 packed ptol ctol_L1 l1CSidCode
-        |  isL2 packed -> assertObs testObs_L2 packed ptol ctol_L2 l2PSidCode
+      _ |  isL1 packed -> assertObs testObs_L1 packed ptol ctol_L1 0
+        |  isL2 packed -> assertObs testObs_L2 packed ptol ctol_L2 6
         |  otherwise   -> assertFailure "Not L1 or L2!"
 assertMsgObs _                  =  assertFailure "Invalid message type!"
 
@@ -335,23 +335,6 @@ testToWn =
        toWn 57593 @?= 1907
     ]
 
-testUpdateGpsTimeNano :: TestTree
-testUpdateGpsTimeNano =
-  testGroup "Update GPS Time"
-    [ testCase "old TOW < new TOW" $ do
-        let old = GpsTimeNano 1 0 10
-            new = updateGpsTimeNano 2 old
-        new ^. gpsTimeNano_wn @?= 10
-    , testCase "old TOW = new TOW" $ do
-        let old = GpsTimeNano 1 0 10
-            new = updateGpsTimeNano 1 old
-        new ^. gpsTimeNano_wn @?= 10
-    , testCase "old TOW > new TOW" $ do
-        let old = GpsTimeNano 1 0 10
-            new = updateGpsTimeNano 0 old
-        new ^. gpsTimeNano_wn @?= 11
-    ]
-
 testValidateIodcIode :: TestTree
 testValidateIodcIode =
   testGroup "Validate IODC/IODE"
@@ -402,7 +385,6 @@ tests =
     [ testMsg1004
     , testMsg1019
     , testToWn
-    , testUpdateGpsTimeNano
     , testValidateIodcIode
     , testUriToUra
     ]
