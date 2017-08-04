@@ -44,8 +44,8 @@ gpsPi = 3.1415926535898
 --------------------------------------------------------------------------------
 -- General utilities
 
-applyScaleFactor :: (Floating a, Integral b) => a -> a -> b -> a
-applyScaleFactor n p x = (n ** p)  * fromIntegral x
+applyScaleFactor :: (Floating a, Integral b) => a -> b -> a
+applyScaleFactor p x = (2 ** p)  * fromIntegral x
 
 --------------------------------------------------------------------------------
 -- GNSS RTCM observation reconstruction utilities
@@ -165,27 +165,27 @@ fromMsg1019 m = do
   toc           <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toc)
   return MsgEphemerisGps
     { _msgEphemerisGps_common   = commonContent
-    , _msgEphemerisGps_tgd      =         applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_tgd
-    , _msgEphemerisGps_c_rs     =         applyScaleFactor 2 (-5)  $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_rs
-    , _msgEphemerisGps_c_rc     =         applyScaleFactor 2 (-5)  $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_rc
-    , _msgEphemerisGps_c_uc     =         applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_uc
-    , _msgEphemerisGps_c_us     =         applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_us
-    , _msgEphemerisGps_c_ic     =         applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_ic
-    , _msgEphemerisGps_c_is     =         applyScaleFactor 2 (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_is
-    , _msgEphemerisGps_dn       = gpsPi * applyScaleFactor 2 (-43)  (m ^. msg1019_ephemeris ^. gpsEphemeris_dn)
-    , _msgEphemerisGps_m0       = gpsPi * applyScaleFactor 2 (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_m0)
-    , _msgEphemerisGps_ecc      =         applyScaleFactor 2 (-33) $ m ^. msg1019_ephemeris ^. gpsEphemeris_ecc
-    , _msgEphemerisGps_sqrta    =         applyScaleFactor 2 (-19) $ m ^. msg1019_ephemeris ^. gpsEphemeris_sqrta
-    , _msgEphemerisGps_omega0   = gpsPi * applyScaleFactor 2 (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_omega0)
-    , _msgEphemerisGps_omegadot = gpsPi * applyScaleFactor 2 (-43)  (m ^. msg1019_ephemeris ^. gpsEphemeris_omegadot)
-    , _msgEphemerisGps_w        = gpsPi * applyScaleFactor 2 (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_w)
-    , _msgEphemerisGps_inc      = gpsPi * applyScaleFactor 2 (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_i0)
-    , _msgEphemerisGps_inc_dot  = gpsPi * applyScaleFactor 2 (-43)  (m ^. msg1019_ephemeris ^. gpsEphemeris_idot)
-    , _msgEphemerisGps_af0      =         applyScaleFactor 2 (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af0
-    , _msgEphemerisGps_af1      =         applyScaleFactor 2 (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af1
-    , _msgEphemerisGps_af2      =         applyScaleFactor 2 (-55) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af2
-    , _msgEphemerisGps_iodc     =                                    m ^. msg1019_ephemeris ^. gpsEphemeris_iodc
-    , _msgEphemerisGps_iode     =                                    m ^. msg1019_ephemeris ^. gpsEphemeris_iode
+    , _msgEphemerisGps_tgd      =         applyScaleFactor (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_tgd
+    , _msgEphemerisGps_c_rs     =         applyScaleFactor (-5)  $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_rs
+    , _msgEphemerisGps_c_rc     =         applyScaleFactor (-5)  $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_rc
+    , _msgEphemerisGps_c_uc     =         applyScaleFactor (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_uc
+    , _msgEphemerisGps_c_us     =         applyScaleFactor (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_us
+    , _msgEphemerisGps_c_ic     =         applyScaleFactor (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_ic
+    , _msgEphemerisGps_c_is     =         applyScaleFactor (-29) $ m ^. msg1019_ephemeris ^. gpsEphemeris_c_is
+    , _msgEphemerisGps_dn       = gpsPi * applyScaleFactor (-43)  (m ^. msg1019_ephemeris ^. gpsEphemeris_dn)
+    , _msgEphemerisGps_m0       = gpsPi * applyScaleFactor (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_m0)
+    , _msgEphemerisGps_ecc      =         applyScaleFactor (-33) $ m ^. msg1019_ephemeris ^. gpsEphemeris_ecc
+    , _msgEphemerisGps_sqrta    =         applyScaleFactor (-19) $ m ^. msg1019_ephemeris ^. gpsEphemeris_sqrta
+    , _msgEphemerisGps_omega0   = gpsPi * applyScaleFactor (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_omega0)
+    , _msgEphemerisGps_omegadot = gpsPi * applyScaleFactor (-43)  (m ^. msg1019_ephemeris ^. gpsEphemeris_omegadot)
+    , _msgEphemerisGps_w        = gpsPi * applyScaleFactor (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_w)
+    , _msgEphemerisGps_inc      = gpsPi * applyScaleFactor (-31)  (m ^. msg1019_ephemeris ^. gpsEphemeris_i0)
+    , _msgEphemerisGps_inc_dot  = gpsPi * applyScaleFactor (-43)  (m ^. msg1019_ephemeris ^. gpsEphemeris_idot)
+    , _msgEphemerisGps_af0      =         applyScaleFactor (-31) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af0
+    , _msgEphemerisGps_af1      =         applyScaleFactor (-43) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af1
+    , _msgEphemerisGps_af2      =         applyScaleFactor (-55) $ m ^. msg1019_ephemeris ^. gpsEphemeris_af2
+    , _msgEphemerisGps_iodc     =                                  m ^. msg1019_ephemeris ^. gpsEphemeris_iodc
+    , _msgEphemerisGps_iode     =                                  m ^. msg1019_ephemeris ^. gpsEphemeris_iode
     , _msgEphemerisGps_toc      = toc
     }
 
