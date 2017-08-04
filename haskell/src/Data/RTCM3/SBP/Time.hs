@@ -30,23 +30,43 @@ gpsEpoch = fromGregorian 1980 1 6
 
 -- | Number of GPS leap seconds.
 --
-gpsLeapSeconds :: Int
+gpsLeapSeconds :: Integer
 gpsLeapSeconds = 18
+
+-- | Number of GPS leap milliseconds.
+--
+gpsLeapMillis :: Integer
+gpsLeapMillis = 1000 * gpsLeapSeconds
 
 -- | Hour seconds
 --
-hourSeconds :: Int
+hourSeconds :: Integer
 hourSeconds = 60 * 60
+
+-- | Hour milliseconds
+--
+hourMillis :: Integer
+hourMillis = 1000 * hourSeconds
 
 -- | Day seconds
 --
-daySeconds :: Int
+daySeconds :: Integer
 daySeconds = 24 * hourSeconds
+
+-- | Day milliseconds
+--
+dayMillis :: Integer
+dayMillis = 1000 * daySeconds
 
 -- | Number of seconds in a week.
 --
-weekSeconds :: Int
+weekSeconds :: Integer
 weekSeconds = 7 * daySeconds
+
+-- | Number of milliseconds in a week.
+--
+weekMillis :: Integer
+weekMillis = 1000 * weekSeconds
 
 -- | Produce GPS week number from a GPS UTC time.
 --
@@ -82,24 +102,24 @@ rolloverTowGpsTime tow t = t & gpsTimeNano_tow .~ tow & rollover
       | decrement = gpsTimeNano_wn +~ -1
       | otherwise = gpsTimeNano_wn +~ 0
     diff      = fromIntegral tow - fromIntegral (t ^. gpsTimeNano_tow)
-    increment = (diff :: Integer) < -1000 * fromIntegral weekSeconds `div` 2
-    decrement = (diff :: Integer) > 1000 * fromIntegral weekSeconds `div` 2
+    increment = diff < -weekMillis `div` 2
+    decrement = diff > weekMillis `div` 2
 
 -- | Update GPS time based on GLONASS epoch, handling week rollover.
 --
 rolloverEpochGpsTime :: Word32 -> GpsTimeNano -> GpsTimeNano
 rolloverEpochGpsTime epoch t = rolloverTowGpsTime tow t
   where
-    epoch' = fromIntegral epoch - 3 * 1000 * fromIntegral hourSeconds + 1000 * fromIntegral gpsLeapSeconds
+    epoch' = fromIntegral epoch - 3 * hourMillis + gpsLeapMillis
     epoch''
-      | (epoch' :: Integer) < 0 = epoch' + 1000 * fromIntegral daySeconds
-      | otherwise               = epoch'
-    dow = fromIntegral (t ^. gpsTimeNano_tow) `div` 1000 * fromIntegral daySeconds
-    tod = fromIntegral (t ^. gpsTimeNano_tow) - dow * 1000 * fromIntegral daySeconds
+      | epoch' < 0 = epoch' + dayMillis
+      | otherwise  = epoch'
+    dow = fromIntegral (t ^. gpsTimeNano_tow) `div` dayMillis
+    tod = fromIntegral (t ^. gpsTimeNano_tow) - dow * dayMillis
     dow'
       | increment = dow + 1 `mod` 7
       | decrement = dow - 1 `mod` 7
       | otherwise = dow
-    increment = epoch'' - tod > 1000 * fromIntegral daySeconds `div` 2
-    decrement = tod - epoch'' > 1000 * fromIntegral daySeconds `div` 2
-    tow = fromIntegral $ dow' * 1000 * fromIntegral daySeconds + epoch''
+    increment = epoch'' - tod > dayMillis `div` 2
+    decrement = tod - epoch'' > dayMillis `div` 2
+    tow = fromIntegral $ dow' * dayMillis + epoch''
