@@ -97,12 +97,12 @@ gpsL2CarrierPhase = 1.22760e9
 -- | GLONASS L1 carrier-phase unit.
 --
 glonassL1CarrierPhase :: Word8 -> Double
-glonassL1CarrierPhase fcn = 1.602e9 + fromIntegral fcn * 0.5625e6
+glonassL1CarrierPhase fcn = 1.602e9 + (fromIntegral fcn - 7) * 0.5625e6
 
 -- | GLONASS L2 carrier-phase unit.
 --
 glonassL2CarrierPhase :: Word8 -> Double
-glonassL2CarrierPhase fcn = 1.246e9 + fromIntegral fcn * 0.4375e6
+glonassL2CarrierPhase fcn = 1.246e9 + (fromIntegral fcn - 7) * 0.4375e6
 
 -- | Convert to SBP carrier-phase measurement.
 --
@@ -163,7 +163,7 @@ gpsL2Signal sat code
 --
 glonassL1Signal :: Word8 -> Bool -> Maybe GnssSignal16
 glonassL1Signal sat code
-  | code      = Nothing
+  | code      = Just $ GnssSignal16 sat 3
   | otherwise = Just $ GnssSignal16 sat 3
 
 -- | Map GLONASS L2 signal.
@@ -171,7 +171,7 @@ glonassL1Signal sat code
 glonassL2Signal :: Word8 -> Word8 -> Maybe GnssSignal16
 glonassL2Signal sat code
   | code == 0 = Just $ GnssSignal16 sat 4
-  | otherwise = Nothing
+  | otherwise = Just $ GnssSignal16 sat 4
 
 -- | Max GPS satellite number.
 --
