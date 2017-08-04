@@ -12,6 +12,7 @@
 
 module Data.RTCM3.SBP.Observations
   ( toSBPMsgObs
+  , toSBPMsgObs'
   ) where
 
 import BasicPrelude
@@ -324,15 +325,31 @@ instance FromObservations Msg1012 where
   packedObsContents = toPackedObsContent . view msg1012_observations
   sender            = toSender . view (msg1012_header . glonassObservationHeader_station)
 
--- | Convert RTCMv3 observations to SBP observations in chunks.
+-- | Convert RTCMv3 observation to SBP observations in chunks.
 --
 toMsgObs :: (MonadStore e m, FromObservations a) => a -> m [MsgObs]
 toMsgObs m = do
+  t <- gpsTimeNano m
   let obs = chunksOf maxObs $ packedObsContents m
   iforM obs $ \i obs' -> do
-    t <- gpsTimeNano m
     let n = length obs `shiftL` 4 .|. i
     return $ MsgObs (ObservationHeader t (fromIntegral n)) obs'
+  where
+    maxObs  = (maxSize - hdrSize) `div` obsSize
+    maxSize = 255
+    hdrSize = 11
+    obsSize = 17
+
+-- | Convert RTCMv3 observation(s) to SBP observations in chunks.
+--
+toMsgObs' :: (MonadStore e m, FromObservations a) => [a] -> m [MsgObs]
+toMsgObs' ms =
+  flip (maybe (return mempty)) (listToMaybe ms) $ \m -> do
+    t <- gpsTimeNano m
+    let obs = chunksOf maxObs $ concatMap packedObsContents ms
+    iforM obs $ \i obs' -> do
+      let n = length obs `shiftL` 4 .|. i
+      return $ MsgObs (ObservationHeader t (fromIntegral n)) obs'
   where
     maxObs  = (maxSize - hdrSize) `div` obsSize
     maxSize = 255
@@ -346,3 +363,12 @@ toSBPMsgObs m = do
   ms <- toMsgObs m
   return $ for ms $ \m' ->
     SBPMsgObs m' $ toSBP m' $ sender m
+
+-- | Convert RTCMv3 observation message(s) to SBP observations message(s).
+--
+toSBPMsgObs' :: (MonadStore e m, FromObservations a) => [a] -> m [SBPMsg]
+toSBPMsgObs' ms =
+  flip (maybe (return mempty)) (listToMaybe ms) $ \m -> do
+    ms' <- toMsgObs' ms
+    return $ for ms' $ \m' ->
+      SBPMsgObs m' $ toSBP m' $ sender m
