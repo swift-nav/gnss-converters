@@ -18,9 +18,9 @@ module Data.RTCM3.SBP.Time
 
 import BasicPrelude
 import Control.Lens
-import Data.Word
 import Data.Time
 import Data.Time.Calendar.WeekDate
+import Data.Word
 import SwiftNav.SBP
 
 -- | Beginning of GPS time.

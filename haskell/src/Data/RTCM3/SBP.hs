@@ -20,16 +20,16 @@ module Data.RTCM3.SBP
   , gpsUriToUra
   ) where
 
-import           BasicPrelude
-import           Control.Lens
-import           Data.Bits
-import           Data.IORef
-import           Data.RTCM3
-import           Data.RTCM3.SBP.Observations
-import           Data.RTCM3.SBP.Types
-import           Data.Time
-import           Data.Word
-import           SwiftNav.SBP
+import BasicPrelude
+import Control.Lens
+import Data.Bits
+import Data.IORef
+import Data.RTCM3
+import Data.RTCM3.SBP.Observations
+import Data.RTCM3.SBP.Types
+import Data.Time
+import Data.Word
+import SwiftNav.SBP
 
 {-# ANN module ("HLint: ignore Redundant if"::String) #-}
 
