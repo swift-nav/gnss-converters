@@ -325,31 +325,14 @@ instance FromObservations Msg1012 where
   packedObsContents = toPackedObsContent . view msg1012_observations
   sender            = toSender . view (msg1012_header . glonassObservationHeader_station)
 
--- | Convert RTCMv3 observation to SBP observations in chunks.
---
-toMsgObs :: (MonadStore e m, FromObservations a) => a -> m [MsgObs]
-toMsgObs m = do
-  t <- gpsTimeNano m
-  let obs = chunksOf maxObs $ packedObsContents m
-  iforM obs $ \i obs' -> do
-    let n = length obs `shiftL` 4 .|. i
-    return $ MsgObs (ObservationHeader t (fromIntegral n)) obs'
-  where
-    maxObs  = (maxSize - hdrSize) `div` obsSize
-    maxSize = 255
-    hdrSize = 11
-    obsSize = 17
-
 -- | Convert RTCMv3 observation(s) to SBP observations in chunks.
 --
-toMsgObs' :: (MonadStore e m, FromObservations a) => [a] -> m [MsgObs]
-toMsgObs' ms =
-  flip (maybe (return mempty)) (listToMaybe ms) $ \m -> do
-    t <- gpsTimeNano m
-    let obs = chunksOf maxObs $ concatMap packedObsContents ms
-    iforM obs $ \i obs' -> do
-      let n = length obs `shiftL` 4 .|. i
-      return $ MsgObs (ObservationHeader t (fromIntegral n)) obs'
+toMsgObs :: Applicative f => GpsTimeNano -> [PackedObsContent] -> f [MsgObs]
+toMsgObs t obs = do
+  let chunks = chunksOf maxObs obs
+  ifor chunks $ \i obs' -> do
+    let n = length chunks `shiftL` 4 .|. i
+    pure $ MsgObs (ObservationHeader t (fromIntegral n)) obs'
   where
     maxObs  = (maxSize - hdrSize) `div` obsSize
     maxSize = 255
@@ -360,7 +343,8 @@ toMsgObs' ms =
 --
 toSBPMsgObs :: (MonadStore e m, FromObservations a) => a -> m [SBPMsg]
 toSBPMsgObs m = do
-  ms <- toMsgObs m
+  t  <- gpsTimeNano m
+  ms <- toMsgObs t $ packedObsContents m
   return $ for ms $ \m' ->
     SBPMsgObs m' $ toSBP m' $ sender m
 
@@ -369,6 +353,7 @@ toSBPMsgObs m = do
 toSBPMsgObs' :: (MonadStore e m, FromObservations a) => [a] -> m [SBPMsg]
 toSBPMsgObs' ms =
   flip (maybe (return mempty)) (listToMaybe ms) $ \m -> do
-    ms' <- toMsgObs' ms
+    t   <- gpsTimeNano m
+    ms' <- toMsgObs t $ packedObsContents m
     return $ for ms' $ \m' ->
       SBPMsgObs m' $ toSBP m' $ sender m
