@@ -23,8 +23,8 @@ main :: IO ()
 main = do
   s <- newStore
   runResourceT $ runConvertT s $
-    sourceHandle stdin    =$=
-    conduitDecode         =$=
-    converter             =$=
-    conduitEncode         $$
+    sourceHandle stdin =$=
+    conduitDecode      =$=
+    converter          =$=
+    conduitEncode      $$
     sinkHandle stdout
