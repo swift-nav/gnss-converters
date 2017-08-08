@@ -31,10 +31,15 @@ import Data.IORef
 import Data.Word
 import SwiftNav.SBP
 
-type GpsTimeMap = HashMap Word16 GpsTimeNano
+type GpsTimeNanoMap = HashMap Word16 GpsTimeNano
 
-instance Hashable GnssSignal where
-  hashWithSalt s g = hashWithSalt s (g ^. gnssSignal_sat, g ^. gnssSignal_code, g ^. gnssSignal_reserved)
+instance Ord GpsTimeNano where
+  compare (GpsTimeNano tow _ns wn) (GpsTimeNano tow' _ns' wn')
+    | wn > wn'   = GT
+    | wn < wn'   = LT
+    | tow > tow' = GT
+    | tow < tow' = LT
+    | otherwise  = EQ
 
 newtype ConvertT e m a = ConvertT { unConvertT :: ReaderT e m a }
   deriving
@@ -66,8 +71,10 @@ instance MonadBase b m => MonadBase b (ConvertT r m) where
     liftBase = liftBaseDefault
 
 data Store = Store
-  { _storeWn         :: IORef Word16
-  , _storeGpsTimeMap :: IORef GpsTimeMap
+  { _storeWn           :: IORef Word16
+  , _storeGpsTime      :: IORef GpsTimeNano
+  , _storeGpsTimeMap   :: IORef GpsTimeNanoMap
+  , _storeObservations :: IORef (Vector PackedObsContent)
   } deriving ( Eq )
 
 $(makeClassy ''Store)

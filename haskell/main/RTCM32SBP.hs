@@ -10,15 +10,14 @@
 --
 -- RTCM3 to SBP tool.
 
-import           BasicPrelude
-import           Control.Monad.Trans.Resource
-import           Data.Conduit
-import           Data.Conduit.Binary
-import qualified Data.Conduit.List                 as CL
-import           Data.Conduit.Serialization.Binary
-import           Data.RTCM3.SBP
-import           Data.RTCM3.SBP.Types
-import           System.IO
+import BasicPrelude
+import Control.Monad.Trans.Resource
+import Data.Conduit
+import Data.Conduit.Binary
+import Data.Conduit.Serialization.Binary
+import Data.RTCM3.SBP
+import Data.RTCM3.SBP.Types
+import System.IO
 
 main :: IO ()
 main = do
@@ -26,6 +25,6 @@ main = do
   runResourceT $ runConvertT s $
     sourceHandle stdin    =$=
     conduitDecode         =$=
-    CL.concatMapM convert =$=
+    converter             =$=
     conduitEncode         $$
     sinkHandle stdout
