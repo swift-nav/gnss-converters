@@ -14,22 +14,23 @@
 module Data.RTCM3.SBP
   ( toWn
   , mjdEpoch
-  , convert
+  , converter
   , newStore
   , validateIodcIode
   , gpsUriToUra
   ) where
 
-import BasicPrelude
-import Control.Lens
-import Data.Bits
-import Data.IORef
-import Data.RTCM3
-import Data.RTCM3.SBP.Observations
-import Data.RTCM3.SBP.Types
-import Data.Time
-import Data.Word
-import SwiftNav.SBP
+import           BasicPrelude
+import           Control.Lens
+import           Data.Bits
+import           Data.Conduit
+import           Data.IORef
+import           Data.RTCM3
+import qualified Data.RTCM3.SBP.Observations as Observations
+import           Data.RTCM3.SBP.Time
+import           Data.RTCM3.SBP.Types
+import           Data.Word
+import           SwiftNav.SBP
 
 {-# ANN module ("HLint: ignore Redundant if"::String) #-}
 
@@ -189,30 +190,36 @@ fromMsg1019 m = do
     , _msgEphemerisGps_toc      = toc
     }
 
+msg1005Converter :: MonadStore e m => Msg1005 -> Conduit i m [SBPMsg]
+msg1005Converter m = do
+  m' <- fromMsg1005 m
+  yield [SBPMsgBasePosEcef m' $ toSBP m' $ toSender $ m ^. msg1005_reference ^. antennaReference_station]
+
+msg1006Converter :: MonadStore e m => Msg1006 -> Conduit i m [SBPMsg]
+msg1006Converter m = do
+  m' <- fromMsg1006 m
+  yield [SBPMsgBasePosEcef m' $ toSBP m' $ toSender $ m ^. msg1006_reference ^. antennaReference_station]
+
+msg1019Converter :: MonadStore e m => Msg1019 -> Conduit i m [SBPMsg]
+msg1019Converter m = do
+  m' <- fromMsg1019 m
+  yield [SBPMsgEphemerisGps m' $ toSBP m' $ toSender 0]
+
 -- | Convert an RTCM message into possibly multiple SBP messages.
 --
-convert :: MonadStore e m => RTCM3Msg -> m [SBPMsg]
-convert = \case
-  (RTCM3Msg1002 m _rtcm3) -> toSBPMsgObs m
-  (RTCM3Msg1004 m _rtcm3) -> toSBPMsgObs m
-  (RTCM3Msg1005 m _rtcm3) -> do
-    let sender =  m ^. msg1005_reference ^. antennaReference_station
-    m' <- fromMsg1005 m
-    return [SBPMsgBasePosEcef m' $ toSBP m' $ toSender sender]
-  (RTCM3Msg1006 m _rtcm3) -> do
-    let sender = m ^. msg1006_reference ^. antennaReference_station
-    m' <- fromMsg1006 m
-    return [SBPMsgBasePosEcef m' $ toSBP m' $ toSender sender]
-  (RTCM3Msg1010 m _rtcm3) -> toSBPMsgObs m
-  (RTCM3Msg1012 m _rtcm3) -> toSBPMsgObs m
-  (RTCM3Msg1019 m _rtcm3) -> do
-    let sender = 0
-    m' <- fromMsg1019 m
-    return [SBPMsgEphemerisGps m' $ toSBP m' $ toSender sender]
-  _rtcm3Msg -> return mempty
+converter :: MonadStore e m => Conduit RTCM3Msg m [SBPMsg]
+converter =
+  awaitForever $ \case
+    (RTCM3Msg1002 m _rtcm3) -> Observations.converter m
+    (RTCM3Msg1004 m _rtcm3) -> Observations.converter m
+    (RTCM3Msg1010 m _rtcm3) -> Observations.converter m
+    (RTCM3Msg1012 m _rtcm3) -> Observations.converter m
+    (RTCM3Msg1005 m _rtcm3) -> msg1005Converter m
+    (RTCM3Msg1006 m _rtcm3) -> msg1006Converter m
+    (RTCM3Msg1019 m _rtcm3) -> msg1019Converter m
+    _rtcm3Msg -> mempty
 
 newStore :: IO Store
 newStore = do
-  day <- utctDay <$> getCurrentTime
-  let wn = fromIntegral $ div (diffDays day (fromGregorian 1980 1 6)) 7
-  Store <$> newIORef wn <*> newIORef mempty
+  t <- currentGpsTime
+  Store <$> newIORef (t ^. gpsTimeNano_wn) <*> newIORef t <*> newIORef mempty <*> newIORef mempty

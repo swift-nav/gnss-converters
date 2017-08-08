@@ -11,19 +11,20 @@
 -- RTCMv3 to SBP Observation Conversions.
 
 module Data.RTCM3.SBP.Observations
-  ( toSBPMsgObs
-  , toSBPMsgObs'
+  ( converter
   ) where
 
-import BasicPrelude
+import BasicPrelude         hiding (null)
 import Control.Lens
 import Data.Bits
+import Data.Conduit
 import Data.Int
 import Data.IORef
-import Data.List.Extra
+import Data.List.Extra      hiding (null)
 import Data.RTCM3
 import Data.RTCM3.SBP.Time
 import Data.RTCM3.SBP.Types
+import Data.Vector          hiding (concatMap, length)
 import Data.Word
 import SwiftNav.SBP
 
@@ -40,10 +41,10 @@ modifyIORefM ref f = do
 --
 toGpsTimeNano :: MonadStore e m => Word16 -> (GpsTimeNano -> GpsTimeNano) -> m GpsTimeNano
 toGpsTimeNano station rollover = do
-  gpsTimeMap <- view storeGpsTimeMap
-  modifyIORefM gpsTimeMap $ \gpsTimeMap' -> do
-    t <- rollover <$> maybe currentGpsTime return (gpsTimeMap' ^. at station)
-    return (gpsTimeMap' & at station ?~ t, t)
+  timeMap <- view storeGpsTimeMap
+  modifyIORefM timeMap $ \timeMap' -> do
+    t <- rollover <$> maybe currentGpsTime return (timeMap' ^. at station)
+    return (timeMap' & at station ?~ t, t)
 
 -- | Default observation doppler.
 --
@@ -304,35 +305,41 @@ class FromObservations a where
   gpsTimeNano       :: MonadStore e m => a -> m GpsTimeNano
   packedObsContents :: a -> [PackedObsContent]
   sender            :: a -> Word16
+  synchronous       :: a -> Bool
 
 instance FromObservations Msg1002 where
   gpsTimeNano m     = toGpsTimeNano (m ^. msg1002_header . gpsObservationHeader_station) $ rolloverTowGpsTime (m ^. msg1002_header . gpsObservationHeader_tow)
   packedObsContents = toPackedObsContent . view msg1002_observations
   sender            = toSender . view (msg1002_header . gpsObservationHeader_station)
+  synchronous       = view (msg1002_header . gpsObservationHeader_synchronous)
 
 instance FromObservations Msg1004 where
   gpsTimeNano m     = toGpsTimeNano (m ^. msg1004_header . gpsObservationHeader_station) $ rolloverTowGpsTime (m ^. msg1004_header . gpsObservationHeader_tow)
   packedObsContents = toPackedObsContent . view msg1004_observations
   sender            = toSender . view (msg1004_header . gpsObservationHeader_station)
+  synchronous       = view (msg1004_header . gpsObservationHeader_synchronous)
 
 instance FromObservations Msg1010 where
   gpsTimeNano m     = toGpsTimeNano (m ^. msg1010_header . glonassObservationHeader_station) $ rolloverEpochGpsTime (m ^. msg1010_header . glonassObservationHeader_epoch)
   packedObsContents = toPackedObsContent . view msg1010_observations
   sender            = toSender . view (msg1010_header . glonassObservationHeader_station)
+  synchronous       = view (msg1010_header . glonassObservationHeader_synchronous)
 
 instance FromObservations Msg1012 where
   gpsTimeNano m     = toGpsTimeNano (m ^. msg1012_header . glonassObservationHeader_station) $ rolloverEpochGpsTime (m ^. msg1012_header . glonassObservationHeader_epoch)
   packedObsContents = toPackedObsContent . view msg1012_observations
   sender            = toSender . view (msg1012_header . glonassObservationHeader_station)
+  synchronous       = view (msg1012_header . glonassObservationHeader_synchronous)
 
 -- | Convert RTCMv3 observation(s) to SBP observations in chunks.
 --
-toMsgObs :: Applicative f => GpsTimeNano -> [PackedObsContent] -> f [MsgObs]
-toMsgObs t obs = do
+toMsgObs :: Applicative f => GpsTimeNano -> [PackedObsContent] -> Word16 -> f [SBPMsg]
+toMsgObs t obs s = do
   let chunks = chunksOf maxObs obs
   ifor chunks $ \i obs' -> do
     let n = length chunks `shiftL` 4 .|. i
-    pure $ MsgObs (ObservationHeader t (fromIntegral n)) obs'
+        m = MsgObs (ObservationHeader t (fromIntegral n)) obs'
+    pure $ SBPMsgObs m $ toSBP m s
   where
     maxObs  = (maxSize - hdrSize) `div` obsSize
     maxSize = 255
@@ -341,19 +348,26 @@ toMsgObs t obs = do
 
 -- | Convert RTCMv3 observation message to SBP observations message(s).
 --
-toSBPMsgObs :: (MonadStore e m, FromObservations a) => a -> m [SBPMsg]
-toSBPMsgObs m = do
-  t  <- gpsTimeNano m
-  ms <- toMsgObs t $ packedObsContents m
-  return $ for ms $ \m' ->
-    SBPMsgObs m' $ toSBP m' $ sender m
-
--- | Convert RTCMv3 observation message(s) to SBP observations message(s).
---
-toSBPMsgObs' :: (MonadStore e m, FromObservations a) => [a] -> m [SBPMsg]
-toSBPMsgObs' ms =
-  flip (maybe (return mempty)) (listToMaybe ms) $ \m -> do
-    t   <- gpsTimeNano m
-    ms' <- toMsgObs t $ packedObsContents m
-    return $ for ms' $ \m' ->
-      SBPMsgObs m' $ toSBP m' $ sender m
+converter :: (MonadStore e m, FromObservations a) => a -> Conduit i m [SBPMsg]
+converter m = do
+  time <- view storeGpsTime
+  t    <- liftIO $ readIORef time
+  t'   <- gpsTimeNano m
+  when (t' >= t) $ do
+    observations <- view storeObservations
+    obs          <- liftIO $ readIORef observations
+    when (t' > t) $ do
+      liftIO $ writeIORef time t'
+      unless (null obs) $ do
+        liftIO $ writeIORef observations mempty
+        ms <- toMsgObs t (toList obs) $ sender m
+        yield ms
+    let obs' = fromList $ packedObsContents m
+    if synchronous m then liftIO $ modifyIORef' observations (obs' <>) else do
+      obs'' <- liftIO $ readIORef observations
+      unless (null obs'') $
+        liftIO $ writeIORef observations mempty
+      let obs''' = obs' <> obs''
+      unless (null obs''') $ do
+        ms <- toMsgObs t' (toList obs''') $ sender m
+        yield ms

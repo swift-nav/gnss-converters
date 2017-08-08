@@ -25,6 +25,7 @@ library
   ghc-options:         -Wall
   build-depends:       base >= 4.8 && < 5
                      , basic-prelude
+                     , conduit
                      , exceptions
                      , extra
                      , lens
@@ -35,6 +36,7 @@ library
                      , sbp
                      , time
                      , transformers-base
+                     , vector
   default-language:    Haskell2010
 
 executable sbp2rtcm3
