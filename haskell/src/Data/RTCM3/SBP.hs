@@ -14,6 +14,7 @@
 module Data.RTCM3.SBP
   ( toWn
   , mjdEpoch
+  , convert
   , converter
   , newStore
   , validateIodcIode
@@ -207,17 +208,21 @@ msg1019Converter m = do
 
 -- | Convert an RTCM message into possibly multiple SBP messages.
 --
+convert :: MonadStore e m => RTCM3Msg -> Conduit i m [SBPMsg]
+convert = \case
+  (RTCM3Msg1002 m _rtcm3) -> Observations.converter m
+  (RTCM3Msg1004 m _rtcm3) -> Observations.converter m
+  (RTCM3Msg1010 m _rtcm3) -> Observations.converter m
+  (RTCM3Msg1012 m _rtcm3) -> Observations.converter m
+  (RTCM3Msg1005 m _rtcm3) -> msg1005Converter m
+  (RTCM3Msg1006 m _rtcm3) -> msg1006Converter m
+  (RTCM3Msg1019 m _rtcm3) -> msg1019Converter m
+  _rtcm3Msg               -> mempty
+
+-- | Convert an RTCM message into possibly multiple SBP messages.
+--
 converter :: MonadStore e m => Conduit RTCM3Msg m [SBPMsg]
-converter =
-  awaitForever $ \case
-    (RTCM3Msg1002 m _rtcm3) -> Observations.converter m
-    (RTCM3Msg1004 m _rtcm3) -> Observations.converter m
-    (RTCM3Msg1010 m _rtcm3) -> Observations.converter m
-    (RTCM3Msg1012 m _rtcm3) -> Observations.converter m
-    (RTCM3Msg1005 m _rtcm3) -> msg1005Converter m
-    (RTCM3Msg1006 m _rtcm3) -> msg1006Converter m
-    (RTCM3Msg1019 m _rtcm3) -> msg1019Converter m
-    _rtcm3Msg -> mempty
+converter = awaitForever convert
 
 newStore :: IO Store
 newStore = do
