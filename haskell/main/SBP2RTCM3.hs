@@ -11,6 +11,18 @@
 -- SBP to RTCM3 tool.
 
 import BasicPrelude
+import Control.Monad.Trans.Resource
+import Data.Conduit
+import Data.Conduit.Binary
+import Data.Conduit.Serialization.Binary
+import SwiftNav.SBP.RTCM3
+import System.IO
 
 main :: IO ()
-main = undefined
+main =
+  runResourceT $
+    sourceHandle stdin     =$=
+    conduitDecode          =$=
+    awaitForever converter =$=
+    conduitEncode          $$
+    sinkHandle stdout

@@ -19,6 +19,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Data.RTCM3.SBP
                      , Data.RTCM3.SBP.Observations
+                     , Data.RTCM3.SBP.Positions
                      , Data.RTCM3.SBP.Time
                      , Data.RTCM3.SBP.Types
                      , SwiftNav.SBP.RTCM3
@@ -45,7 +46,11 @@ executable sbp2rtcm3
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:       base
                      , basic-prelude
+                     , binary-conduit
+                     , conduit
+                     , conduit-extra
                      , gnss-converters
+                     , resourcet
   default-language:    Haskell2010
 
 executable rtcm32sbp
