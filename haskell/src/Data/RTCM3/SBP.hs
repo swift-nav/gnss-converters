@@ -12,10 +12,7 @@
 -- RTCMv3 to SBP Conversions.
 
 module Data.RTCM3.SBP
-  ( toWn
-  , mjdEpoch
-  , convert
-  , converter
+  ( converter
   , newStore
   , validateIodcIode
   , gpsUriToUra
@@ -28,6 +25,7 @@ import           Data.Conduit
 import           Data.IORef
 import           Data.RTCM3
 import qualified Data.RTCM3.SBP.Observations as Observations
+import qualified Data.RTCM3.SBP.Positions    as Positions
 import           Data.RTCM3.SBP.Time
 import           Data.RTCM3.SBP.Types
 import           Data.Word
@@ -53,9 +51,6 @@ applyScaleFactor p x = (2 ** p)  * fromIntegral x
 -- GNSS RTCM observation reconstruction utilities
 
 
-fromEcefVal :: Int64 -> Double
-fromEcefVal x = fromIntegral x / 10000
-
 -- | Produce GPS time from RTCM time (week-number % 1024, tow in seconds, scaled 2^4).
 -- Stateful but non-side-effecting. The week number is mod-1024 - add in the base
 -- wn from the stored wn masked to 10 bits.
@@ -67,23 +62,12 @@ toGpsTimeSec wn tow = do
     , _gpsTimeSec_wn  = stateWn `shiftR` 10 `shiftL` 10 + wn
     }
 
--- | MJD GPS Epoch - First day in GPS week 0. See DF051 of the RTCM3 spec
---
-mjdEpoch :: Word16
-mjdEpoch = 44244
-
--- | Convert from MJD to GPS week number
---
--- See DF051 of the RTCM3 spec
-toWn :: Word16 -> Word16
-toWn mjd = (mjd - mjdEpoch) `div` 7
-
 -- | Validate IODE/IODC flags. The IODC and IODE flags (least significant bits) should be
 -- equal. IODC is Word16 while IODE is Word8, so we shift IODC to drop the most significant bits.
 -- We return a 1 if valid, 0 if invalid.
 validateIodcIode :: Word16 -> Word8 -> Word8
 validateIodcIode iodc iode =
-  if iodc' == iode then 1 else 0
+  bool 0 1 $ iodc' == iode
   where
     iodc' = fromIntegral $ iodc `shiftL` 8 `shiftR` 8
 
@@ -102,11 +86,6 @@ toGpsEphemerisCommonContent m = do
     , _ephemerisCommonContent_valid        = validateIodcIode (m ^. msg1019_ephemeris ^. gpsEphemeris_iodc) (m ^. msg1019_ephemeris ^. gpsEphemeris_iode)
     , _ephemerisCommonContent_health_bits  = m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth
     }
-
--- | 16 bit SBP Sender Id is 12 bit RTCM Station Id with high nibble or'd in
---
-toSender :: Word16 -> Word16
-toSender = (.|. 0xf000)
 
 -- | Decode SBP 'fitInterval' from RTCM/GPS 'fitIntervalFlag' and IODC.
 -- Implementation adapted from libswiftnav/ephemeris.c.
@@ -140,26 +119,6 @@ gpsUriToUra uri
 -- RTCM to SBP conversion utilities: RTCM Msgs. 1002 (L1 RTK), 1004 (L1+L2 RTK),
 -- 1005 (antenna position), 1006 (antenna position).
 
--- | Convert an RTCM 1005 antenna reference position message into an SBP
--- MsgBasePosEcef.
-fromMsg1005 :: MonadStore e m => Msg1005 -> m MsgBasePosEcef
-fromMsg1005 m =
-  return MsgBasePosEcef
-    { _msgBasePosEcef_x = fromEcefVal $ m ^. msg1005_reference ^. antennaReference_ecef_x
-    , _msgBasePosEcef_y = fromEcefVal $ m ^. msg1005_reference ^. antennaReference_ecef_y
-    , _msgBasePosEcef_z = fromEcefVal $ m ^. msg1005_reference ^. antennaReference_ecef_z
-    }
-
--- | Convert an RTCM 1006 antenna reference position message into an SBP
--- MsgBasePosEcef.
-fromMsg1006 :: MonadStore e m => Msg1006 -> m MsgBasePosEcef
-fromMsg1006 m =
-  return MsgBasePosEcef
-    { _msgBasePosEcef_x = fromEcefVal $ m ^. msg1006_reference ^. antennaReference_ecef_x
-    , _msgBasePosEcef_y = fromEcefVal $ m ^. msg1006_reference ^. antennaReference_ecef_y
-    , _msgBasePosEcef_z = fromEcefVal $ m ^. msg1006_reference ^. antennaReference_ecef_z
-    }
-
 -- | Convert an RTCM 1019 GPS ephemeris message into an SBP MsgEphemerisGps.
 fromMsg1019 :: MonadStore e m => Msg1019 -> m MsgEphemerisGps
 fromMsg1019 m = do
@@ -191,38 +150,23 @@ fromMsg1019 m = do
     , _msgEphemerisGps_toc      = toc
     }
 
-msg1005Converter :: MonadStore e m => Msg1005 -> Conduit i m [SBPMsg]
-msg1005Converter m = do
-  m' <- fromMsg1005 m
-  yield [SBPMsgBasePosEcef m' $ toSBP m' $ toSender $ m ^. msg1005_reference ^. antennaReference_station]
-
-msg1006Converter :: MonadStore e m => Msg1006 -> Conduit i m [SBPMsg]
-msg1006Converter m = do
-  m' <- fromMsg1006 m
-  yield [SBPMsgBasePosEcef m' $ toSBP m' $ toSender $ m ^. msg1006_reference ^. antennaReference_station]
-
 msg1019Converter :: MonadStore e m => Msg1019 -> Conduit i m [SBPMsg]
 msg1019Converter m = do
   m' <- fromMsg1019 m
-  yield [SBPMsgEphemerisGps m' $ toSBP m' $ toSender 0]
+  yield [SBPMsgEphemerisGps m' $ toSBP m' 61440]
 
 -- | Convert an RTCM message into possibly multiple SBP messages.
 --
-convert :: MonadStore e m => RTCM3Msg -> Conduit i m [SBPMsg]
-convert = \case
+converter :: MonadStore e m => RTCM3Msg -> Conduit i m [SBPMsg]
+converter = \case
   (RTCM3Msg1002 m _rtcm3) -> Observations.converter m
   (RTCM3Msg1004 m _rtcm3) -> Observations.converter m
   (RTCM3Msg1010 m _rtcm3) -> Observations.converter m
   (RTCM3Msg1012 m _rtcm3) -> Observations.converter m
-  (RTCM3Msg1005 m _rtcm3) -> msg1005Converter m
-  (RTCM3Msg1006 m _rtcm3) -> msg1006Converter m
+  (RTCM3Msg1005 m _rtcm3) -> Positions.converter m
+  (RTCM3Msg1006 m _rtcm3) -> Positions.converter m
   (RTCM3Msg1019 m _rtcm3) -> msg1019Converter m
   _rtcm3Msg               -> mempty
-
--- | Convert an RTCM message into possibly multiple SBP messages.
---
-converter :: MonadStore e m => Conduit RTCM3Msg m [SBPMsg]
-converter = awaitForever convert
 
 newStore :: IO Store
 newStore = do

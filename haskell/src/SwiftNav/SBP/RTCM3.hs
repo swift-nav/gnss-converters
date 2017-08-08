@@ -12,13 +12,14 @@
 -- SBP to RTCMv3 Conversions.
 
 module SwiftNav.SBP.RTCM3
-  ( convert
+  ( converter
   ) where
 
 import BasicPrelude
+import Data.Conduit
 import Data.RTCM3
 import SwiftNav.SBP
 
-convert :: Monad m => SBPMsg -> m [RTCM3Msg]
-convert = \case
+converter :: Monad m => SBPMsg -> Conduit i m [RTCM3Msg]
+converter = \case
   _sbpMsg -> return mempty
