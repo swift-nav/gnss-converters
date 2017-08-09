@@ -20,6 +20,7 @@ main = shakeMain $ do
         , "Shakefile.hs"
         , "main//*.hs"
         , "src//*.hs"
+        , "test//*.hs"
         ]
       pats' = delete "stack*.yaml" pats
 
