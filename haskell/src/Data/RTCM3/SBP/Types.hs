@@ -43,32 +43,29 @@ instance Ord GpsTimeNano where
 
 newtype ConvertT e m a = ConvertT { unConvertT :: ReaderT e m a }
   deriving
-    ( Functor
-    , Applicative
-    , Monad
-    , MonadIO
-    , MonadTrans
-    )
-
-instance MonadThrow m => MonadThrow (ConvertT r m) where
-    throwM = lift . throwM
+    ( Functor, Applicative, Monad, MonadIO, MonadTrans, MonadThrow, MonadReader e )
 
 instance MonadResource m => MonadResource (ConvertT r m) where
   liftResourceT = lift . liftResourceT
+  {-# INLINE liftResourceT #-}
 
-instance Monad m => MonadReader e (ConvertT e m) where
-    ask     = ConvertT ask
-    local f = ConvertT . local f . unConvertT
-    reader  = ConvertT . reader
+instance MonadBaseControl b m => MonadBaseControl b (ConvertT r m) where
+  type StM (ConvertT r m) a = ComposeSt (ConvertT r) m a
+  liftBaseWith = defaultLiftBaseWith
+  {-# INLINE liftBaseWith #-}
+  restoreM = defaultRestoreM
+  {-# INLINE restoreM #-}
 
 instance MonadTransControl (ConvertT r) where
-    type StT (ConvertT r) a = StT (ReaderT r) a
-
-    liftWith = defaultLiftWith ConvertT unConvertT
-    restoreT = defaultRestoreT ConvertT
+  type StT (ConvertT r) a = StT (ReaderT r) a
+  liftWith = defaultLiftWith ConvertT unConvertT
+  {-# INLINE liftWith #-}
+  restoreT = defaultRestoreT ConvertT
+  {-# INLINE restoreT #-}
 
 instance MonadBase b m => MonadBase b (ConvertT r m) where
-    liftBase = liftBaseDefault
+  liftBase = liftBaseDefault
+  {-# INLINE liftBase #-}
 
 data Store = Store
   { _storeGpsTimeMap   :: IORef GpsTimeNanoMap

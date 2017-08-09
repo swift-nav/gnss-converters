@@ -11,7 +11,6 @@
 -- RTCM3 to SBP tool.
 
 import BasicPrelude
-import Control.Monad.Trans.Resource
 import Data.Conduit
 import Data.Conduit.Binary
 import Data.Conduit.Serialization.Binary
@@ -22,9 +21,9 @@ import System.IO
 main :: IO ()
 main = do
   s <- newStore
-  runResourceT $ runConvertT s $
-    sourceHandle stdin     =$=
-    conduitDecode          =$=
-    awaitForever converter =$=
-    conduitEncode          $$
-    sinkHandle stdout
+  runConvertT s $ runConduitRes $
+    sourceHandle stdin
+      =$= conduitDecode
+      =$= awaitForever converter
+      =$= conduitEncode
+      $$  sinkHandle stdout

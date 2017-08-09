@@ -90,7 +90,7 @@ toTow t = floor since
 currentGpsTime :: MonadIO m => m GpsTimeNano
 currentGpsTime = do
   t <- liftIO $ addUTCTime (fromIntegral gpsLeapSeconds) <$> getCurrentTime
-  return $ GpsTimeNano (toTow t) 0 (toWn t)
+  pure $ GpsTimeNano (toTow t) 0 (toWn t)
 
 -- | Update GPS time based on GPS time of week, handling week rollover.
 --

@@ -32,7 +32,7 @@ import SwiftNav.SBP
 toGpsTimeSec :: MonadIO m => Word16 -> Word16 -> m GpsTimeSec
 toGpsTimeSec wn tow = do
   wn' <- view gpsTimeNano_wn <$> currentGpsTime
-  return GpsTimeSec
+  pure GpsTimeSec
     { _gpsTimeSec_tow = 16 * fromIntegral tow
     , _gpsTimeSec_wn  = wn' `shiftR` 10 `shiftL` 10 + wn
     }
@@ -78,7 +78,7 @@ fitInterval fitInt iodc
 toGpsEphemerisCommonContent :: MonadIO m => Msg1019 -> m EphemerisCommonContent
 toGpsEphemerisCommonContent m = do
   toe <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toe)
-  return EphemerisCommonContent
+  pure EphemerisCommonContent
     { _ephemerisCommonContent_sid = GnssSignal16
       { _gnssSignal16_sat  = m ^. msg1019_header ^. gpsEphemerisHeader_sat
       , _gnssSignal16_code = 0 -- there is an L2P status flag in msg 1019, but I don't think that applies

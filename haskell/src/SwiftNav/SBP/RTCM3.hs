@@ -22,4 +22,4 @@ import SwiftNav.SBP
 
 converter :: Monad m => SBPMsg -> Conduit i m [RTCM3Msg]
 converter = \case
-  _sbpMsg -> return mempty
+  _sbpMsg -> pure mempty

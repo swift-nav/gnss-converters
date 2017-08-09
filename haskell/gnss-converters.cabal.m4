@@ -51,7 +51,6 @@ executable sbp2rtcm3
                      , conduit
                      , conduit-extra
                      , gnss-converters
-                     , resourcet
   default-language:    Haskell2010
 
 executable rtcm32sbp
@@ -64,7 +63,6 @@ executable rtcm32sbp
                      , conduit
                      , conduit-extra
                      , gnss-converters
-                     , resourcet
   default-language:    Haskell2010
 
 test-suite test

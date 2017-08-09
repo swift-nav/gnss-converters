@@ -35,7 +35,7 @@ modifyIORefM ref f = do
   x      <- liftIO $ readIORef ref
   (y, z) <- f x
   liftIO $ writeIORef ref y
-  return z
+  pure z
 
 -- | Update and convert stored and incoming GPS times.
 --
@@ -43,9 +43,9 @@ toGpsTimeNano :: MonadStore e m => Word16 -> (GpsTimeNano -> GpsTimeNano) -> m (
 toGpsTimeNano station rollover = do
   timeMap <- view storeGpsTimeMap
   modifyIORefM timeMap $ \timeMap' -> do
-    t <- maybe currentGpsTime return (timeMap' ^. at station)
+    t <- maybe currentGpsTime pure (timeMap' ^. at station)
     let t' = rollover t
-    return (timeMap' & at station ?~ t', (t, t'))
+    pure (timeMap' & at station ?~ t', (t, t'))
 
 -- | Default observation doppler.
 --
