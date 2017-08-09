@@ -1,5 +1,5 @@
 name:                  gnss-converters
-version:               0.3.8
+version:               0.3.9
 synopsis:              GNSS Converters.
 description:           Haskell bindings for GNSS converters.
 homepage:              http://github.com/swift-nav/gnss-converters
@@ -18,7 +18,6 @@ source-repository head
 library
   hs-source-dirs:      src
   exposed-modules:     Data.RTCM3.SBP
-                     , Data.RTCM3.SBP.Ephemerides
                      , Data.RTCM3.SBP.Observations
                      , Data.RTCM3.SBP.Positions
                      , Data.RTCM3.SBP.Time
