@@ -41,5 +41,5 @@ converter = \case
 
 -- | Setup new storage for converter.
 --
-newStore :: IO Store
-newStore = Store <$> newIORef mempty <*> newIORef mempty
+newStore :: MonadIO m => m Store
+newStore = liftIO $ Store <$> newIORef mempty <*> newIORef mempty
