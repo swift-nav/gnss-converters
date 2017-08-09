@@ -39,12 +39,13 @@ modifyIORefM ref f = do
 
 -- | Update and convert stored and incoming GPS times.
 --
-toGpsTimeNano :: MonadStore e m => Word16 -> (GpsTimeNano -> GpsTimeNano) -> m GpsTimeNano
+toGpsTimeNano :: MonadStore e m => Word16 -> (GpsTimeNano -> GpsTimeNano) -> m (GpsTimeNano, GpsTimeNano)
 toGpsTimeNano station rollover = do
   timeMap <- view storeGpsTimeMap
   modifyIORefM timeMap $ \timeMap' -> do
-    t <- rollover <$> maybe currentGpsTime return (timeMap' ^. at station)
-    return (timeMap' & at station ?~ t, t)
+    t <- maybe currentGpsTime return (timeMap' ^. at station)
+    let t' = rollover t
+    return (timeMap' & at station ?~ t', (t, t'))
 
 -- | Default observation doppler.
 --
@@ -302,7 +303,7 @@ toSender station = station .|. 61440
 -- | FromObservations produces GPS time, SBP packed observations, and sender from RTCMv3 observation messages.
 --
 class FromObservations a where
-  gpsTimeNano       :: MonadStore e m => a -> m GpsTimeNano
+  gpsTimeNano       :: MonadStore e m => a -> m (GpsTimeNano, GpsTimeNano)
   packedObsContents :: a -> [PackedObsContent]
   sender            :: a -> Word16
   synchronous       :: a -> Bool
@@ -350,24 +351,20 @@ toMsgObs t obs s = do
 --
 converter :: (MonadStore e m, FromObservations a) => a -> Conduit i m [SBPMsg]
 converter m = do
-  time <- view storeGpsTime
-  t    <- liftIO $ readIORef time
-  t'   <- gpsTimeNano m
-  when (t' >= t) $ do
-    observations <- view storeObservations
-    obs          <- liftIO $ readIORef observations
-    when (t' > t) $ do
-      liftIO $ writeIORef time t'
-      unless (null obs) $ do
-        liftIO $ writeIORef observations mempty
-        ms <- toMsgObs t (toList obs) $ sender m
-        yield ms
-    let obs' = fromList $ packedObsContents m
-    if synchronous m then liftIO $ modifyIORef' observations (obs' <>) else do
-      obs'' <- liftIO $ readIORef observations
-      unless (null obs'') $
-        liftIO $ writeIORef observations mempty
-      let obs''' = obs' <> obs''
-      unless (null obs''') $ do
-        ms <- toMsgObs t' (toList obs''') $ sender m
-        yield ms
+  (t, t') <- gpsTimeNano m
+  observations <- view storeObservations
+  obs          <- liftIO $ readIORef observations
+  when (t' /= t) $
+    unless (null obs) $ do
+      liftIO $ writeIORef observations mempty
+      ms <- toMsgObs t (toList obs) $ sender m
+      yield ms
+  let obs' = fromList $ packedObsContents m
+  if synchronous m then liftIO $ modifyIORef' observations (obs' <>) else do
+    obs'' <- liftIO $ readIORef observations
+    unless (null obs'') $
+      liftIO $ writeIORef observations mempty
+    let obs''' = obs' <> obs''
+    unless (null obs''') $ do
+      ms <- toMsgObs t' (toList obs''') $ sender m
+      yield ms

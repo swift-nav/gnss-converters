@@ -71,9 +71,7 @@ instance MonadBase b m => MonadBase b (ConvertT r m) where
     liftBase = liftBaseDefault
 
 data Store = Store
-  { _storeWn           :: IORef Word16
-  , _storeGpsTime      :: IORef GpsTimeNano
-  , _storeGpsTimeMap   :: IORef GpsTimeNanoMap
+  { _storeGpsTimeMap   :: IORef GpsTimeNanoMap
   , _storeObservations :: IORef (Vector PackedObsContent)
   } deriving ( Eq )
 

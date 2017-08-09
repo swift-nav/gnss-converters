@@ -71,7 +71,8 @@ test-suite test
   hs-source-dirs:      test
   main-is:             Test.hs
   other-modules:       Test.Data.RTCM3.SBP
-  build-depends:       HUnit-approx
+  build-depends:       aeson
+                     , aeson-pretty
                      , base
                      , basic-prelude
                      , binary
@@ -85,6 +86,7 @@ test-suite test
                      , rtcm
                      , sbp
                      , tasty
+                     , tasty-golden
                      , tasty-hunit
                      , text
                      , unordered-containers
