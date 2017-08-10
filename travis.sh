@@ -2,6 +2,7 @@
 
 # Run Travis setup
 
+set -e
 set -x
 set -o errexit
 set -o pipefail
