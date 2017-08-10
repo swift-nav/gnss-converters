@@ -1,0 +1,6 @@
+resolver: nightly-2017-08-10
+packages:
+- .
+extra-deps:
+- rtcm-0.2.5
+- sbp-2.2.12
