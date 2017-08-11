@@ -68,14 +68,12 @@ instance MonadBase b m => MonadBase b (ConvertT r m) where
   {-# INLINE liftBase #-}
 
 data Store = Store
-  { _storeGpsTimeMap   :: IORef GpsTimeNanoMap
-  , _storeObservations :: IORef (Vector PackedObsContent)
-  } deriving ( Eq )
+  { _storeCurrentGpsTime :: IO GpsTimeNano
+  , _storeGpsTimeMap     :: IORef GpsTimeNanoMap
+  , _storeObservations   :: IORef (Vector PackedObsContent)
+  }
 
 $(makeClassy ''Store)
-
-runConvertT :: HasStore e => e -> ConvertT e m a -> m a
-runConvertT e (ConvertT m) = runReaderT m e
 
 type MonadStore e m =
   ( MonadIO m

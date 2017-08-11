@@ -81,7 +81,6 @@ test-suite test
                      , conduit-extra
                      , gnss-converters
                      , lens
-                     , resourcet
                      , rtcm
                      , sbp
                      , tasty

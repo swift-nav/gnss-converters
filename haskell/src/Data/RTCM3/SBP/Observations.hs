@@ -43,7 +43,8 @@ toGpsTimeNano :: MonadStore e m => Word16 -> (GpsTimeNano -> GpsTimeNano) -> m (
 toGpsTimeNano station rollover = do
   timeMap <- view storeGpsTimeMap
   modifyIORefM timeMap $ \timeMap' -> do
-    t <- maybe currentGpsTime pure (timeMap' ^. at station)
+    time <- view storeCurrentGpsTime
+    t    <- maybe (liftIO time) pure (timeMap' ^. at station)
     let t' = rollover t
     pure (timeMap' & at station ?~ t', (t, t'))
 

@@ -15,13 +15,11 @@ import Data.Conduit
 import Data.Conduit.Binary
 import Data.Conduit.Serialization.Binary
 import Data.RTCM3.SBP
-import Data.RTCM3.SBP.Types
 import System.IO
 
 main :: IO ()
-main = do
-  s <- newStore
-  runConvertT s $ runConduitRes $
+main =
+  runConverter $ runConduitRes $
     sourceHandle stdin
       =$= conduitDecode
       =$= awaitForever converter

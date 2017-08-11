@@ -14,15 +14,19 @@
 module Data.RTCM3.SBP
   ( converter
   , newStore
+  , runConvertT
+  , runConverter
   ) where
 
 import           BasicPrelude
 import           Data.Conduit
+import Control.Monad.Reader
 import           Data.IORef
 import           Data.RTCM3
 import qualified Data.RTCM3.SBP.Ephemerides  as Ephemerides
 import qualified Data.RTCM3.SBP.Observations as Observations
 import qualified Data.RTCM3.SBP.Positions    as Positions
+import           Data.RTCM3.SBP.Time
 import           Data.RTCM3.SBP.Types
 import           SwiftNav.SBP
 
@@ -42,4 +46,16 @@ converter = \case
 -- | Setup new storage for converter.
 --
 newStore :: MonadIO m => m Store
-newStore = liftIO $ Store <$> newIORef mempty <*> newIORef mempty
+newStore = liftIO $ Store <$> pure currentGpsTime <*> newIORef mempty <*> newIORef mempty
+
+-- | Run converter.
+--
+runConvertT :: HasStore e => e -> ConvertT e m a -> m a
+runConvertT e (ConvertT m) = runReaderT m e
+
+-- | Run converter with default store.
+--
+runConverter :: MonadIO m => ConvertT Store m a -> m a
+runConverter action = do
+  s <- newStore
+  runConvertT s action

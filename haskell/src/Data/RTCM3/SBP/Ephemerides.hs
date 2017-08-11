@@ -19,7 +19,7 @@ import Control.Lens
 import Data.Bits
 import Data.Conduit
 import Data.RTCM3
-import Data.RTCM3.SBP.Time
+import Data.RTCM3.SBP.Types
 import Data.Word
 import SwiftNav.SBP
 
@@ -29,9 +29,10 @@ import SwiftNav.SBP
 -- | Produce GPS time from RTCM time (week-number % 1024, tow in seconds, scaled 2^4).
 -- Stateful but non-side-effecting. The week number is mod-1024 - add in the base
 -- wn from the stored wn masked to 10 bits.
-toGpsTimeSec :: MonadIO m => Word16 -> Word16 -> m GpsTimeSec
+toGpsTimeSec :: MonadStore e m => Word16 -> Word16 -> m GpsTimeSec
 toGpsTimeSec wn tow = do
-  wn' <- view gpsTimeNano_wn <$> currentGpsTime
+  time <- view storeCurrentGpsTime
+  wn'  <- view gpsTimeNano_wn <$> liftIO time
   pure GpsTimeSec
     { _gpsTimeSec_tow = 16 * fromIntegral tow
     , _gpsTimeSec_wn  = wn' `shiftR` 10 `shiftL` 10 + wn
@@ -75,7 +76,7 @@ fitInterval fitInt iodc
   | otherwise = 6 * 60 * 60
 
 -- | Construct an EphemerisCommonContent from an RTCM 1019 message.
-toGpsEphemerisCommonContent :: MonadIO m => Msg1019 -> m EphemerisCommonContent
+toGpsEphemerisCommonContent :: MonadStore e m => Msg1019 -> m EphemerisCommonContent
 toGpsEphemerisCommonContent m = do
   toe <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toe)
   pure EphemerisCommonContent
@@ -95,7 +96,7 @@ toGpsEphemerisCommonContent m = do
 -- 1005 (antenna position), 1006 (antenna position).
 
 -- | Convert an RTCM 1019 GPS ephemeris message into an SBP MsgEphemerisGps.
-converter :: MonadIO m => Msg1019 -> Conduit i m [SBPMsg]
+converter :: MonadStore e m => Msg1019 -> Conduit i m [SBPMsg]
 converter m = do
   common <- toGpsEphemerisCommonContent m
   toc    <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toc)
