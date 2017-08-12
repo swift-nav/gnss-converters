@@ -70,6 +70,7 @@ test-suite test
   hs-source-dirs:      test
   main-is:             Test.hs
   other-modules:       Test.Data.RTCM3.SBP
+                     , Test.Data.RTCM3.SBP.Time
   build-depends:       aeson
                      , aeson-pretty
                      , base
