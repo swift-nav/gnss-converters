@@ -19,8 +19,8 @@ module Data.RTCM3.SBP
   ) where
 
 import           BasicPrelude
+import           Control.Monad.Reader
 import           Data.Conduit
-import Control.Monad.Reader
 import           Data.IORef
 import           Data.RTCM3
 import qualified Data.RTCM3.SBP.Ephemerides  as Ephemerides

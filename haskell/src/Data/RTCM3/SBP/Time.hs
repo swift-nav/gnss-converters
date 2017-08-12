@@ -1,5 +1,5 @@
 {-# OPTIONS  -fno-warn-overflowed-literals #-}
-{-# LANGUAGE NoImplicitPrelude             #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 -- |
 -- Module:      Data.RTCM3.SBP.Time

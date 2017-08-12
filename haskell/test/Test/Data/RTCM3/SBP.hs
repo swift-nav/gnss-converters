@@ -6,6 +6,7 @@ module Test.Data.RTCM3.SBP
   ) where
 
 import BasicPrelude                      hiding (map)
+import Control.Lens
 import Data.Aeson
 import Data.Aeson.Encode.Pretty
 import Data.ByteString.Lazy              hiding (ByteString, map)
@@ -14,15 +15,21 @@ import Data.Conduit.Binary
 import Data.Conduit.List
 import Data.Conduit.Serialization.Binary
 import Data.RTCM3.SBP
+import Data.RTCM3.SBP.Types
+import Data.Word
+import SwiftNav.SBP
 import Test.Tasty
 import Test.Tasty.Golden
+
+testGpsTime :: Applicative f => Word32 -> Word16 -> f GpsTimeNano
+testGpsTime tow wn = pure $ GpsTimeNano tow 0 wn
 
 encodeLine :: ToJSON a => a -> ByteString
 encodeLine v = toStrict $ encodePretty' defConfig { confCompare = compare } v <> "\n"
 
-runConverter' :: FilePath -> FilePath -> IO ()
-runConverter' f t = do
-  s <- newStore
+testConverter :: FilePath -> FilePath -> IO ()
+testConverter f t = do
+  s <- newStore <&> storeCurrentGpsTime .~ testGpsTime 510191000 1961
   runConvertT s $ runConduitRes $
     sourceFile f
       =$= conduitDecode
@@ -35,7 +42,7 @@ goldenFileTest name s d = do
   let n = ("test/golden" </>)
       f = "from_" <> d
       t = "to_" <> d
-  goldenVsFile name (n f) (n t) $ runConverter' (n s) (n t)
+  goldenVsFile name (n f) (n t) $ testConverter (n s) (n t)
 
 testObservations :: TestTree
 testObservations =
