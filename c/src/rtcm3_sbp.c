@@ -26,8 +26,11 @@ void rtcm2sbp_init(struct rtcm3_sbp_state *state,
   state->leap_seconds = 0;
   state->leap_second_known = false;
 
-  state->sbp_obs_buffer = (msg_obs_t *)(state->obs_buffer);
+  state->sender_id = 0;
   state->cb = cb;
+
+  const msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
+  memset((void*)sbp_obs_buffer,0, sizeof(*sbp_obs_buffer));
 }
 
 static double gps_diff_time(const gps_time_sec_t *end, const gps_time_sec_t *beginning)
@@ -151,12 +154,12 @@ void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sb
 void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *obs_time, struct rtcm3_sbp_state *state)
 {
   // Transform the newly received obs to sbp
-  msg_obs_t *new_sbp_obs;
   u8 new_obs[sizeof(observation_header_t) + MAX_OBS_PER_EPOCH * sizeof(packed_obs_content_t)];
-  new_sbp_obs = (msg_obs_t * )(new_obs);
+  msg_obs_t *new_sbp_obs = (msg_obs_t * )(new_obs);
+  memset((void*)new_sbp_obs,0, sizeof(*new_sbp_obs));
 
   // Find the buffer of obs to be sent
-  msg_obs_t *sbp_obs_buffer = state->sbp_obs_buffer;
+  msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
 
   new_sbp_obs->header.t.wn = obs_time->wn;
   new_sbp_obs->header.t.tow = obs_time->tow * S_TO_MS;
@@ -194,7 +197,7 @@ void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *obs
  */
 void send_observations(struct rtcm3_sbp_state *state)
 {
-  const msg_obs_t *sbp_obs_buffer = state->sbp_obs_buffer;
+  const msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
 
   u8 obs_count = 0;
   u8 sizes[4];
@@ -344,7 +347,6 @@ code_t get_glo_sbp_code(u8 freq, u8 rtcm_code)
 
 void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *new_sbp_obs)
 {
-  new_sbp_obs->header.n_obs = 0;
   for (u8 sat = 0; sat < rtcm_obs->header.n_sat; ++sat) {
     for (u8 freq = 0; freq < NUM_FREQS; ++freq) {
       const rtcm_freq_data *rtcm_freq = &rtcm_obs->sats[sat].obs[freq];

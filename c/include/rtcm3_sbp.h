@@ -23,10 +23,9 @@ struct rtcm3_sbp_state {
   bool gps_time_updated;
   s8 leap_seconds;
   bool leap_second_known;
-  msg_obs_t *sbp_obs_buffer;
-  u8 obs_buffer[sizeof(observation_header_t) + MAX_OBS_PER_EPOCH * sizeof(packed_obs_content_t)];
   u16 sender_id;
   void (*cb)(u8 msg_id, u8 buff, u8 *len, u16 sender_id);
+  u8 obs_buffer[sizeof(observation_header_t) + MAX_OBS_PER_EPOCH * sizeof(packed_obs_content_t)];
 };
 
 void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct rtcm3_sbp_state *state);
