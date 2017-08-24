@@ -102,9 +102,10 @@ rolloverTowGpsTime tow t = t & gpsTimeNano_tow .~ tow & rollover
       | increment = gpsTimeNano_wn +~ 1
       | decrement = gpsTimeNano_wn +~ -1
       | otherwise = gpsTimeNano_wn +~ 0
-    diff      = fromIntegral tow - fromIntegral (t ^. gpsTimeNano_tow)
-    increment = diff < -weekMillis `div` 2
-    decrement = diff > weekMillis `div` 2
+    new       = fromIntegral tow
+    old       = fromIntegral (t ^. gpsTimeNano_tow)
+    increment = old > new && old - new > weekMillis `div` 2
+    decrement = new > old && new - old > weekMillis `div` 2
 
 -- | Update GPS time based on GLONASS epoch, handling week rollover.
 --
@@ -121,6 +122,6 @@ rolloverEpochGpsTime epoch t = rolloverTowGpsTime tow t
       | increment = dow + 1 `mod` 7
       | decrement = dow - 1 `mod` 7
       | otherwise = dow
-    increment = epoch'' - tod > dayMillis `div` 2
-    decrement = tod - epoch'' > dayMillis `div` 2
+    increment = epoch'' > tod && epoch'' - tod > dayMillis `div` 2
+    decrement = tod > epoch'' && tod - epoch'' > dayMillis `div` 2
     tow = fromIntegral $ dow' * dayMillis + epoch''
