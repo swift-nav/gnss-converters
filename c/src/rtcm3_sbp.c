@@ -474,9 +474,9 @@ void compute_glo_time(double tod_ms, gps_time_sec_t *obs_time, const gps_time_se
 
   obs_time->wn = rover_time->wn;
   /* Check for day rollover */
-  if (glo_tod_sec - rover_tod > SEC_IN_DAY / 2) {
+  if (glo_tod_sec > rover_tod && glo_tod_sec - rover_tod > SEC_IN_DAY / 2) {
     rover_dow = (rover_dow + 1) % 7;
-  } else if (rover_tod - glo_tod_sec > SEC_IN_DAY / 2) {
+  } else if (rover_tod > glo_tod_sec && rover_tod - glo_tod_sec > SEC_IN_DAY / 2) {
     rover_dow = (rover_dow - 1) % 7;
   }
 
