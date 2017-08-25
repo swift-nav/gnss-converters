@@ -22,6 +22,6 @@ main =
   runConduitRes $
     sourceHandle stdin
       =$= conduitDecode
-      =$= replay
+      =$= replayer
       =$= conduitEncode
       $$  sinkHandle stdout
