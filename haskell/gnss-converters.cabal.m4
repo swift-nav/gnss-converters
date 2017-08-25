@@ -17,7 +17,8 @@ source-repository head
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.RTCM3.SBP
+  exposed-modules:     Data.RTCM3.Replay
+                     , Data.RTCM3.SBP
                      , Data.RTCM3.SBP.Ephemerides
                      , Data.RTCM3.SBP.Observations
                      , Data.RTCM3.SBP.Positions
@@ -56,6 +57,18 @@ executable sbp2rtcm3
 executable rtcm32sbp
   hs-source-dirs:      main
   main-is:             RTCM32SBP.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
+  build-depends:       base
+                     , basic-prelude
+                     , binary-conduit
+                     , conduit
+                     , conduit-extra
+                     , gnss-converters
+  default-language:    Haskell2010
+
+executable rtcm32rtcm3
+  hs-source-dirs:      main
+  main-is:             RTCM32RTCM3.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:       base
                      , basic-prelude
