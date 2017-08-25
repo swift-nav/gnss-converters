@@ -3,9 +3,10 @@
 
 module Data.RTCM3.Replay
   ( replay
+  , replay'
   ) where
 
-import BasicPrelude
+import BasicPrelude                hiding (mapM)
 import Control.Concurrent          hiding (yield)
 import Control.Lens
 import Data.Conduit
@@ -77,3 +78,29 @@ preDelay = awaitForever $ \case
 --
 replay :: MonadIO m => Conduit RTCM3Msg m RTCM3Msg
 replay = preDelay =$= delay =$= postDelay
+
+dog :: MonadIO m => Word32 -> RTCM3Msg -> ConduitM i RTCM3Msg m Word32
+dog tow = \case
+  (RTCM3Msg1002 m _rtcm3) -> do
+    let tow' = m ^. msg1002_header ^. gpsObservationHeader_tow
+    delayTow tow tow'
+    tow'' <- currentTow
+    let n = set (msg1002_header . gpsObservationHeader_tow) tow'' m
+    yield (RTCM3Msg1002 n (toRTCM3 n))
+    pure tow'
+  (RTCM3Msg1004 m _rtcm3) -> do
+    let tow' = m ^. msg1004_header ^. gpsObservationHeader_tow
+    delayTow tow tow'
+    tow'' <- currentTow
+    let n = set (msg1004_header . gpsObservationHeader_tow) tow'' m
+    yield (RTCM3Msg1004 n (toRTCM3 n))
+    pure tow'
+  rtcm3Msg -> do
+    yield rtcm3Msg
+    pure tow
+
+replay' :: MonadIO m => Conduit RTCM3Msg m RTCM3Msg
+replay' = loop maxBound
+  where
+    loop tow =
+      await >>= maybe (pure tow) (dog tow) >>= loop
