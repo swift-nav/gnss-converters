@@ -12,7 +12,14 @@
 -- SBP GPS Time helpers.
 
 module Data.RTCM3.SBP.Time
-  ( currentGpsTime
+  ( gpsLeapMillis
+  , hourMillis
+  , dayMillis
+  , weekMillis
+  , toWn
+  , toStartDate
+  , toTow
+  , currentGpsTime
   , rolloverTowGpsTime
   , rolloverEpochGpsTime
   ) where
@@ -77,14 +84,25 @@ toWn t = fromIntegral weeks
     days  = diffDays (utctDay t) gpsEpoch
     weeks = days `div` 7
 
+-- | Find the start of the GPS week, which is Sunday.
+--
+toStartDate :: (Integer, Int, Int) -> (Integer, Int, Int)
+toStartDate (year, week, day)
+  | day == 7  = (year,   week,   7)
+  | week == 1 = (year-1, 52,     7)
+  | otherwise = (year,   week-1, 7)
+
+-- | Generate the start of the GPS week UTC time.
+--
+fromStartDate :: UTCTime -> UTCTime
+fromStartDate t = UTCTime (fromWeekDate year week day) 0
+  where
+    (year, week, day) = toStartDate $ toWeekDate $ utctDay t
+
 -- | Produce GPS time of week from a GPS UTC time.
 --
 toTow :: UTCTime -> Word32
-toTow t = floor since
-  where
-    (y, w, _d) = toWeekDate (utctDay t)
-    begin      = addDays (-1) $ fromWeekDate y w 1
-    since      = 1000 * diffUTCTime t (UTCTime begin 0)
+toTow t = floor $ 1000 * diffUTCTime t (fromStartDate t)
 
 -- | Get current GPS time.
 --

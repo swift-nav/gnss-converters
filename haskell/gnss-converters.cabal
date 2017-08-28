@@ -101,6 +101,7 @@ test-suite test
                      , tasty-golden
                      , tasty-hunit
                      , text
+                     , time
                      , unordered-containers
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
   default-language:    Haskell2010
