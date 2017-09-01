@@ -199,40 +199,32 @@ void send_observations(struct rtcm3_sbp_state *state)
 {
   const msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
 
+  /* Work out how many sbp messages we need to split this into */
+  const uint32_t header_size = sizeof(observation_header_t);
+  const uint32_t obs_size = sizeof(packed_obs_content_t);
+  const uint32_t max_obs_in_sbp = ((MAX_SBP_PAYLOAD - header_size) / obs_size);
+
+  /* We want the ceiling of n_obs divided by max obs in a single message to get
+   * total number of messages needed */
+  const u8 total_messages = 1 + ((sbp_obs_buffer->header.n_obs - 1) / max_obs_in_sbp);
+
   u8 obs_count = 0;
-  u8 sizes[4];
-  uint32_t header_size = sizeof(observation_header_t);
-  uint32_t obs_size = sizeof(packed_obs_content_t);
-  u8 obs_data[4 * header_size + 4 * sbp_obs_buffer->header.n_obs * obs_size];
-  msg_obs_t *sbp_obs[4];
-  uint32_t max_obs_in_sbp = ((MAX_SBP_PAYLOAD - header_size) / obs_size);
+  u8 obs_data[MAX_SBP_PAYLOAD];
+  msg_obs_t *sbp_obs = (msg_obs_t*)obs_data;
 
-  u8 total_messages = 0;
-  u8 msg_num = 0;
-  for (msg_num = 0; msg_num < 4; ++msg_num) {
-    sbp_obs[msg_num] =
-      (msg_obs_t * )(obs_data + (msg_num * header_size +
-        max_obs_in_sbp * msg_num * obs_size));
+  for (u8 msg_num = 0; msg_num < total_messages; ++msg_num) {
+    memset(obs_data,0,MAX_SBP_PAYLOAD);
 
-    sbp_obs[msg_num]->header.t = sbp_obs_buffer->header.t;
-    sbp_obs[msg_num]->header.n_obs = 0;
-
-    u8 obs_index;
-    for (obs_index = 0; obs_index < max_obs_in_sbp && obs_count < sbp_obs_buffer->header.n_obs; obs_index++) {
-      sbp_obs[msg_num]->obs[obs_index] = sbp_obs_buffer->obs[obs_count++];
+    u8 obs_index = 0;
+    while (obs_index < max_obs_in_sbp && obs_count < sbp_obs_buffer->header.n_obs) {
+      sbp_obs->obs[obs_index++] = sbp_obs_buffer->obs[obs_count++];
     }
 
-    if(obs_index > 0) {
-      total_messages++;
-    }
-    sizes[msg_num] = header_size + obs_index * obs_size;
-  }
+    sbp_obs->header.t = sbp_obs_buffer->header.t;
+    sbp_obs->header.n_obs = (total_messages << 4) + msg_num;
 
-  for (u8 msg = 0; msg < total_messages; ++msg) {
-    sbp_obs[msg]->header.n_obs = (total_messages << 4) + msg;
-    state->cb(SBP_MSG_OBS, sizes[msg], (u8 *) sbp_obs[msg], state->sender_id);
+    state->cb(SBP_MSG_OBS, header_size + obs_index * obs_size, (u8 *) sbp_obs, state->sender_id);
   }
-
   memset((void*)sbp_obs_buffer,0, sizeof(*sbp_obs_buffer));
 }
 
