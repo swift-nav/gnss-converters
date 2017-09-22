@@ -29,6 +29,11 @@ void rtcm2sbp_init(struct rtcm3_sbp_state *state,
   state->sender_id = 0;
   state->cb = cb;
 
+  state->last_gps_time.wn = INVALID_TIME;
+  state->last_gps_time.tow = 0;
+  state->last_glo_time.wn = INVALID_TIME;
+  state->last_glo_time.tow = 0;
+
   const msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
   memset((void*)sbp_obs_buffer,0, sizeof(*sbp_obs_buffer));
 }
@@ -140,7 +145,12 @@ void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sb
   gps_time_sec_t obs_time;
   compute_glo_time(new_rtcm_obs->header.tow_ms, &obs_time, &state->time_from_rover_obs, state->leap_seconds);
 
-  add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
+  if(state->last_gps_time.wn == INVALID_TIME
+     || gps_diff_time(&obs_time, &state->last_gps_time) > 0.0) {
+    state->last_gps_time.wn = obs_time.wn;
+    state->last_gps_time.tow = obs_time.tow;
+    add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
+  }
 }
 
 void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sbp_state *state)
@@ -148,7 +158,12 @@ void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, struct rtcm3_sb
   gps_time_sec_t obs_time;
   compute_gps_time(new_rtcm_obs->header.tow_ms, &obs_time, &state->time_from_rover_obs);
 
-  add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
+  if(state->last_glo_time.wn == INVALID_TIME
+     || gps_diff_time(&obs_time, &state->last_gps_time) > 0.0) {
+    state->last_glo_time.wn = obs_time.wn;
+    state->last_glo_time.tow = obs_time.tow;
+    add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
+  }
 }
 
 void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs, gps_time_sec_t *obs_time, struct rtcm3_sbp_state *state)
