@@ -60,7 +60,7 @@ void test_RTCM3_decode(void)
 {
   // This file is GPS only and tests basic decoding functionality
   struct rtcm3_sbp_state state;
-  rtcm2sbp_init(&state, sbp_callback_gps);
+  rtcm2sbp_init(&state, sbp_callback_gps, NULL);
   gps_time_sec_t current_time;
   current_time.wn = 1945;
   current_time.tow = 277500;
@@ -96,7 +96,7 @@ void test_day_rollover(void)
   // GPS GLO decoding functionality and time matching
 
   struct rtcm3_sbp_state state;
-  rtcm2sbp_init(&state, sbp_callback_glo_day_rollover);
+  rtcm2sbp_init(&state, sbp_callback_glo_day_rollover, NULL);
   gps_time_sec_t current_time;
   current_time.wn = 1959;
   current_time.tow = 510191;

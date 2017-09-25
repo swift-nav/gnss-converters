@@ -80,7 +80,8 @@ void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                        gps_time_sec_t *new_sbp_obs, struct rtcm3_sbp_state *state);
 
 void compute_gps_time(double tow_ms, gps_time_sec_t *new_sbp_obs,
-                      const gps_time_sec_t *rover_time);
+                      const gps_time_sec_t *rover_time,
+                      struct rtcm3_sbp_state *state);
 
 void compute_glo_time(double tod_ms, gps_time_sec_t *obs_time,
                       const gps_time_sec_t *rover_time, const s8 leap_second);

@@ -1,3 +1,9 @@
 *.*DS_Store
 build*/
 .idea/
+.stamp*
+.applied_patches_list
+.br_*
+CMakeFiles
+CMakeCache.txt
+.*.swp
