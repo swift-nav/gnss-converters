@@ -21,8 +21,8 @@ import SwiftNav.SBP
 import Test.Tasty
 import Test.Tasty.Golden
 
-testGpsTime :: Applicative f => Word32 -> Word16 -> f GpsTimeNano
-testGpsTime tow wn = pure $ GpsTimeNano tow 0 wn
+testGpsTime :: Applicative f => Word32 -> Word16 -> f GpsTime
+testGpsTime tow wn = pure $ GpsTime tow 0 wn
 
 encodeLine :: ToJSON a => a -> ByteString
 encodeLine v = toStrict $ encodePretty' defConfig { confCompare = compare } v <> "\n"

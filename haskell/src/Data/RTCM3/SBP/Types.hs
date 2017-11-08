@@ -31,10 +31,10 @@ import Data.IORef
 import Data.Word
 import SwiftNav.SBP
 
-type GpsTimeNanoMap = HashMap Word16 GpsTimeNano
+type GpsTimeMap = HashMap Word16 GpsTime
 
-instance Ord GpsTimeNano where
-  compare (GpsTimeNano tow _ns wn) (GpsTimeNano tow' _ns' wn')
+instance Ord GpsTime where
+  compare (GpsTime tow _ns wn) (GpsTime tow' _ns' wn')
     | wn > wn'   = GT
     | wn < wn'   = LT
     | tow > tow' = GT
@@ -68,8 +68,8 @@ instance MonadBase b m => MonadBase b (ConvertT r m) where
   {-# INLINE liftBase #-}
 
 data Store = Store
-  { _storeCurrentGpsTime :: IO GpsTimeNano
-  , _storeGpsTimeMap     :: IORef GpsTimeNanoMap
+  { _storeCurrentGpsTime :: IO GpsTime
+  , _storeGpsTimeMap     :: IORef GpsTimeMap
   , _storeObservations   :: IORef (Vector PackedObsContent)
   }
 

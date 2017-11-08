@@ -32,7 +32,7 @@ import SwiftNav.SBP
 toGpsTimeSec :: MonadStore e m => Word16 -> Word16 -> m GpsTimeSec
 toGpsTimeSec wn tow = do
   time <- view storeCurrentGpsTime
-  wn'  <- view gpsTimeNano_wn <$> liftIO time
+  wn'  <- view gpsTime_wn <$> liftIO time
   pure GpsTimeSec
     { _gpsTimeSec_tow = 16 * fromIntegral tow
     , _gpsTimeSec_wn  = wn' `shiftR` 10 `shiftL` 10 + wn
@@ -80,9 +80,9 @@ toGpsEphemerisCommonContent :: MonadStore e m => Msg1019 -> m EphemerisCommonCon
 toGpsEphemerisCommonContent m = do
   toe <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toe)
   pure EphemerisCommonContent
-    { _ephemerisCommonContent_sid = GnssSignal16
-      { _gnssSignal16_sat  = m ^. msg1019_header ^. gpsEphemerisHeader_sat
-      , _gnssSignal16_code = 0 -- there is an L2P status flag in msg 1019, but I don't think that applies
+    { _ephemerisCommonContent_sid = GnssSignal
+      { _gnssSignal_sat  = m ^. msg1019_header ^. gpsEphemerisHeader_sat
+      , _gnssSignal_code = 0 -- there is an L2P status flag in msg 1019, but I don't think that applies
       }
     , _ephemerisCommonContent_toe          = toe
     , _ephemerisCommonContent_ura          = uriToUra (fromIntegral $ m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth)

@@ -39,8 +39,8 @@ modifyIORefM ref f = do
 
 -- | Update and convert stored and incoming GPS times.
 --
-toGpsTimeNano :: MonadStore e m => Word16 -> (GpsTimeNano -> GpsTimeNano) -> m (GpsTimeNano, GpsTimeNano)
-toGpsTimeNano station rollover = do
+toGpsTime :: MonadStore e m => Word16 -> (GpsTime -> GpsTime) -> m (GpsTime, GpsTime)
+toGpsTime station rollover = do
   timeMap <- view storeGpsTimeMap
   modifyIORefM timeMap $ \timeMap' -> do
     time <- view storeCurrentGpsTime
@@ -151,31 +151,31 @@ toLock t
 
 -- | Map GPS L1 signal.
 --
-gpsL1Signal :: Word8 -> Bool -> GnssSignal16
+gpsL1Signal :: Word8 -> Bool -> GnssSignal
 gpsL1Signal sat code
-  | code      = GnssSignal16 sat 5
-  | otherwise = GnssSignal16 sat 0
+  | code      = GnssSignal sat 5
+  | otherwise = GnssSignal sat 0
 
 -- | Map GPS L2 signal.
 --
-gpsL2Signal :: Word8 -> Word8 -> GnssSignal16
+gpsL2Signal :: Word8 -> Word8 -> GnssSignal
 gpsL2Signal sat code
-  | code == 0 = GnssSignal16 sat 1
-  | otherwise = GnssSignal16 sat 6
+  | code == 0 = GnssSignal sat 1
+  | otherwise = GnssSignal sat 6
 
 -- | Map GLONASS L1 signal.
 --
-glonassL1Signal :: Word8 -> Bool -> Maybe GnssSignal16
+glonassL1Signal :: Word8 -> Bool -> Maybe GnssSignal
 glonassL1Signal sat code
-  | code      = Just $ GnssSignal16 sat 3
-  | otherwise = Just $ GnssSignal16 sat 3
+  | code      = Just $ GnssSignal sat 3
+  | otherwise = Just $ GnssSignal sat 3
 
 -- | Map GLONASS L2 signal.
 --
-glonassL2Signal :: Word8 -> Word8 -> Maybe GnssSignal16
+glonassL2Signal :: Word8 -> Word8 -> Maybe GnssSignal
 glonassL2Signal sat code
-  | code == 0 = Just $ GnssSignal16 sat 4
-  | otherwise = Just $ GnssSignal16 sat 4
+  | code == 0 = Just $ GnssSignal sat 4
+  | otherwise = Just $ GnssSignal sat 4
 
 -- | Max GPS satellite number.
 --
@@ -304,38 +304,38 @@ toSender station = station .|. 61440
 -- | FromObservations produces GPS time, SBP packed observations, and sender from RTCMv3 observation messages.
 --
 class FromObservations a where
-  gpsTimeNano       :: MonadStore e m => a -> m (GpsTimeNano, GpsTimeNano)
+  gpsTime           :: MonadStore e m => a -> m (GpsTime, GpsTime)
   packedObsContents :: a -> [PackedObsContent]
   sender            :: a -> Word16
   synchronous       :: a -> Bool
 
 instance FromObservations Msg1002 where
-  gpsTimeNano m     = toGpsTimeNano (m ^. msg1002_header . gpsObservationHeader_station) $ rolloverTowGpsTime (m ^. msg1002_header . gpsObservationHeader_tow)
+  gpsTime m         = toGpsTime (m ^. msg1002_header . gpsObservationHeader_station) $ rolloverTowGpsTime (m ^. msg1002_header . gpsObservationHeader_tow)
   packedObsContents = toPackedObsContent . view msg1002_observations
   sender            = toSender . view (msg1002_header . gpsObservationHeader_station)
   synchronous       = view (msg1002_header . gpsObservationHeader_synchronous)
 
 instance FromObservations Msg1004 where
-  gpsTimeNano m     = toGpsTimeNano (m ^. msg1004_header . gpsObservationHeader_station) $ rolloverTowGpsTime (m ^. msg1004_header . gpsObservationHeader_tow)
+  gpsTime m         = toGpsTime (m ^. msg1004_header . gpsObservationHeader_station) $ rolloverTowGpsTime (m ^. msg1004_header . gpsObservationHeader_tow)
   packedObsContents = toPackedObsContent . view msg1004_observations
   sender            = toSender . view (msg1004_header . gpsObservationHeader_station)
   synchronous       = view (msg1004_header . gpsObservationHeader_synchronous)
 
 instance FromObservations Msg1010 where
-  gpsTimeNano m     = toGpsTimeNano (m ^. msg1010_header . glonassObservationHeader_station) $ rolloverEpochGpsTime (m ^. msg1010_header . glonassObservationHeader_epoch)
+  gpsTime m         = toGpsTime (m ^. msg1010_header . glonassObservationHeader_station) $ rolloverEpochGpsTime (m ^. msg1010_header . glonassObservationHeader_epoch)
   packedObsContents = toPackedObsContent . view msg1010_observations
   sender            = toSender . view (msg1010_header . glonassObservationHeader_station)
   synchronous       = view (msg1010_header . glonassObservationHeader_synchronous)
 
 instance FromObservations Msg1012 where
-  gpsTimeNano m     = toGpsTimeNano (m ^. msg1012_header . glonassObservationHeader_station) $ rolloverEpochGpsTime (m ^. msg1012_header . glonassObservationHeader_epoch)
+  gpsTime m         = toGpsTime (m ^. msg1012_header . glonassObservationHeader_station) $ rolloverEpochGpsTime (m ^. msg1012_header . glonassObservationHeader_epoch)
   packedObsContents = toPackedObsContent . view msg1012_observations
   sender            = toSender . view (msg1012_header . glonassObservationHeader_station)
   synchronous       = view (msg1012_header . glonassObservationHeader_synchronous)
 
 -- | Convert RTCMv3 observation(s) to SBP observations in chunks.
 --
-toMsgObs :: Applicative f => GpsTimeNano -> [PackedObsContent] -> Word16 -> f [SBPMsg]
+toMsgObs :: Applicative f => GpsTime -> [PackedObsContent] -> Word16 -> f [SBPMsg]
 toMsgObs t obs s = do
   let chunks = chunksOf maxObs obs
   ifor chunks $ \i obs' -> do
@@ -352,7 +352,7 @@ toMsgObs t obs s = do
 --
 converter :: (MonadStore e m, FromObservations a) => a -> Conduit i m [SBPMsg]
 converter m = do
-  (t, t') <- gpsTimeNano m
+  (t, t')      <- gpsTime m
   observations <- view storeObservations
   obs          <- liftIO $ readIORef observations
   when (t' /= t) $

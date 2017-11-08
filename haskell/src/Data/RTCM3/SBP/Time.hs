@@ -106,36 +106,36 @@ toTow t = floor $ 1000 * diffUTCTime t (fromStartDate t)
 
 -- | Get current GPS time.
 --
-currentGpsTime :: MonadIO m => m GpsTimeNano
+currentGpsTime :: MonadIO m => m GpsTime
 currentGpsTime = do
   t <- liftIO $ addUTCTime (fromIntegral gpsLeapSeconds) <$> getCurrentTime
-  pure $ GpsTimeNano (toTow t) 0 (toWn t)
+  pure $ GpsTime (toTow t) 0 (toWn t)
 
 -- | Update GPS time based on GPS time of week, handling week rollover.
 --
-rolloverTowGpsTime :: Word32 -> GpsTimeNano -> GpsTimeNano
-rolloverTowGpsTime tow t = t & gpsTimeNano_tow .~ tow & rollover
+rolloverTowGpsTime :: Word32 -> GpsTime -> GpsTime
+rolloverTowGpsTime tow t = t & gpsTime_tow .~ tow & rollover
   where
     rollover
-      | increment = gpsTimeNano_wn +~ 1
-      | decrement = gpsTimeNano_wn +~ -1
-      | otherwise = gpsTimeNano_wn +~ 0
+      | increment = gpsTime_wn +~ 1
+      | decrement = gpsTime_wn +~ -1
+      | otherwise = gpsTime_wn +~ 0
     new       = fromIntegral tow
-    old       = fromIntegral (t ^. gpsTimeNano_tow)
+    old       = fromIntegral (t ^. gpsTime_tow)
     increment = old > new && old - new > weekMillis `div` 2
     decrement = new > old && new - old > weekMillis `div` 2
 
 -- | Update GPS time based on GLONASS epoch, handling week rollover.
 --
-rolloverEpochGpsTime :: Word32 -> GpsTimeNano -> GpsTimeNano
+rolloverEpochGpsTime :: Word32 -> GpsTime -> GpsTime
 rolloverEpochGpsTime epoch t = rolloverTowGpsTime tow t
   where
     epoch' = fromIntegral epoch - 3 * hourMillis + gpsLeapMillis
     epoch''
       | epoch' < 0 = epoch' + dayMillis
       | otherwise  = epoch'
-    dow = fromIntegral (t ^. gpsTimeNano_tow) `div` dayMillis
-    tod = fromIntegral (t ^. gpsTimeNano_tow) - dow * dayMillis
+    dow = fromIntegral (t ^. gpsTime_tow) `div` dayMillis
+    tod = fromIntegral (t ^. gpsTime_tow) - dow * dayMillis
     dow'
       | increment = dow + 1 `mod` 7
       | decrement = dow - 1 `mod` 7
