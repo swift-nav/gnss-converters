@@ -3,5 +3,5 @@ packages:
 - .
 extra-deps:
 - rtcm-0.2.8
-- sbp-2.2.16
+- sbp-2.3.0
 - word24-2.0.1
