@@ -88,20 +88,16 @@ test-suite test
                      , aeson-pretty
                      , base
                      , basic-prelude
-                     , binary
                      , binary-conduit
                      , bytestring
                      , conduit
                      , conduit-extra
                      , gnss-converters
                      , lens
-                     , rtcm
                      , sbp
                      , tasty
                      , tasty-golden
                      , tasty-hunit
-                     , text
                      , time
-                     , unordered-containers
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
   default-language:    Haskell2010
