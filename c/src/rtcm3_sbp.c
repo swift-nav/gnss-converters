@@ -132,11 +132,10 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length, struct r
   case 1230: {
     rtcm_msg_1230 msg_1230;
     if (rtcm3_decode_1230(&frame[byte], &msg_1230) == 0) {
-      /* 1230 Message needs SBP message support to send
-      msg_glo_code_phase_bias_t sbp_glo_cpb;
+      msg_glo_biases_t sbp_glo_cpb;
       rtcm3_1230_to_sbp(&msg_1230, &sbp_glo_cpb);
-      state->cb_rtcm_to_sbp(SBP_MSG_GLO_CODE_PHASE_BIAS, (u8)sizeof(sbp_glo_cpb),
-                            (u8 *)&sbp_glo_cpb, rtcm_2_sbp_sender_id(msg1230.stn_id)); */
+      state->cb_rtcm_to_sbp(SBP_MSG_GLO_BIASES, (u8)sizeof(sbp_glo_cpb),
+                            (u8 *)&sbp_glo_cpb, rtcm_2_sbp_sender_id(msg_1230.stn_id));
     }
   }
   default:
@@ -445,6 +444,27 @@ void sbp_to_rtcm3_1006(const msg_base_pos_ecef_t *sbp_base_pos,
   rtcm_1006->msg_1005.arp_y = sbp_base_pos->y;
   rtcm_1006->msg_1005.arp_z = sbp_base_pos->z;
   rtcm_1006->ant_height = 0.0;
+}
+
+void rtcm3_1230_to_sbp(const rtcm_msg_1230 *rtcm_1230,
+                      msg_glo_biases_t *sbp_glo_bias)
+{
+  sbp_glo_bias->mask = rtcm_1230->fdma_signal_mask;
+  /* Resolution 2cm */
+  sbp_glo_bias->l1ca_bias = rtcm_1230->L1_CA_cpb_meter * 50;
+  sbp_glo_bias->l1p_bias = rtcm_1230->L1_P_cpb_meter * 50;
+  sbp_glo_bias->l2ca_bias = rtcm_1230->L2_CA_cpb_meter * 50;
+  sbp_glo_bias->l2p_bias = rtcm_1230->L2_P_cpb_meter * 50;
+}
+
+void sbp_to_rtcm3_1230(const msg_glo_biases_t *sbp_glo_bias,
+                       rtcm_msg_1230 *rtcm_1230)
+{
+  rtcm_1230->fdma_signal_mask = sbp_glo_bias->mask;
+  rtcm_1230->L1_CA_cpb_meter = sbp_glo_bias->l1ca_bias * 0.02;
+  rtcm_1230->L1_P_cpb_meter = sbp_glo_bias->l1p_bias * 0.02;
+  rtcm_1230->L2_CA_cpb_meter = sbp_glo_bias->l2ca_bias * 0.02;
+  rtcm_1230->L2_P_cpb_meter = sbp_glo_bias->l2p_bias * 0.02;
 }
 
 void rtcm2sbp_set_gps_time(gps_time_sec_t *current_time, struct rtcm3_sbp_state* state)
