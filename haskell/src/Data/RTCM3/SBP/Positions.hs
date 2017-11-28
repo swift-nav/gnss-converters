@@ -53,4 +53,4 @@ converter m = do
       y  = fromIntegral (ecefY m) / 10000
       z  = fromIntegral (ecefZ m) / 10000
       m' = MsgBasePosEcef x y z
-  yield [SBPMsgBasePosEcef m' $ toSBP m' $ toSender $ sender m]
+  yield [SBPMsgBasePosEcef m' $ toSBP m' $ sender m]

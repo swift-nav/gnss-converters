@@ -19,6 +19,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Data.RTCM3.Replay
                      , Data.RTCM3.SBP
+                     , Data.RTCM3.SBP.Biases
                      , Data.RTCM3.SBP.Ephemerides
                      , Data.RTCM3.SBP.Observations
                      , Data.RTCM3.SBP.Positions

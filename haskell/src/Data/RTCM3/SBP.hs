@@ -23,6 +23,7 @@ import           Control.Monad.Reader
 import           Data.Conduit
 import           Data.IORef
 import           Data.RTCM3
+import qualified Data.RTCM3.SBP.Biases       as Biases
 import qualified Data.RTCM3.SBP.Ephemerides  as Ephemerides
 import qualified Data.RTCM3.SBP.Observations as Observations
 import qualified Data.RTCM3.SBP.Positions    as Positions
@@ -41,6 +42,7 @@ converter = \case
   (RTCM3Msg1005 m _rtcm3) -> Positions.converter m
   (RTCM3Msg1006 m _rtcm3) -> Positions.converter m
   (RTCM3Msg1019 m _rtcm3) -> Ephemerides.converter m
+  (RTCM3Msg1230 m _rtcm3) -> Biases.converter m
   _rtcm3Msg               -> mempty
 
 -- | Setup new storage for converter.
