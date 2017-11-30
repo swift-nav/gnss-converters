@@ -2,6 +2,6 @@ resolver: lts-6.35
 packages:
 - .
 extra-deps:
-- rtcm-0.2.10
+- rtcm-0.2.11
 - sbp-2.3.1
 - word24-2.0.1
