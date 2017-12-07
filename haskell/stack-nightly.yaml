@@ -1,6 +1,6 @@
-resolver: nightly-2017-11-25
+resolver: nightly-2017-12-07
 packages:
 - .
 extra-deps:
 - rtcm-0.2.11
-- sbp-2.3.1
+- sbp-2.3.2

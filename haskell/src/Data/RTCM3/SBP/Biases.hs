@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 -- |
@@ -14,7 +15,11 @@ module Data.RTCM3.SBP.Biases
   ( converter
   ) where
 
+#if MIN_VERSION_basic_prelude(0,7,0)
+import BasicPrelude
+#else
 import BasicPrelude hiding (mask)
+#endif
 import Control.Lens
 import Data.Bits
 import Data.Conduit
