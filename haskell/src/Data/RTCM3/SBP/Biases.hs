@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 -- |
@@ -15,11 +14,7 @@ module Data.RTCM3.SBP.Biases
   ( converter
   ) where
 
-#if MIN_VERSION_basic_prelude(0,7,0)
 import BasicPrelude
-#else
-import BasicPrelude hiding (mask)
-#endif
 import Control.Lens
 import Data.Bits
 import Data.Conduit
@@ -38,11 +33,11 @@ toSender station = station .|. 61440
 -- | Expand out array of biases.
 --
 toBiases :: Word8 -> Int -> [Int16] -> [Int16]
-toBiases mask i (bias:biases)
-  | testBit mask i = bias : toBiases mask (i+1) biases
-toBiases mask i biases
+toBiases m i (bias:biases)
+  | testBit m i = bias : toBiases m (i+1) biases
+toBiases m i biases
   | null biases = biases
-  | otherwise = 0 : toBiases mask (i+1) biases
+  | otherwise = 0 : toBiases m (i+1) biases
 
 -- | Convert an RTCM 1230 GLO biases message into an SBP MsgGloBiases.
 --
