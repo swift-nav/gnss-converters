@@ -40,9 +40,7 @@ before_install:
   - cd ../../../
 
 install:
-  - (cd haskell && stack update)
-  - (cd haskell && stack setup)
-  - (cd haskell && stack build --only-dependencies)
+  - cd haskell && stack build --only-dependencies
 
 script:
   - bash ./travis.sh
