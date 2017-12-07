@@ -39,8 +39,5 @@ before_install:
   - sudo make install
   - cd ../../../
 
-install:
-  - cd haskell && stack build --only-dependencies
-
 script:
   - bash ./travis.sh
