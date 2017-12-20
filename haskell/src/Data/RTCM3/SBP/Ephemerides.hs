@@ -11,7 +11,8 @@
 -- RTCMv3 to SBP Ephemerides Conversions.
 
 module Data.RTCM3.SBP.Ephemerides
-  ( converter
+  ( gpsConverter
+  , glonassConverter
   ) where
 
 import BasicPrelude
@@ -76,6 +77,7 @@ fitInterval fitInt iodc
   | otherwise = 6 * 60 * 60
 
 -- | Construct an EphemerisCommonContent from an RTCM 1019 message.
+--
 toGpsEphemerisCommonContent :: MonadStore e m => Msg1019 -> m EphemerisCommonContent
 toGpsEphemerisCommonContent m = do
   toe <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toe)
@@ -96,8 +98,9 @@ toGpsEphemerisCommonContent m = do
 -- 1005 (antenna position), 1006 (antenna position).
 
 -- | Convert an RTCM 1019 GPS ephemeris message into an SBP MsgEphemerisGps.
-converter :: MonadStore e m => Msg1019 -> Conduit i m [SBPMsg]
-converter m = do
+--
+gpsConverter :: MonadStore e m => Msg1019 -> Conduit i m [SBPMsg]
+gpsConverter m = do
   common <- toGpsEphemerisCommonContent m
   toc    <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toc)
   let pi'    = 3.1415926535898
@@ -128,3 +131,37 @@ converter m = do
                  , _msgEphemerisGps_toc      = toc
                  }
   yield [SBPMsgEphemerisGps m' $ toSBP m' 61440]
+
+-- | Construct an EphemerisCommonContent from an RTCM 1020 message.
+--
+toGlonassEphemerisCommonContent :: MonadStore e m => Msg1020 -> m EphemerisCommonContent
+toGlonassEphemerisCommonContent _m =
+  pure EphemerisCommonContent
+    { _ephemerisCommonContent_sid = GnssSignal
+      { _gnssSignal_sat  = undefined
+      , _gnssSignal_code = undefined
+      }
+    , _ephemerisCommonContent_toe          = undefined
+    , _ephemerisCommonContent_ura          = undefined
+    , _ephemerisCommonContent_fit_interval = undefined
+    , _ephemerisCommonContent_valid        = undefined
+    , _ephemerisCommonContent_health_bits  = undefined
+    }
+
+-- | Convert an RTCM 1020 GLONASS ephemeris message into an SBP MsgEphemerisGlo.
+--
+glonassConverter :: MonadStore e m => Msg1020 -> Conduit i m [SBPMsg]
+glonassConverter m = do
+  common <- toGlonassEphemerisCommonContent m
+  let m' = MsgEphemerisGlo
+             { _msgEphemerisGlo_common = common
+             , _msgEphemerisGlo_gamma  = undefined
+             , _msgEphemerisGlo_tau    = undefined
+             , _msgEphemerisGlo_d_tau  = undefined
+             , _msgEphemerisGlo_pos    = undefined
+             , _msgEphemerisGlo_vel    = undefined
+             , _msgEphemerisGlo_acc    = undefined
+             , _msgEphemerisGlo_fcn    = undefined
+             , _msgEphemerisGlo_iod    = undefined
+             }
+  yield [SBPMsgEphemerisGlo m' $ toSBP m' 61440]

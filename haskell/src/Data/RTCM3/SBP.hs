@@ -41,7 +41,8 @@ converter = \case
   (RTCM3Msg1012 m _rtcm3) -> Observations.converter m
   (RTCM3Msg1005 m _rtcm3) -> Positions.converter m
   (RTCM3Msg1006 m _rtcm3) -> Positions.converter m
-  (RTCM3Msg1019 m _rtcm3) -> Ephemerides.converter m
+  (RTCM3Msg1019 m _rtcm3) -> Ephemerides.gpsConverter m
+  (RTCM3Msg1020 m _rtcm3) -> Ephemerides.glonassConverter m
   (RTCM3Msg1230 m _rtcm3) -> Biases.converter m
   _rtcm3Msg               -> mempty
 
