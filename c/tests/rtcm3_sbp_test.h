@@ -15,4 +15,4 @@
 
 void test_RTCM3_decode(void);
 
-#endif //GNSS_CONVERTERS_RTCM3_SBP_TEST_C_H
+#endif // GNSS_CONVERTERS_RTCM3_SBP_TEST_C_H
