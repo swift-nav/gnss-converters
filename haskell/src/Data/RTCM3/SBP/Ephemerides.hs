@@ -20,6 +20,7 @@ import Control.Lens
 import Data.Bits
 import Data.Conduit
 import Data.RTCM3
+import Data.RTCM3.SBP.Time
 import Data.RTCM3.SBP.Types
 import Data.Word
 import SwiftNav.SBP
@@ -37,6 +38,22 @@ toGpsTimeSec wn tow = do
   pure GpsTimeSec
     { _gpsTimeSec_tow = 16 * fromIntegral tow
     , _gpsTimeSec_wn  = wn' `shiftR` 10 `shiftL` 10 + wn
+    }
+
+-- | Produce GPS time from GLONASS RTCM time.
+--
+toGlonassTimeSec :: MonadStore e m => Word8 -> m GpsTimeSec
+toGlonassTimeSec epoch = do
+  time <- view storeCurrentGpsTime
+  t    <- liftIO time
+  let epoch' = fromIntegral epoch * 15 - 3 * hourMillis + gpsLeapMillis
+      epoch''
+        | epoch' < 0 = epoch' + dayMillis
+        | otherwise = epoch'
+      dow = fromIntegral (t ^. gpsTime_tow) `div` dayMillis
+  pure GpsTimeSec
+    { _gpsTimeSec_tow = fromIntegral $ (dow * dayMillis + epoch'') `div` 1000
+    , _gpsTimeSec_wn  = t ^. gpsTime_wn
     }
 
 -- | Validate IODE/IODC flags. The IODC and IODE flags (least significant bits) should be
@@ -93,6 +110,23 @@ toGpsEphemerisCommonContent m = do
     , _ephemerisCommonContent_health_bits  = m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth
     }
 
+-- | Construct an EphemerisCommonContent from an RTCM 1020 message.
+--
+toGlonassEphemerisCommonContent :: MonadStore e m => Msg1020 -> m EphemerisCommonContent
+toGlonassEphemerisCommonContent m = do
+  toe <- toGlonassTimeSec (m ^. msg1020_ephemeris ^. glonassEphemeris_tb)
+  pure EphemerisCommonContent
+    { _ephemerisCommonContent_sid = GnssSignal
+      { _gnssSignal_sat  = m ^. msg1020_header ^. glonassEphemerisHeader_sat
+      , _gnssSignal_code = 3
+      }
+    , _ephemerisCommonContent_toe          = toe
+    , _ephemerisCommonContent_ura          = undefined
+    , _ephemerisCommonContent_fit_interval = undefined
+    , _ephemerisCommonContent_valid        = undefined
+    , _ephemerisCommonContent_health_bits  = undefined
+    }
+
 --------------------------------------------------------------------------------
 -- RTCM to SBP conversion utilities: RTCM Msgs. 1002 (L1 RTK), 1004 (L1+L2 RTK),
 -- 1005 (antenna position), 1006 (antenna position).
@@ -131,22 +165,6 @@ gpsConverter m = do
                  , _msgEphemerisGps_toc      = toc
                  }
   yield [SBPMsgEphemerisGps m' $ toSBP m' 61440]
-
--- | Construct an EphemerisCommonContent from an RTCM 1020 message.
---
-toGlonassEphemerisCommonContent :: MonadStore e m => Msg1020 -> m EphemerisCommonContent
-toGlonassEphemerisCommonContent _m =
-  pure EphemerisCommonContent
-    { _ephemerisCommonContent_sid = GnssSignal
-      { _gnssSignal_sat  = undefined
-      , _gnssSignal_code = undefined
-      }
-    , _ephemerisCommonContent_toe          = undefined
-    , _ephemerisCommonContent_ura          = undefined
-    , _ephemerisCommonContent_fit_interval = undefined
-    , _ephemerisCommonContent_valid        = undefined
-    , _ephemerisCommonContent_health_bits  = undefined
-    }
 
 -- | Convert an RTCM 1020 GLONASS ephemeris message into an SBP MsgEphemerisGlo.
 --
