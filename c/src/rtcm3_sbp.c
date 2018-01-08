@@ -499,10 +499,10 @@ void rtcm3_1033_to_sbp(const rtcm_msg_1033 *rtcm_1033,
     sbp_glo_bias->l2p_bias = round(SEPTENTRIO_BIAS_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "TPS") != NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(TOPCON_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l1p_bias = 0.0;
-    sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(TOPCON_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias = round(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = round(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2ca_bias = round(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias = round(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "JAVAD") != NULL) {
     sbp_glo_bias->mask = 0x9;
     sbp_glo_bias->l1ca_bias = round(JAVAD_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);

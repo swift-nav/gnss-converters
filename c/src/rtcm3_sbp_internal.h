@@ -62,8 +62,7 @@ typedef enum code {
 #define TRIMBLE_BIAS_M 19.06
 #define NOVATEL_BIAS_M -71.94
 #define SEPTENTRIO_BIAS_M 0.0
-#define TOPCON_BIAS_L1CA_M -2.56
-#define TOPCON_BIAS_L2P_M 3.74
+#define TOPCON_BIAS_M 0.0
 #define HEMISPHERE_BIAS_L1CA_M -0.2
 #define HEMISPHERE_BIAS_L2P_M 3.4
 #define JAVAD_BIAS_L1CA_M -1.5
