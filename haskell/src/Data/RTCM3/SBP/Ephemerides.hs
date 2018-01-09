@@ -69,21 +69,41 @@ validateIodcIode iodc iode =
 -- See section 2.5.3, "User Range Accuracy", in the GPS signal specification.
 -- Indices 1, 3, and 5 are hard-coded according to spec, and 15 is hard-coded according
 -- to SBP/Piksi convention.
-uriToUra :: Double -> Double
+uriToUra :: Word8 -> Double
 uriToUra uri
-  | uri < 0 = -1
   | uri == 1 = 2.8
   | uri == 3 = 5.7
   | uri == 5 = 11.3
   | uri == 15 = 6144
-  | uri <= 6 = 2 ** (1 + (uri / 2))
-  | uri > 6 && uri < 15 = 2 ** (uri - 2)
+  | uri <= 6 = 2 ** (1 + (fromIntegral uri / 2))
+  | uri > 6 && uri < 15 = 2 ** (fromIntegral uri - 2)
+  | otherwise = -1
+
+-- | Lookup Table 4.4 from GLONASS ICD: convert F_T word to accuracy in meters
+--
+ftToUra :: Word8 -> Double
+ftToUra ft
+  | ft == 0 = 1
+  | ft == 1 = 2
+  | ft == 2 = 2.5
+  | ft == 3 = 4
+  | ft == 4 = 5
+  | ft == 5 = 7
+  | ft == 6 = 10
+  | ft == 7 = 12
+  | ft == 8 = 14
+  | ft == 9 = 16
+  | ft == 10 = 32
+  | ft == 11 = 64
+  | ft == 12 = 128
+  | ft == 13 = 256
+  | ft == 14 = 512
   | otherwise = -1
 
 -- | Decode SBP 'fitInterval' from RTCM/GPS 'fitIntervalFlag' and IODC.
 -- Implementation adapted from libswiftnav/ephemeris.c.
-fitInterval :: Bool -> Word16 -> Word32
-fitInterval fitInt iodc
+gpsFitInterval :: Bool -> Word16 -> Word32
+gpsFitInterval fitInt iodc
   | not fitInt = 4 * 60 * 60
   | iodc >= 240 && iodc <= 247 = 8 * 60 * 60
   | (iodc >= 248 && iodc <= 255) || iodc == 496 = 14 * 60 * 60
@@ -92,6 +112,16 @@ fitInterval fitInt iodc
   | iodc == 511 || (iodc >= 752 && iodc <= 756) = 74 * 60 * 60
   | iodc == 757 = 98 * 60 * 60
   | otherwise = 6 * 60 * 60
+
+-- | Convert GLONASS fit interval - Table 4.3 from GLONASS ICD.
+--
+glonassFitInterval :: Word8 -> Word32
+glonassFitInterval fi
+  | fi == 0 = 0
+  | fi == 1 = 30 * 60
+  | fi == 2 = 45 * 60
+  | fi == 3 = 60 * 60
+  | otherwise = 60 * 60
 
 -- | Construct an EphemerisCommonContent from an RTCM 1019 message.
 --
@@ -104,8 +134,8 @@ toGpsEphemerisCommonContent m = do
       , _gnssSignal_code = 0 -- there is an L2P status flag in msg 1019, but I don't think that applies
       }
     , _ephemerisCommonContent_toe          = toe
-    , _ephemerisCommonContent_ura          = uriToUra (fromIntegral $ m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth)
-    , _ephemerisCommonContent_fit_interval = fitInterval (m ^. msg1019_ephemeris ^. gpsEphemeris_fitInterval) (m ^. msg1019_ephemeris ^. gpsEphemeris_iodc)
+    , _ephemerisCommonContent_ura          = uriToUra (m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth)
+    , _ephemerisCommonContent_fit_interval = gpsFitInterval (m ^. msg1019_ephemeris ^. gpsEphemeris_fitInterval) (m ^. msg1019_ephemeris ^. gpsEphemeris_iodc)
     , _ephemerisCommonContent_valid        = validateIodcIode (m ^. msg1019_ephemeris ^. gpsEphemeris_iodc) (m ^. msg1019_ephemeris ^. gpsEphemeris_iode)
     , _ephemerisCommonContent_health_bits  = m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth
     }
@@ -121,10 +151,10 @@ toGlonassEphemerisCommonContent m = do
       , _gnssSignal_code = 3
       }
     , _ephemerisCommonContent_toe          = toe
-    , _ephemerisCommonContent_ura          = undefined
-    , _ephemerisCommonContent_fit_interval = undefined
-    , _ephemerisCommonContent_valid        = undefined
-    , _ephemerisCommonContent_health_bits  = undefined
+    , _ephemerisCommonContent_ura          = ftToUra (m ^. msg1020_ephemeris ^. glonassEphemeris_mft)
+    , _ephemerisCommonContent_fit_interval = glonassFitInterval (m ^. msg1020_ephemeris ^. glonassEphemeris_p1)
+    , _ephemerisCommonContent_valid        = bool 0 1 $ (m ^. msg1020_ephemeris ^. glonassEphemeris_healthAvailability) && (m ^. msg1020_ephemeris ^. glonassEphemeris_almanacHealth) && (m ^. msg1020_ephemeris ^. glonassEphemeris_bn_msb)
+    , _ephemerisCommonContent_health_bits  = bool 0 1 $ (m ^. msg1020_ephemeris ^. glonassEphemeris_mln5) || (m ^. msg1020_ephemeris ^. glonassEphemeris_mi3)
     }
 
 --------------------------------------------------------------------------------
