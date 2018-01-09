@@ -172,30 +172,30 @@ gpsConverter m = do
   toc    <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toc)
   let pi' = 3.1415926535898
       m'  = MsgEphemerisGps
-                 { _msgEphemerisGps_common   = common
-                 , _msgEphemerisGps_tgd      =       (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_tgd)
-                 , _msgEphemerisGps_c_rs     =        (-5) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_rs)
-                 , _msgEphemerisGps_c_rc     =        (-5) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_rc)
-                 , _msgEphemerisGps_c_uc     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_uc)
-                 , _msgEphemerisGps_c_us     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_us)
-                 , _msgEphemerisGps_c_ic     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_ic)
-                 , _msgEphemerisGps_c_is     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_is)
-                 , _msgEphemerisGps_dn       = pi' * (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_dn)
-                 , _msgEphemerisGps_m0       = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_m0)
-                 , _msgEphemerisGps_ecc      =       (-33) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_ecc)
-                 , _msgEphemerisGps_sqrta    =       (-19) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_sqrta)
-                 , _msgEphemerisGps_omega0   = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_omega0)
-                 , _msgEphemerisGps_omegadot = pi' * (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_omegadot)
-                 , _msgEphemerisGps_w        = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_w)
-                 , _msgEphemerisGps_inc      = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_i0)
-                 , _msgEphemerisGps_inc_dot  = pi' * (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_idot)
-                 , _msgEphemerisGps_af0      =       (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_af0)
-                 , _msgEphemerisGps_af1      =       (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_af1)
-                 , _msgEphemerisGps_af2      =       (-55) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_af2)
-                 , _msgEphemerisGps_iodc     =                 m ^. msg1019_ephemeris ^. gpsEphemeris_iodc
-                 , _msgEphemerisGps_iode     =                 m ^. msg1019_ephemeris ^. gpsEphemeris_iode
-                 , _msgEphemerisGps_toc      = toc
-                 }
+              { _msgEphemerisGps_common   = common
+              , _msgEphemerisGps_tgd      =       (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_tgd)
+              , _msgEphemerisGps_c_rs     =        (-5) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_rs)
+              , _msgEphemerisGps_c_rc     =        (-5) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_rc)
+              , _msgEphemerisGps_c_uc     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_uc)
+              , _msgEphemerisGps_c_us     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_us)
+              , _msgEphemerisGps_c_ic     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_ic)
+              , _msgEphemerisGps_c_is     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_is)
+              , _msgEphemerisGps_dn       = pi' * (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_dn)
+              , _msgEphemerisGps_m0       = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_m0)
+              , _msgEphemerisGps_ecc      =       (-33) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_ecc)
+              , _msgEphemerisGps_sqrta    =       (-19) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_sqrta)
+              , _msgEphemerisGps_omega0   = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_omega0)
+              , _msgEphemerisGps_omegadot = pi' * (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_omegadot)
+              , _msgEphemerisGps_w        = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_w)
+              , _msgEphemerisGps_inc      = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_i0)
+              , _msgEphemerisGps_inc_dot  = pi' * (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_idot)
+              , _msgEphemerisGps_af0      =       (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_af0)
+              , _msgEphemerisGps_af1      =       (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_af1)
+              , _msgEphemerisGps_af2      =       (-55) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_af2)
+              , _msgEphemerisGps_iodc     =                 m ^. msg1019_ephemeris ^. gpsEphemeris_iodc
+              , _msgEphemerisGps_iode     =                 m ^. msg1019_ephemeris ^. gpsEphemeris_iode
+              , _msgEphemerisGps_toc      = toc
+              }
   yield [SBPMsgEphemerisGps m' $ toSBP m' 61440]
 
 -- | Convert an RTCM 1020 GLONASS ephemeris message into an SBP MsgEphemerisGlo.
