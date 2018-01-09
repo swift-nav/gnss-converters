@@ -121,7 +121,7 @@ glonassFitInterval fi
   | fi == 1 = 30 * 60
   | fi == 2 = 45 * 60
   | fi == 3 = 60 * 60
-  | otherwise = 60 * 60
+  | otherwise = 60 * 60 -- ?? TODO: GOOD IDEA? WHAT'S A GOOD DEFAULT?
 
 -- | Construct an EphemerisCommonContent from an RTCM 1019 message.
 --
@@ -157,6 +157,9 @@ toGlonassEphemerisCommonContent m = do
     , _ephemerisCommonContent_health_bits  = bool 0 1 $ (m ^. msg1020_ephemeris ^. glonassEphemeris_mln5) || (m ^. msg1020_ephemeris ^. glonassEphemeris_mi3)
     }
 
+(##) :: (Floating a1, Integral a2) => a1 -> a2 -> a1
+(##) p x = (2 ** p) * fromIntegral x
+
 --------------------------------------------------------------------------------
 -- RTCM to SBP conversion utilities: RTCM Msgs. 1002 (L1 RTK), 1004 (L1+L2 RTK),
 -- 1005 (antenna position), 1006 (antenna position).
@@ -167,9 +170,8 @@ gpsConverter :: MonadStore e m => Msg1019 -> Conduit i m [SBPMsg]
 gpsConverter m = do
   common <- toGpsEphemerisCommonContent m
   toc    <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toc)
-  let pi'    = 3.1415926535898
-      p ## x = (2 ** p) * fromIntegral x
-      m'     = MsgEphemerisGps
+  let pi' = 3.1415926535898
+      m'  = MsgEphemerisGps
                  { _msgEphemerisGps_common   = common
                  , _msgEphemerisGps_tgd      =       (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_tgd)
                  , _msgEphemerisGps_c_rs     =        (-5) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_rs)
@@ -203,13 +205,25 @@ glonassConverter m = do
   common <- toGlonassEphemerisCommonContent m
   let m' = MsgEphemerisGlo
              { _msgEphemerisGlo_common = common
-             , _msgEphemerisGlo_gamma  = undefined
-             , _msgEphemerisGlo_tau    = undefined
-             , _msgEphemerisGlo_d_tau  = undefined
-             , _msgEphemerisGlo_pos    = undefined
-             , _msgEphemerisGlo_vel    = undefined
-             , _msgEphemerisGlo_acc    = undefined
-             , _msgEphemerisGlo_fcn    = undefined
-             , _msgEphemerisGlo_iod    = undefined
+             , _msgEphemerisGlo_gamma  = (-40) ## (m ^. msg1020_ephemeris ^. glonassEphemeris_gammaN)
+             , _msgEphemerisGlo_tau    = (-30) ## (m ^. msg1020_ephemeris ^. glonassEphemeris_tauN)
+             , _msgEphemerisGlo_d_tau  = undefined -- TODO: equipment delay between L1 and L2??
+             , _msgEphemerisGlo_pos    = (* 1000) . ((-11) ##) <$>
+                 [ m ^. msg1020_ephemeris ^. glonassEphemeris_xn
+                 , m ^. msg1020_ephemeris ^. glonassEphemeris_yn
+                 , m ^. msg1020_ephemeris ^. glonassEphemeris_zn
+                 ]
+             , _msgEphemerisGlo_vel    = (* 1000) . ((-20) ##) <$>
+                 [ m ^. msg1020_ephemeris ^. glonassEphemeris_xndot
+                 , m ^. msg1020_ephemeris ^. glonassEphemeris_yndot
+                 , m ^. msg1020_ephemeris ^. glonassEphemeris_zndot
+                 ]
+             , _msgEphemerisGlo_acc    = (* 1000) . ((-30) ##) <$>
+                 [ m ^. msg1020_ephemeris ^. glonassEphemeris_xndotdot
+                 , m ^. msg1020_ephemeris ^. glonassEphemeris_yndotdot
+                 , m ^. msg1020_ephemeris ^. glonassEphemeris_zndotdot
+                 ]
+             , _msgEphemerisGlo_fcn    = undefined -- TODO
+             , _msgEphemerisGlo_iod    = undefined -- TODO:
              }
   yield [SBPMsgEphemerisGlo m' $ toSBP m' 61440]
