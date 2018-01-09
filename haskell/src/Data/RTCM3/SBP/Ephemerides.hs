@@ -223,7 +223,7 @@ glonassConverter m = do
                  , m ^. msg1020_ephemeris ^. glonassEphemeris_yndotdot
                  , m ^. msg1020_ephemeris ^. glonassEphemeris_zndotdot
                  ]
-             , _msgEphemerisGlo_fcn    = undefined -- TODO
-             , _msgEphemerisGlo_iod    = undefined -- TODO:
+             , _msgEphemerisGlo_fcn    = m ^. msg1020_header ^. glonassEphemerisHeader_channel -- TODO: docs say FCN+8???
+             , _msgEphemerisGlo_iod    = undefined -- TODO: ??? Issue of ephemeris data??
              }
   yield [SBPMsgEphemerisGlo m' $ toSBP m' 61440]
