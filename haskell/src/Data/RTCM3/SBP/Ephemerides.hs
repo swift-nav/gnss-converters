@@ -121,7 +121,7 @@ glonassFitInterval fi
   | fi == 1 = 30 * 60
   | fi == 2 = 45 * 60
   | fi == 3 = 60 * 60
-  | otherwise = 60 * 60 -- ?? TODO: GOOD IDEA? WHAT'S A GOOD DEFAULT?
+  | otherwise = 60 * 60
 
 -- | Construct an EphemerisCommonContent from an RTCM 1019 message.
 --
@@ -207,7 +207,7 @@ glonassConverter m = do
              { _msgEphemerisGlo_common = common
              , _msgEphemerisGlo_gamma  = (-40) ## (m ^. msg1020_ephemeris ^. glonassEphemeris_gammaN)
              , _msgEphemerisGlo_tau    = (-30) ## (m ^. msg1020_ephemeris ^. glonassEphemeris_tauN)
-             , _msgEphemerisGlo_d_tau  = undefined -- TODO: equipment delay between L1 and L2??
+             , _msgEphemerisGlo_d_tau  = (-30) ## (m ^. msg1020_ephemeris ^. glonassEphemeris_mdeltatau)
              , _msgEphemerisGlo_pos    = (* 1000) . ((-11) ##) <$>
                  [ m ^. msg1020_ephemeris ^. glonassEphemeris_xn
                  , m ^. msg1020_ephemeris ^. glonassEphemeris_yn
@@ -223,7 +223,7 @@ glonassConverter m = do
                  , m ^. msg1020_ephemeris ^. glonassEphemeris_yndotdot
                  , m ^. msg1020_ephemeris ^. glonassEphemeris_zndotdot
                  ]
-             , _msgEphemerisGlo_fcn    = m ^. msg1020_header ^. glonassEphemerisHeader_channel -- TODO: docs say FCN+8???
-             , _msgEphemerisGlo_iod    = undefined -- TODO: ??? Issue of ephemeris data??
+             , _msgEphemerisGlo_fcn    = (m ^. msg1020_header ^. glonassEphemerisHeader_channel) + 1
+             , _msgEphemerisGlo_iod    = ((m ^. msg1020_ephemeris ^. glonassEphemeris_tb) * 15 * 60) .&. 127
              }
   yield [SBPMsgEphemerisGlo m' $ toSBP m' 61440]
