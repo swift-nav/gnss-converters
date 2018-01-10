@@ -153,7 +153,7 @@ toGlonassEphemerisCommonContent m = do
     , _ephemerisCommonContent_toe          = toe
     , _ephemerisCommonContent_ura          = ftToUra (m ^. msg1020_ephemeris ^. glonassEphemeris_mft)
     , _ephemerisCommonContent_fit_interval = glonassFitInterval (m ^. msg1020_ephemeris ^. glonassEphemeris_p1)
-    , _ephemerisCommonContent_valid        = bool 0 1 $ (m ^. msg1020_ephemeris ^. glonassEphemeris_healthAvailability) && (m ^. msg1020_ephemeris ^. glonassEphemeris_almanacHealth) && (m ^. msg1020_ephemeris ^. glonassEphemeris_bn_msb)
+    , _ephemerisCommonContent_valid        = 1
     , _ephemerisCommonContent_health_bits  = bool 0 1 $ (m ^. msg1020_ephemeris ^. glonassEphemeris_mln5) || (m ^. msg1020_ephemeris ^. glonassEphemeris_mi3)
     }
 
