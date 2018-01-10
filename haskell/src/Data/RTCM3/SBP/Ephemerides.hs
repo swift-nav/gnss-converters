@@ -46,7 +46,7 @@ toGlonassTimeSec :: MonadStore e m => Word8 -> m GpsTimeSec
 toGlonassTimeSec epoch = do
   time <- view storeCurrentGpsTime
   t    <- liftIO time
-  let epoch' = fromIntegral epoch * 15 - 3 * hourMillis + gpsLeapMillis
+  let epoch' = fromIntegral epoch * 15 * minuteMillis - 3 * hourMillis + gpsLeapMillis
       epoch''
         | epoch' < 0 = epoch' + dayMillis
         | otherwise = epoch'
