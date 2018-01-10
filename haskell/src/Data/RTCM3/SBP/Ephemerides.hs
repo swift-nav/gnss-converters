@@ -117,11 +117,11 @@ gpsFitInterval fitInt iodc
 --
 glonassFitInterval :: Word8 -> Word32
 glonassFitInterval fi
-  | fi == 0 = 0
-  | fi == 1 = 30 * 60
-  | fi == 2 = 45 * 60
-  | fi == 3 = 60 * 60
-  | otherwise = 60 * 60
+  | fi == 0 = (60 + 10) * 60
+  | fi == 1 = (30 + 10) * 60
+  | fi == 2 = (45 + 10) * 60
+  | fi == 3 = (60 + 10) * 60
+  | otherwise = (60 + 10) * 60
 
 -- | Construct an EphemerisCommonContent from an RTCM 1019 message.
 --
