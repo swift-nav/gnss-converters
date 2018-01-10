@@ -13,6 +13,7 @@
 
 module Data.RTCM3.SBP.Time
   ( gpsLeapMillis
+  , minuteMillis
   , hourMillis
   , dayMillis
   , weekMillis
@@ -45,6 +46,16 @@ gpsLeapSeconds = 18
 --
 gpsLeapMillis :: Integer
 gpsLeapMillis = 1000 * gpsLeapSeconds
+
+-- | Minute seconds
+--
+minuteSeconds :: Integer
+minuteSeconds = 60
+
+-- | Minute milliseconds
+--
+minuteMillis :: Integer
+minuteMillis = 1000 * minuteSeconds
 
 -- | Hour seconds
 --
