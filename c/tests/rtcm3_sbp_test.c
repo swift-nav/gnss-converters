@@ -18,7 +18,7 @@
 
 #define MAX_FILE_SIZE 26000
 
-void sbp_callback_gps(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_gps(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   (void)length;
   (void)buffer;
   (void)sender_id;
@@ -33,7 +33,7 @@ void sbp_callback_gps(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   msg_count++;
 }
 
-void sbp_callback_glo_day_rollover(u8 msg_id, u8 length, u8 *buffer,
+void sbp_callback_glo_day_rollover(u16 msg_id, u8 length, u8 *buffer,
                                    u16 sender_id) {
   (void)length;
   (void)buffer;
@@ -63,7 +63,7 @@ void check_biases(msg_glo_biases_t *sbp_glo_msg, double l1ca_bias,
   }
 }
 
-void sbp_callback_trimble(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_trimble(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   (void)length;
   (void)sender_id;
   if (msg_id == SBP_MSG_GLO_BIASES) {
@@ -73,7 +73,7 @@ void sbp_callback_trimble(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   }
 }
 
-void sbp_callback_sept(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_sept(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   (void)length;
   (void)sender_id;
   if (msg_id == SBP_MSG_GLO_BIASES) {
@@ -83,7 +83,7 @@ void sbp_callback_sept(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   }
 }
 
-void sbp_callback_javad(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_javad(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   (void)length;
   (void)sender_id;
   if (msg_id == SBP_MSG_GLO_BIASES) {
@@ -92,7 +92,7 @@ void sbp_callback_javad(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   }
 }
 
-void sbp_callback_leica(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_leica(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   (void)length;
   (void)sender_id;
   if (msg_id == SBP_MSG_GLO_BIASES) {
@@ -102,7 +102,7 @@ void sbp_callback_leica(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   }
 }
 
-void sbp_callback_navcom(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_navcom(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   (void)length;
   (void)sender_id;
   if (msg_id == SBP_MSG_GLO_BIASES) {
@@ -111,7 +111,7 @@ void sbp_callback_navcom(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   }
 }
 
-void sbp_callback_topcon(u8 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_topcon(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   (void)length;
   (void)sender_id;
   if (msg_id == SBP_MSG_GLO_BIASES) {

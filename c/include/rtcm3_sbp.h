@@ -15,6 +15,7 @@
 
 #include <libsbp/gnss.h>
 #include <libsbp/observation.h>
+#include <libsbp/logging.h>
 
 #define MAX_OBS_PER_EPOCH 56
 /* MAX valid value (ms) for GPS is 604799999 and GLO is 86401999 */
@@ -29,7 +30,7 @@ struct rtcm3_sbp_state {
   gps_time_sec_t last_gps_time;
   gps_time_sec_t last_glo_time;
   gps_time_sec_t last_1230_received;
-  void (*cb_rtcm_to_sbp)(u8 msg_id, u8 buff, u8 *len, u16 sender_id);
+  void (*cb_rtcm_to_sbp)(u16 msg_id, u8 buff, u8 *len, u16 sender_id);
   void (*cb_base_obs_invalid)(double time_diff);
   u8 obs_buffer[sizeof(observation_header_t) +
                 MAX_OBS_PER_EPOCH * sizeof(packed_obs_content_t)];
@@ -44,7 +45,7 @@ void rtcm2sbp_set_gps_time(gps_time_sec_t *current_time,
 void rtcm2sbp_set_leap_second(s8 leap_seconds, struct rtcm3_sbp_state *state);
 
 void rtcm2sbp_init(struct rtcm3_sbp_state *state,
-                   void (*cb_rtcm_to_sbp)(u8 msg_id, u8 length, u8 *buffer,
+                   void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer,
                                           u16 sender_id),
                    void (*cb_base_obs_invalid)(double time_diff));
 

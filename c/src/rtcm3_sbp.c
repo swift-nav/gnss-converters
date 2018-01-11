@@ -12,17 +12,19 @@
 
 #include "rtcm3_sbp_internal.h"
 #include <assert.h>
-#include <libsbp/observation.h>
 #include <math.h>
 #include <rtcm3_decode.h>
 #include <string.h>
+
+#define SBP_FRAMING_MAX_PAYLOAD_SIZE (255u)
+#define RTCM_1029_LOGGING_LEVEL (6u)  // This represents LOG_INFO
 
 static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
                                      gps_time_sec_t *obs_time,
                                      const gps_time_sec_t *rover_time);
 
 void rtcm2sbp_init(struct rtcm3_sbp_state *state,
-                   void (*cb_rtcm_to_sbp)(u8 msg_id, u8 length, u8 *buffer,
+                   void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer,
                                           u16 sender_id),
                    void (*cb_base_obs_invalid)(double timediff)) {
   state->time_from_rover_obs.wn = 0;
@@ -139,6 +141,12 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length,
       add_glo_obs_to_buffer(&new_rtcm_obs, state);
     }
     break;
+  }
+  case 1029: {
+    rtcm_msg_1029 msg_1029;
+    if (rtcm3_decode_1029(&frame[byte], &msg_1029) == 0) {
+      send_1029(&msg_1029, state);
+    }
   }
   case 1033: {
     rtcm_msg_1033 msg_1033;
@@ -612,4 +620,54 @@ bool no_1230_received(struct rtcm3_sbp_state *state) {
     return true;
   }
   return false;
+}
+
+void send_1029(rtcm_msg_1029 *msg_1029, struct rtcm3_sbp_state *state){
+  uint8_t message[SBP_FRAMING_MAX_PAYLOAD_SIZE] = "RTCM: ";
+  uint8_t sbp_index = 6;
+  uint8_t rtcm_index = 0;
+  u8 text_size = sizeof(msg_log_t) + msg_1029->utf8_code_units_n + 6 > SBP_FRAMING_MAX_PAYLOAD_SIZE ?
+                 SBP_FRAMING_MAX_PAYLOAD_SIZE - sizeof(msg_log_t) - 6 :
+                 msg_1029->utf8_code_units_n;
+
+  while(rtcm_index < msg_1029->utf8_code_units_n) {
+    if ((msg_1029->utf8_code_units[rtcm_index] & 0xC0) == 0xC0 && (sbp_index + 2 < text_size)) {
+      // 2 byte character
+      memcpy(&message[sbp_index], &msg_1029->utf8_code_units[rtcm_index], 2);
+      rtcm_index += 2;
+      sbp_index += 2;
+    } else if ((msg_1029->utf8_code_units[rtcm_index] & 0xE0) == 0xE0 && (sbp_index + 3 < text_size)) {
+      // 3 byte character
+      memcpy(&message[sbp_index], &msg_1029->utf8_code_units[rtcm_index], 3);
+      rtcm_index += 3;
+      sbp_index += 3;
+    } else if ((msg_1029->utf8_code_units[rtcm_index] & 0xF0) == 0xF0 && (sbp_index + 4 < text_size)) {
+      // 4 byte character
+      memcpy(&message[sbp_index], &msg_1029->utf8_code_units[rtcm_index], 4);
+      rtcm_index += 4;
+      sbp_index += 4;
+    } else if (sbp_index < SBP_FRAMING_MAX_PAYLOAD_SIZE ) {
+      // must be a 1 byte character
+      memcpy(&message[sbp_index], &msg_1029->utf8_code_units[rtcm_index], 1);
+      rtcm_index += 1;
+      sbp_index += 1;
+    } else {
+      break;
+    }
+  }
+
+  // Want to copy as many complete UTF8 characters into the string as possible
+
+  send_sbp_log_message(RTCM_1029_LOGGING_LEVEL, message, text_size, msg_1029->stn_id, state);
+}
+
+void send_sbp_log_message(const uint8_t level, const uint8_t *message, const uint8_t length, const uint16_t stn_id, struct rtcm3_sbp_state *state) {
+  u8 frame_buffer[SBP_FRAMING_MAX_PAYLOAD_SIZE];
+  msg_log_t* sbp_log_msg = (msg_log_t*)frame_buffer;
+  sbp_log_msg->level = level;
+  memcpy(sbp_log_msg->text, message, length);
+  state->cb_rtcm_to_sbp(SBP_MSG_LOG,
+                        sizeof(*sbp_log_msg) + length,
+                        (u8 *)&sbp_log_msg,
+                        rtcm_2_sbp_sender_id(stn_id));
 }

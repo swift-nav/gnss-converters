@@ -118,4 +118,8 @@ void send_observations(struct rtcm3_sbp_state *state);
 
 bool no_1230_received(struct rtcm3_sbp_state *state);
 
+void send_1029(rtcm_msg_1029 *msg_1029, struct rtcm3_sbp_state *state);
+
+void send_sbp_log_message(const uint8_t level, const uint8_t* message, const uint8_t length, const uint16_t stn_id, struct rtcm3_sbp_state *state);
+
 #endif // GNSS_CONVERTERS_RTCM3_SBP_H
