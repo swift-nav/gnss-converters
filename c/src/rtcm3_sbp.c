@@ -16,9 +16,6 @@
 #include <rtcm3_decode.h>
 #include <string.h>
 
-#define SBP_FRAMING_MAX_PAYLOAD_SIZE (255u)
-#define RTCM_1029_LOGGING_LEVEL (6u)  // This represents LOG_INFO
-
 static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
                                      gps_time_sec_t *obs_time,
                                      const gps_time_sec_t *rover_time);
@@ -44,6 +41,8 @@ void rtcm2sbp_init(struct rtcm3_sbp_state *state,
   state->last_glo_time.tow = 0;
   state->last_1230_received.wn = INVALID_TIME;
   state->last_1230_received.tow = 0;
+
+  state->sent_msm_warning = false;
 
   const msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
   memset((void *)sbp_obs_buffer, 0, sizeof(*sbp_obs_buffer));
@@ -171,6 +170,26 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length,
       state->last_1230_received = state->time_from_rover_obs;
     }
   }
+  case 1071:
+  case 1072:
+  case 1073:
+  case 1074:
+  case 1075:
+  case 1076:
+  case 1077:
+  case 1081:
+  case 1082:
+  case 1083:
+  case 1084:
+  case 1085:
+  case 1086:
+  case 1087: {
+    /* MSM messages for GPS (1071-1077) and GLO (1081-1087) are currently not
+     * supported, warn the user once if these messages are seen - only warn once
+     * as these messages can be present in streams that contain 1004 and 1012 so
+     * are valid */
+    send_MSM_warning(&frame[byte], state);
+  }
   default:
     break;
   }
@@ -256,7 +275,8 @@ void send_observations(struct rtcm3_sbp_state *state) {
   /* Work out how many sbp messages we need to split this into */
   const uint32_t header_size = sizeof(observation_header_t);
   const uint32_t obs_size = sizeof(packed_obs_content_t);
-  const uint32_t max_obs_in_sbp = ((MAX_SBP_PAYLOAD - header_size) / obs_size);
+  const uint32_t max_obs_in_sbp =
+      ((SBP_FRAMING_MAX_PAYLOAD_SIZE - header_size) / obs_size);
 
   /* We want the ceiling of n_obs divided by max obs in a single message to get
    * total number of messages needed */
@@ -264,11 +284,11 @@ void send_observations(struct rtcm3_sbp_state *state) {
       1 + ((sbp_obs_buffer->header.n_obs - 1) / max_obs_in_sbp);
 
   u8 obs_count = 0;
-  u8 obs_data[MAX_SBP_PAYLOAD];
+  u8 obs_data[SBP_FRAMING_MAX_PAYLOAD_SIZE];
   msg_obs_t *sbp_obs = (msg_obs_t *)obs_data;
 
   for (u8 msg_num = 0; msg_num < total_messages; ++msg_num) {
-    memset(obs_data, 0, MAX_SBP_PAYLOAD);
+    memset(obs_data, 0, SBP_FRAMING_MAX_PAYLOAD_SIZE);
 
     u8 obs_index = 0;
     while (obs_index < max_obs_in_sbp &&
@@ -484,8 +504,87 @@ void rtcm3_1033_to_sbp(const rtcm_msg_1033 *rtcm_1033,
                        msg_glo_biases_t *sbp_glo_bias) {
   sbp_glo_bias->mask = 0;
   /* Resolution 2cm */
-  if (strstr(rtcm_1033->rcv_descriptor, "TRIMBLE") != NULL ||
-      strstr(rtcm_1033->rcv_descriptor, "ASHTECH") != NULL) {
+  /* GEO++ RCV NAMES MUST COME FIRST TO AVOID FALSE POSITIVE */
+  if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=ASH)") != NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_ASH1_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_ASH1_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=HEM)") !=
+             NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_HEM_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_HEM_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=JAV)") !=
+             NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_JAV_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_JAV_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=JPS)") !=
+             NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_JPS_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_JPS_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=LEI)") !=
+                 NULL ||
+             strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=NOV)") !=
+                 NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_NOV_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_NOV_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=NAV)") !=
+             NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_NAV_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_NAV_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=NVR)") !=
+             NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_NVR_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_NVR_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=SEP)") !=
+             NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_SEP_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_SEP_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=SOK)") !=
+             NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_SOK_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_SOK_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=TPS)") !=
+             NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_TPS_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_TPS_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=TRM)") !=
+             NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias = round(GPP_TRM_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(GPP_TRM_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "TRIMBLE") != NULL ||
+             strstr(rtcm_1033->rcv_descriptor, "ASHTECH") != NULL) {
     sbp_glo_bias->mask = 0xF;
     sbp_glo_bias->l1ca_bias = round(TRIMBLE_BIAS_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = round(TRIMBLE_BIAS_M * GLO_BIAS_RESOLUTION);
@@ -523,6 +622,13 @@ void rtcm3_1033_to_sbp(const rtcm_msg_1033 *rtcm_1033,
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
     sbp_glo_bias->l2p_bias = round(NAVCOM_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+  } else if (strstr(rtcm_1033->rcv_descriptor, "HEMI") != NULL) {
+    sbp_glo_bias->mask = 0x9;
+    sbp_glo_bias->l1ca_bias =
+        round(HEMISPHERE_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = 0.0;
+    sbp_glo_bias->l2ca_bias = 0.0;
+    sbp_glo_bias->l2p_bias = round(HEMISPHERE_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   }
 }
 
@@ -622,52 +728,61 @@ bool no_1230_received(struct rtcm3_sbp_state *state) {
   return false;
 }
 
-void send_1029(rtcm_msg_1029 *msg_1029, struct rtcm3_sbp_state *state){
-  uint8_t message[SBP_FRAMING_MAX_PAYLOAD_SIZE] = "RTCM: ";
-  uint8_t sbp_index = 6;
-  uint8_t rtcm_index = 0;
-  u8 text_size = sizeof(msg_log_t) + msg_1029->utf8_code_units_n + 6 > SBP_FRAMING_MAX_PAYLOAD_SIZE ?
-                 SBP_FRAMING_MAX_PAYLOAD_SIZE - sizeof(msg_log_t) - 6 :
-                 msg_1029->utf8_code_units_n;
+void send_1029(rtcm_msg_1029 *msg_1029, struct rtcm3_sbp_state *state) {
+  uint8_t message[SBP_FRAMING_MAX_PAYLOAD_SIZE] = RTCM_LOG_PREAMBLE;
+  uint8_t preamble_size = sizeof(RTCM_LOG_PREAMBLE) - 1;
+  uint8_t max_message_size = SBP_FRAMING_MAX_PAYLOAD_SIZE - sizeof(msg_log_t) - preamble_size;
+  uint8_t message_size = sizeof(msg_log_t) + msg_1029->utf8_code_units_n + preamble_size >
+                         SBP_FRAMING_MAX_PAYLOAD_SIZE ? max_message_size
+                                                      : msg_1029->utf8_code_units_n + preamble_size;
 
-  while(rtcm_index < msg_1029->utf8_code_units_n) {
-    if ((msg_1029->utf8_code_units[rtcm_index] & 0xC0) == 0xC0 && (sbp_index + 2 < text_size)) {
-      // 2 byte character
-      memcpy(&message[sbp_index], &msg_1029->utf8_code_units[rtcm_index], 2);
-      rtcm_index += 2;
-      sbp_index += 2;
-    } else if ((msg_1029->utf8_code_units[rtcm_index] & 0xE0) == 0xE0 && (sbp_index + 3 < text_size)) {
-      // 3 byte character
-      memcpy(&message[sbp_index], &msg_1029->utf8_code_units[rtcm_index], 3);
-      rtcm_index += 3;
-      sbp_index += 3;
-    } else if ((msg_1029->utf8_code_units[rtcm_index] & 0xF0) == 0xF0 && (sbp_index + 4 < text_size)) {
-      // 4 byte character
-      memcpy(&message[sbp_index], &msg_1029->utf8_code_units[rtcm_index], 4);
-      rtcm_index += 4;
-      sbp_index += 4;
-    } else if (sbp_index < SBP_FRAMING_MAX_PAYLOAD_SIZE ) {
-      // must be a 1 byte character
-      memcpy(&message[sbp_index], &msg_1029->utf8_code_units[rtcm_index], 1);
-      rtcm_index += 1;
-      sbp_index += 1;
-    } else {
-      break;
+  memcpy(&message[preamble_size],msg_1029->utf8_code_units,message_size);
+  /* Check if we've had to truncate the string - we can check for the bit
+   * pattern that denotes a 4 byte code unit as it is the super set of all bit
+   * patterns (2,3 and 4 byte code units) */
+  if (message_size == max_message_size) {
+    if ((message[message_size] & 0xF0) == 0xF0 ||
+        (message[message_size] & 0xE0) == 0xF0 ||
+        (message[message_size] & 0xF0) == 0xC0) {
+      // We've truncated a 2, 3 or 4 byte code unit
+      message_size--;
+    } else if ((message[message_size - 1] & 0xF0) == 0xF0 ||
+               (message[message_size - 1] & 0xE0) == 0xE0) {
+      // We've truncated a 3 or 4 byte code unit
+      message_size -= 2;
+    } else if ((message[message_size - 1] & 0xF0) == 0xF0) {
+      // We've truncated a 4 byte code unit
+      message_size -= 3;
     }
   }
 
-  // Want to copy as many complete UTF8 characters into the string as possible
-
-  send_sbp_log_message(RTCM_1029_LOGGING_LEVEL, message, text_size, msg_1029->stn_id, state);
+  send_sbp_log_message(RTCM_1029_LOGGING_LEVEL, message, message_size,
+                       msg_1029->stn_id, state);
 }
 
-void send_sbp_log_message(const uint8_t level, const uint8_t *message, const uint8_t length, const uint16_t stn_id, struct rtcm3_sbp_state *state) {
+void send_sbp_log_message(const uint8_t level, const uint8_t *message,
+                          const uint16_t length, const uint16_t stn_id,
+                          struct rtcm3_sbp_state *state) {
   u8 frame_buffer[SBP_FRAMING_MAX_PAYLOAD_SIZE];
-  msg_log_t* sbp_log_msg = (msg_log_t*)frame_buffer;
+  msg_log_t *sbp_log_msg = (msg_log_t *)frame_buffer;
   sbp_log_msg->level = level;
   memcpy(sbp_log_msg->text, message, length);
-  state->cb_rtcm_to_sbp(SBP_MSG_LOG,
-                        sizeof(*sbp_log_msg) + length,
-                        (u8 *)&sbp_log_msg,
-                        rtcm_2_sbp_sender_id(stn_id));
+  state->cb_rtcm_to_sbp(SBP_MSG_LOG, sizeof(*sbp_log_msg) + length,
+                        (u8 *)frame_buffer, rtcm_2_sbp_sender_id(stn_id));
+}
+
+void send_MSM_warning(const uint8_t *frame, struct rtcm3_sbp_state *state) {
+
+  if (!state->sent_msm_warning) {
+    // Only send 1 warning
+    state->sent_msm_warning = true;
+    // Get the stn ID as well
+    uint32_t stn_id = 0;
+    for (uint32_t i = 12; i < 24; i++) {
+      stn_id = (stn_id << 1) + ((frame[i / 8] >> (7 - i % 8)) & 1u);
+    }
+    uint8_t msg[37] = "MSM Messages currently not supported";
+    send_sbp_log_message(RTCM_MSM_LOGGING_LEVEL, msg, sizeof(msg), stn_id,
+                         state);
+  }
 }

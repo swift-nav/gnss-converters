@@ -14,8 +14,8 @@
 #define GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
 
 #include <libsbp/gnss.h>
-#include <libsbp/observation.h>
 #include <libsbp/logging.h>
+#include <libsbp/observation.h>
 
 #define MAX_OBS_PER_EPOCH 56
 /* MAX valid value (ms) for GPS is 604799999 and GLO is 86401999 */
@@ -34,6 +34,7 @@ struct rtcm3_sbp_state {
   void (*cb_base_obs_invalid)(double time_diff);
   u8 obs_buffer[sizeof(observation_header_t) +
                 MAX_OBS_PER_EPOCH * sizeof(packed_obs_content_t)];
+  bool sent_msm_warning;
 };
 
 void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length,

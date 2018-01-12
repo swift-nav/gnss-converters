@@ -23,7 +23,9 @@
 #define MSG_OBS_FLAGS_PHASE_VALID ((u8)(1 << 1))
 #define MSG_OBS_FLAGS_HALF_CYCLE_KNOWN ((u8)(1 << 2))
 
-#define MAX_SBP_PAYLOAD 255
+#define SBP_FRAMING_MAX_PAYLOAD_SIZE (255u)
+#define RTCM_1029_LOGGING_LEVEL (6u)  // This represents LOG_INFO
+#define RTCM_MSM_LOGGING_LEVEL (4u)  // This represents LOG_WARN
 
 #define MS_TO_S 1e-3
 #define S_TO_MS 1e3
@@ -50,6 +52,9 @@ typedef enum code {
 #define SEC_IN_WEEK 604800
 #define SEC_IN_HOUR 3600
 
+/* PREAMBLE to append to an RTCM3 log message */
+#define RTCM_LOG_PREAMBLE "RTCM: "
+
 /* Multiplier for glonass bias resolution scaling */
 #define GLO_BIAS_RESOLUTION 50.0
 
@@ -69,6 +74,35 @@ typedef enum code {
 #define JAVAD_BIAS_L2P_M -8.1
 #define NAVCOM_BIAS_L1CA_M 0.4
 #define NAVCOM_BIAS_L2P_M 2.1
+
+/* Third party receiver values as seen on a GEO++ stream from the RTCM1230 message
+ * Note: these are GEO++ simulated values and not direct from the manufacturer */
+#define GPP_ASH1_BIAS_L1CA_M -14.7
+#define GPP_ASH1_BIAS_L2P_M -16.2
+#define GPP_HEM_BIAS_L1CA_M -0.3
+#define GPP_HEM_BIAS_L2P_M 3.5
+#define GPP_JAV_BIAS_L1CA_M -1.5
+#define GPP_JAV_BIAS_L2P_M -8.1
+#define GPP_JPS_BIAS_L1CA_M -3.7
+#define GPP_JPS_BIAS_L2P_M 0.7
+#define GPP_NOV_BIAS_L1CA_M -70.7
+#define GPP_NOV_BIAS_L2P_M -66.3
+#define GPP_NAV_BIAS_L1CA_M 0.4
+#define GPP_NAV_BIAS_L2P_M 2.1
+#define GPP_NVR_BIAS_L1CA_M 116.7
+#define GPP_NVR_BIAS_L2P_M 187
+#define GPP_SEP0_BIAS_L1CA_M -119.9
+#define GPP_SEP0_BIAS_L2P_M -116.6
+#define GPP_SEP_BIAS_L1CA_M 0.0
+#define GPP_SEP_BIAS_L2P_M 0.0
+#define GPP_SOK_BIAS_L1CA_M -70.7
+#define GPP_SOK_BIAS_L2P_M -66.3
+#define GPP_TPS0_BIAS_L1CA_M -3.7
+#define GPP_TPS0_BIAS_L2P_M 0.7
+#define GPP_TPS_BIAS_L1CA_M -2.56
+#define GPP_TPS_BIAS_L2P_M 3.74
+#define GPP_TRM_BIAS_L1CA_M 18.8
+#define GPP_TRM_BIAS_L2P_M 23.2
 
 u8 encode_lock_time(double nm_lock_time);
 double decode_lock_time(u8 sbp_lock_time);
@@ -120,6 +154,8 @@ bool no_1230_received(struct rtcm3_sbp_state *state);
 
 void send_1029(rtcm_msg_1029 *msg_1029, struct rtcm3_sbp_state *state);
 
-void send_sbp_log_message(const uint8_t level, const uint8_t* message, const uint8_t length, const uint16_t stn_id, struct rtcm3_sbp_state *state);
+void send_sbp_log_message(const uint8_t level, const uint8_t* message, const uint16_t length, const uint16_t stn_id, struct rtcm3_sbp_state *state);
+
+void send_MSM_warning(const uint8_t *frame, struct rtcm3_sbp_state *state);
 
 #endif // GNSS_CONVERTERS_RTCM3_SBP_H
