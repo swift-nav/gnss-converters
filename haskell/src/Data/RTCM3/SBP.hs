@@ -27,6 +27,7 @@ import qualified Data.RTCM3.SBP.Biases       as Biases
 import qualified Data.RTCM3.SBP.Ephemerides  as Ephemerides
 import qualified Data.RTCM3.SBP.Observations as Observations
 import qualified Data.RTCM3.SBP.Positions    as Positions
+import qualified Data.RTCM3.SBP.SSR          as SSR
 import           Data.RTCM3.SBP.Time
 import           Data.RTCM3.SBP.Types
 import           SwiftNav.SBP
@@ -44,6 +45,12 @@ converter = \case
   (RTCM3Msg1019 m _rtcm3) -> Ephemerides.gpsConverter m
   (RTCM3Msg1020 m _rtcm3) -> Ephemerides.glonassConverter m
   (RTCM3Msg1230 m _rtcm3) -> Biases.converter m
+  (RTCM3Msg1060 m _rtcm3) -> SSR.gpsOrbitClockConverter m
+  (RTCM3Msg1066 m _rtcm3) -> SSR.glonassOrbitClockConverter m
+  (RTCM3Msg1059 m _rtcm3) -> SSR.gpsCodeBiasConverter m
+  (RTCM3Msg1065 m _rtcm3) -> SSR.glonassCodeBiasConverter m
+  (RTCM3Msg1265 m _rtcm3) -> SSR.gpsPhaseBiasConverter m
+  (RTCM3Msg1266 m _rtcm3) -> SSR.glonassPhaseBiasConverter m
   _rtcm3Msg               -> mempty
 
 -- | Setup new storage for converter.
