@@ -4,7 +4,7 @@ synopsis:              GNSS Converters.
 description:           Haskell bindings for GNSS converters.
 homepage:              http://github.com/swift-nav/gnss-converters
 license:               BSD3
-author:                Mark Fine <mark@swiftnav.com>, Joshua Gross <josh@swiftnav.com>
+author:                Mark Fine <mark@swiftnav.com>
 maintainer:            Swift Navigation <dev@swiftnav.com>
 copyright:             Copyright (C) 2016, 2017 Swift Navigation, Inc.
 category:              Network
