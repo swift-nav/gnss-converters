@@ -100,15 +100,6 @@ glonassOrbitClockConverter m = do
              }
     SBPMsgSsrOrbitClock m' $ toSBP m' 61440
 
-pad :: a -> [a] -> [a]
-pad v vs = take 8 $ vs <> repeat v
-
-padCodeBias :: [CodeBiasesContent] -> [CodeBiasesContent]
-padCodeBias = pad CodeBiasesContent
-  { _codeBiasesContent_code  = maxBound
-  , _codeBiasesContent_value = 0
-  }
-
 gpsCodeBiasConverter :: MonadStore e m => Msg1059 -> Conduit i m [SBPMsg]
 gpsCodeBiasConverter m = do
   time <- toGpsTimeSec $ m ^. msg1059_header ^. gpsCodeBiasCorrectionHeader_epochs
@@ -121,7 +112,7 @@ gpsCodeBiasConverter m = do
                }
              , _msgSsrCodeBiases_update_interval = m ^. msg1059_header ^. gpsCodeBiasCorrectionHeader_updateInterval
              , _msgSsrCodeBiases_iod_ssr         = m ^. msg1059_header ^. gpsCodeBiasCorrectionHeader_iod
-             , _msgSsrCodeBiases_biases          = padCodeBias $ flip map (c ^. gpsCodeBiasCorrection_codeBiases) $ \b -> CodeBiasesContent
+             , _msgSsrCodeBiases_biases          = flip map (c ^. gpsCodeBiasCorrection_codeBiases) $ \b -> CodeBiasesContent
                { _codeBiasesContent_code  = b ^. gpsCodeBias_signal
                , _codeBiasesContent_value = b ^. gpsCodeBias_codeBias
                }
@@ -140,21 +131,12 @@ glonassCodeBiasConverter m = do
                }
              , _msgSsrCodeBiases_update_interval = m ^. msg1065_header ^. glonassCodeBiasCorrectionHeader_updateInterval
              , _msgSsrCodeBiases_iod_ssr         = m ^. msg1065_header ^. glonassCodeBiasCorrectionHeader_iod
-             , _msgSsrCodeBiases_biases          = padCodeBias $ flip map (c ^. glonassCodeBiasCorrection_codeBiases) $ \b -> CodeBiasesContent
+             , _msgSsrCodeBiases_biases          = flip map (c ^. glonassCodeBiasCorrection_codeBiases) $ \b -> CodeBiasesContent
                { _codeBiasesContent_code  = b ^. glonassCodeBias_signal
                , _codeBiasesContent_value = b ^. glonassCodeBias_codeBias
                }
              }
     SBPMsgSsrCodeBiases m' $ toSBP m' 61440
-
-padPhaseBias :: [PhaseBiasesContent] -> [PhaseBiasesContent]
-padPhaseBias = pad PhaseBiasesContent
-  { _phaseBiasesContent_code                       = maxBound
-  , _phaseBiasesContent_integer_indicator          = 0
-  , _phaseBiasesContent_widelane_integer_indicator = 0
-  , _phaseBiasesContent_discontinuity_counter      = 0
-  , _phaseBiasesContent_bias                       = 0
-  }
 
 gpsPhaseBiasConverter :: MonadStore e m => Msg1265 -> Conduit i m [SBPMsg]
 gpsPhaseBiasConverter m = do
@@ -171,8 +153,8 @@ gpsPhaseBiasConverter m = do
              , _msgSsrPhaseBiases_dispersive_bias = bool 0 1 $ m ^. msg1265_header ^. gpsPhaseBiasCorrectionHeader_dispersive
              , _msgSsrPhaseBiases_mw_consistency  = bool 0 1 $ m ^. msg1265_header ^. gpsPhaseBiasCorrectionHeader_mw
              , _msgSsrPhaseBiases_yaw             = c ^. gpsPhaseBiasCorrection_yawAngle
-             , _msgSsrPhaseBiases_yaw_rate        = fromIntegral $ c ^. gpsPhaseBiasCorrection_yawRate
-             , _msgSsrPhaseBiases_biases          = padPhaseBias $ flip map (c ^. gpsPhaseBiasCorrection_phaseBiases) $ \b -> PhaseBiasesContent
+             , _msgSsrPhaseBiases_yaw_rate        = c ^. gpsPhaseBiasCorrection_yawRate
+             , _msgSsrPhaseBiases_biases          = flip map (c ^. gpsPhaseBiasCorrection_phaseBiases) $ \b -> PhaseBiasesContent
                { _phaseBiasesContent_code                       = b ^. gpsPhaseBias_signal
                , _phaseBiasesContent_integer_indicator          = bool 0 1 $ b ^. gpsPhaseBias_integer
                , _phaseBiasesContent_widelane_integer_indicator = b ^. gpsPhaseBias_wideLaneInteger
@@ -197,8 +179,8 @@ glonassPhaseBiasConverter m = do
              , _msgSsrPhaseBiases_dispersive_bias = bool 0 1 $ m ^. msg1266_header ^. glonassPhaseBiasCorrectionHeader_dispersive
              , _msgSsrPhaseBiases_mw_consistency  = bool 0 1 $ m ^. msg1266_header ^. glonassPhaseBiasCorrectionHeader_mw
              , _msgSsrPhaseBiases_yaw             = c ^. glonassPhaseBiasCorrection_yawAngle
-             , _msgSsrPhaseBiases_yaw_rate        = fromIntegral $ c ^. glonassPhaseBiasCorrection_yawRate
-             , _msgSsrPhaseBiases_biases          = padPhaseBias $ flip map (c ^. glonassPhaseBiasCorrection_phaseBiases) $ \b -> PhaseBiasesContent
+             , _msgSsrPhaseBiases_yaw_rate        = c ^. glonassPhaseBiasCorrection_yawRate
+             , _msgSsrPhaseBiases_biases          = flip map (c ^. glonassPhaseBiasCorrection_phaseBiases) $ \b -> PhaseBiasesContent
                { _phaseBiasesContent_code                       = b ^. glonassPhaseBias_signal
                , _phaseBiasesContent_integer_indicator          = bool 0 1 $ b ^. glonassPhaseBias_integer
                , _phaseBiasesContent_widelane_integer_indicator = b ^. glonassPhaseBias_wideLaneInteger

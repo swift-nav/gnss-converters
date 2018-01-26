@@ -3,4 +3,4 @@ packages:
 - .
 extra-deps:
 - rtcm-0.2.14
-- sbp-2.3.5
+- sbp-2.3.6
