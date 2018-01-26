@@ -105,7 +105,7 @@ pad v vs = take 8 $ vs <> repeat v
 
 padCodeBias :: [CodeBiasesContent] -> [CodeBiasesContent]
 padCodeBias = pad CodeBiasesContent
-  { _codeBiasesContent_code  = 0
+  { _codeBiasesContent_code  = maxBound
   , _codeBiasesContent_value = 0
   }
 
@@ -149,7 +149,7 @@ glonassCodeBiasConverter m = do
 
 padPhaseBias :: [PhaseBiasesContent] -> [PhaseBiasesContent]
 padPhaseBias = pad PhaseBiasesContent
-  { _phaseBiasesContent_code                       = 0
+  { _phaseBiasesContent_code                       = maxBound
   , _phaseBiasesContent_integer_indicator          = 0
   , _phaseBiasesContent_widelane_integer_indicator = 0
   , _phaseBiasesContent_discontinuity_counter      = 0
