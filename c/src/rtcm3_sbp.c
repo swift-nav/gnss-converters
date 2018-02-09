@@ -146,6 +146,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length,
     if (rtcm3_decode_1029(&frame[byte], &msg_1029) == 0) {
       send_1029(&msg_1029, state);
     }
+    break;
   }
   case 1033: {
     rtcm_msg_1033 msg_1033;
@@ -169,6 +170,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length,
                             rtcm_2_sbp_sender_id(msg_1230.stn_id));
       state->last_1230_received = state->time_from_rover_obs;
     }
+    break;
   }
   case 1071:
   case 1072:
@@ -189,6 +191,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame, uint32_t frame_length,
      * as these messages can be present in streams that contain 1004 and 1012 so
      * are valid */
     send_MSM_warning(&frame[byte], state);
+    break;
   }
   default:
     break;
