@@ -39,18 +39,27 @@ void sbp_callback_gps(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   msg_count++;
 }
 
+void sbp_callback_1012_first(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+  (void)length;
+  (void)buffer;
+  (void)sender_id;
+  if (msg_id == SBP_MSG_OBS) {
+    msg_obs_t *msg = (msg_obs_t *) buffer;
+    u8 num_sbp_msgs = msg->header.n_obs >> 4;
+    assert(num_sbp_msgs > 2);
+  }
+}
+
 void sbp_callback_glo_day_rollover(u16 msg_id, u8 length, u8 *buffer,
                                    u16 sender_id) {
   (void)length;
   (void)buffer;
   (void)sender_id;
-  static uint32_t msg_count = 0;
   if (msg_id == SBP_MSG_OBS) {
     msg_obs_t *msg = (msg_obs_t *)buffer;
     u8 num_sbp_msgs = msg->header.n_obs >> 4;
     assert(num_sbp_msgs > 2);
   }
-  msg_count++;
 }
 
 void check_biases(msg_glo_biases_t *sbp_glo_msg) {
@@ -130,6 +139,9 @@ int main(void) {
   current_time.wn = 1959;
   current_time.tow = 510191;
   test_RTCM3("../../tests/data/glo_day_rollover.rtcm", sbp_callback_glo_day_rollover, current_time);
+  current_time.wn = 1945;
+  current_time.tow = 211190;
+  test_RTCM3("../../tests/data/1012_first.rtcm", sbp_callback_1012_first, current_time);
 
   // Test 1033 message sources
   set_expected_bias(TRIMBLE_BIAS_M,TRIMBLE_BIAS_M,TRIMBLE_BIAS_M,TRIMBLE_BIAS_M);
