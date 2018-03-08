@@ -52,7 +52,7 @@ toGlonassTimeSec epochs = do
 
 gpsOrbitClockConverter :: MonadStore e m => Msg1060 -> Conduit i m [SBPMsg]
 gpsOrbitClockConverter m = do
-  time <- toGpsTimeSec $ m ^. msg1060_header ^. gpsOrbitClockCorrectionHeader_epochs
+  time <- toGpsTimeSec $ m ^. msg1060_header . gpsOrbitClockCorrectionHeader_epochs
   yield $ flip map (m ^. msg1060_corrections) $ \c -> do
     let m' = MsgSsrOrbitClock
              { _msgSsrOrbitClock_time            = time
@@ -60,8 +60,8 @@ gpsOrbitClockConverter m = do
                { _gnssSignal_sat  = c ^. gpsOrbitClockCorrection_sat
                , _gnssSignal_code = 0
                }
-             , _msgSsrOrbitClock_update_interval = m ^. msg1060_header ^. gpsOrbitClockCorrectionHeader_updateInterval
-             , _msgSsrOrbitClock_iod_ssr         = m ^. msg1060_header ^. gpsOrbitClockCorrectionHeader_iod
+             , _msgSsrOrbitClock_update_interval = m ^. msg1060_header . gpsOrbitClockCorrectionHeader_updateInterval
+             , _msgSsrOrbitClock_iod_ssr         = m ^. msg1060_header . gpsOrbitClockCorrectionHeader_iod
              , _msgSsrOrbitClock_iod             = c ^. gpsOrbitClockCorrection_iode
              , _msgSsrOrbitClock_radial          = c ^. gpsOrbitClockCorrection_deltaRadial
              , _msgSsrOrbitClock_along           = c ^. gpsOrbitClockCorrection_deltaAlongTrack
@@ -77,7 +77,7 @@ gpsOrbitClockConverter m = do
 
 glonassOrbitClockConverter :: MonadStore e m => Msg1066 -> Conduit i m [SBPMsg]
 glonassOrbitClockConverter m = do
-  time <- toGlonassTimeSec $ m ^. msg1066_header ^. glonassOrbitClockCorrectionHeader_epochs
+  time <- toGlonassTimeSec $ m ^. msg1066_header . glonassOrbitClockCorrectionHeader_epochs
   yield $ flip map (m ^. msg1066_corrections) $ \c -> do
     let m' = MsgSsrOrbitClock
              { _msgSsrOrbitClock_time            = time
@@ -85,8 +85,8 @@ glonassOrbitClockConverter m = do
                { _gnssSignal_sat  = c ^. glonassOrbitClockCorrection_sat
                , _gnssSignal_code = 3
                  }
-             , _msgSsrOrbitClock_update_interval = m ^. msg1066_header ^. glonassOrbitClockCorrectionHeader_updateInterval
-             , _msgSsrOrbitClock_iod_ssr         = m ^. msg1066_header ^. glonassOrbitClockCorrectionHeader_iod
+             , _msgSsrOrbitClock_update_interval = m ^. msg1066_header . glonassOrbitClockCorrectionHeader_updateInterval
+             , _msgSsrOrbitClock_iod_ssr         = m ^. msg1066_header . glonassOrbitClockCorrectionHeader_iod
              , _msgSsrOrbitClock_iod             = c ^. glonassOrbitClockCorrection_iode
              , _msgSsrOrbitClock_radial          = c ^. glonassOrbitClockCorrection_deltaRadial
              , _msgSsrOrbitClock_along           = c ^. glonassOrbitClockCorrection_deltaAlongTrack
@@ -102,7 +102,7 @@ glonassOrbitClockConverter m = do
 
 gpsCodeBiasConverter :: MonadStore e m => Msg1059 -> Conduit i m [SBPMsg]
 gpsCodeBiasConverter m = do
-  time <- toGpsTimeSec $ m ^. msg1059_header ^. gpsCodeBiasCorrectionHeader_epochs
+  time <- toGpsTimeSec $ m ^. msg1059_header . gpsCodeBiasCorrectionHeader_epochs
   yield $ flip map (m ^. msg1059_corrections) $ \c -> do
     let m' = MsgSsrCodeBiases
              { _msgSsrCodeBiases_time            = time
@@ -110,8 +110,8 @@ gpsCodeBiasConverter m = do
                { _gnssSignal_sat  = c ^. gpsCodeBiasCorrection_sat
                , _gnssSignal_code = 0
                }
-             , _msgSsrCodeBiases_update_interval = m ^. msg1059_header ^. gpsCodeBiasCorrectionHeader_updateInterval
-             , _msgSsrCodeBiases_iod_ssr         = m ^. msg1059_header ^. gpsCodeBiasCorrectionHeader_iod
+             , _msgSsrCodeBiases_update_interval = m ^. msg1059_header . gpsCodeBiasCorrectionHeader_updateInterval
+             , _msgSsrCodeBiases_iod_ssr         = m ^. msg1059_header . gpsCodeBiasCorrectionHeader_iod
              , _msgSsrCodeBiases_biases          = flip map (c ^. gpsCodeBiasCorrection_codeBiases) $ \b -> CodeBiasesContent
                { _codeBiasesContent_code  = b ^. gpsCodeBias_signal
                , _codeBiasesContent_value = b ^. gpsCodeBias_codeBias
@@ -121,7 +121,7 @@ gpsCodeBiasConverter m = do
 
 glonassCodeBiasConverter :: MonadStore e m => Msg1065 -> Conduit i m [SBPMsg]
 glonassCodeBiasConverter m = do
-  time <- toGlonassTimeSec $ m ^. msg1065_header ^. glonassCodeBiasCorrectionHeader_epochs
+  time <- toGlonassTimeSec $ m ^. msg1065_header . glonassCodeBiasCorrectionHeader_epochs
   yield $ flip map (m ^. msg1065_corrections) $ \c -> do
     let m' = MsgSsrCodeBiases
              { _msgSsrCodeBiases_time            = time
@@ -129,8 +129,8 @@ glonassCodeBiasConverter m = do
                { _gnssSignal_sat  = c ^. glonassCodeBiasCorrection_sat
                , _gnssSignal_code = 3
                }
-             , _msgSsrCodeBiases_update_interval = m ^. msg1065_header ^. glonassCodeBiasCorrectionHeader_updateInterval
-             , _msgSsrCodeBiases_iod_ssr         = m ^. msg1065_header ^. glonassCodeBiasCorrectionHeader_iod
+             , _msgSsrCodeBiases_update_interval = m ^. msg1065_header . glonassCodeBiasCorrectionHeader_updateInterval
+             , _msgSsrCodeBiases_iod_ssr         = m ^. msg1065_header . glonassCodeBiasCorrectionHeader_iod
              , _msgSsrCodeBiases_biases          = flip map (c ^. glonassCodeBiasCorrection_codeBiases) $ \b -> CodeBiasesContent
                { _codeBiasesContent_code  = b ^. glonassCodeBias_signal
                , _codeBiasesContent_value = b ^. glonassCodeBias_codeBias
@@ -140,7 +140,7 @@ glonassCodeBiasConverter m = do
 
 gpsPhaseBiasConverter :: MonadStore e m => Msg1265 -> Conduit i m [SBPMsg]
 gpsPhaseBiasConverter m = do
-  time <- toGpsTimeSec $ m ^. msg1265_header ^. gpsPhaseBiasCorrectionHeader_epochs
+  time <- toGpsTimeSec $ m ^. msg1265_header . gpsPhaseBiasCorrectionHeader_epochs
   yield $ flip map (m ^. msg1265_corrections) $ \c -> do
     let m' = MsgSsrPhaseBiases
              { _msgSsrPhaseBiases_time            = time
@@ -148,10 +148,10 @@ gpsPhaseBiasConverter m = do
                { _gnssSignal_sat  = c ^. gpsPhaseBiasCorrection_sat
                , _gnssSignal_code = 0
                }
-             , _msgSsrPhaseBiases_update_interval = m ^. msg1265_header ^. gpsPhaseBiasCorrectionHeader_updateInterval
-             , _msgSsrPhaseBiases_iod_ssr         = m ^. msg1265_header ^. gpsPhaseBiasCorrectionHeader_iod
-             , _msgSsrPhaseBiases_dispersive_bias = bool 0 1 $ m ^. msg1265_header ^. gpsPhaseBiasCorrectionHeader_dispersive
-             , _msgSsrPhaseBiases_mw_consistency  = bool 0 1 $ m ^. msg1265_header ^. gpsPhaseBiasCorrectionHeader_mw
+             , _msgSsrPhaseBiases_update_interval = m ^. msg1265_header . gpsPhaseBiasCorrectionHeader_updateInterval
+             , _msgSsrPhaseBiases_iod_ssr         = m ^. msg1265_header . gpsPhaseBiasCorrectionHeader_iod
+             , _msgSsrPhaseBiases_dispersive_bias = bool 0 1 $ m ^. msg1265_header . gpsPhaseBiasCorrectionHeader_dispersive
+             , _msgSsrPhaseBiases_mw_consistency  = bool 0 1 $ m ^. msg1265_header . gpsPhaseBiasCorrectionHeader_mw
              , _msgSsrPhaseBiases_yaw             = c ^. gpsPhaseBiasCorrection_yawAngle
              , _msgSsrPhaseBiases_yaw_rate        = c ^. gpsPhaseBiasCorrection_yawRate
              , _msgSsrPhaseBiases_biases          = flip map (c ^. gpsPhaseBiasCorrection_phaseBiases) $ \b -> PhaseBiasesContent
@@ -166,7 +166,7 @@ gpsPhaseBiasConverter m = do
 
 glonassPhaseBiasConverter :: MonadStore e m => Msg1266 -> Conduit i m [SBPMsg]
 glonassPhaseBiasConverter m = do
-  time <- toGlonassTimeSec $ m ^. msg1266_header ^. glonassPhaseBiasCorrectionHeader_epochs
+  time <- toGlonassTimeSec $ m ^. msg1266_header . glonassPhaseBiasCorrectionHeader_epochs
   yield $ flip map (m ^. msg1266_corrections) $ \c -> do
     let m' = MsgSsrPhaseBiases
              { _msgSsrPhaseBiases_time            = time
@@ -174,10 +174,10 @@ glonassPhaseBiasConverter m = do
                { _gnssSignal_sat  = c ^. glonassPhaseBiasCorrection_sat
                , _gnssSignal_code = 3
                }
-             , _msgSsrPhaseBiases_update_interval = m ^. msg1266_header ^. glonassPhaseBiasCorrectionHeader_updateInterval
-             , _msgSsrPhaseBiases_iod_ssr         = m ^. msg1266_header ^. glonassPhaseBiasCorrectionHeader_iod
-             , _msgSsrPhaseBiases_dispersive_bias = bool 0 1 $ m ^. msg1266_header ^. glonassPhaseBiasCorrectionHeader_dispersive
-             , _msgSsrPhaseBiases_mw_consistency  = bool 0 1 $ m ^. msg1266_header ^. glonassPhaseBiasCorrectionHeader_mw
+             , _msgSsrPhaseBiases_update_interval = m ^. msg1266_header . glonassPhaseBiasCorrectionHeader_updateInterval
+             , _msgSsrPhaseBiases_iod_ssr         = m ^. msg1266_header . glonassPhaseBiasCorrectionHeader_iod
+             , _msgSsrPhaseBiases_dispersive_bias = bool 0 1 $ m ^. msg1266_header . glonassPhaseBiasCorrectionHeader_dispersive
+             , _msgSsrPhaseBiases_mw_consistency  = bool 0 1 $ m ^. msg1266_header . glonassPhaseBiasCorrectionHeader_mw
              , _msgSsrPhaseBiases_yaw             = c ^. glonassPhaseBiasCorrection_yawAngle
              , _msgSsrPhaseBiases_yaw_rate        = c ^. glonassPhaseBiasCorrection_yawRate
              , _msgSsrPhaseBiases_biases          = flip map (c ^. glonassPhaseBiasCorrection_phaseBiases) $ \b -> PhaseBiasesContent

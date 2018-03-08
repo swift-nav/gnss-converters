@@ -46,14 +46,14 @@ delayTow tow tow' =
 replay :: MonadIO m => Word32 -> RTCM3Msg -> ConduitM i RTCM3Msg m Word32
 replay tow = \case
   (RTCM3Msg1002 m _rtcm3) -> do
-    let tow' = m ^. msg1002_header ^. gpsObservationHeader_tow
+    let tow' = m ^. msg1002_header . gpsObservationHeader_tow
     delayTow tow tow'
     tow'' <- currentTow
     let n = set (msg1002_header . gpsObservationHeader_tow) tow'' m
     yield (RTCM3Msg1002 n (toRTCM3 n))
     pure tow'
   (RTCM3Msg1004 m _rtcm3) -> do
-    let tow' = m ^. msg1004_header ^. gpsObservationHeader_tow
+    let tow' = m ^. msg1004_header . gpsObservationHeader_tow
     delayTow tow tow'
     tow'' <- currentTow
     let n = set (msg1004_header . gpsObservationHeader_tow) tow'' m

@@ -127,34 +127,34 @@ glonassFitInterval fi
 --
 toGpsEphemerisCommonContent :: MonadStore e m => Msg1019 -> m EphemerisCommonContent
 toGpsEphemerisCommonContent m = do
-  toe <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toe)
+  toe <- toGpsTimeSec (m ^. msg1019_ephemeris . gpsEphemeris_wn) (m ^. msg1019_ephemeris . gpsEphemeris_toe)
   pure EphemerisCommonContent
     { _ephemerisCommonContent_sid = GnssSignal
-      { _gnssSignal_sat  = m ^. msg1019_header ^. gpsEphemerisHeader_sat
+      { _gnssSignal_sat  = m ^. msg1019_header . gpsEphemerisHeader_sat
       , _gnssSignal_code = 0 -- there is an L2P status flag in msg 1019, but I don't think that applies
       }
     , _ephemerisCommonContent_toe          = toe
-    , _ephemerisCommonContent_ura          = uriToUra (m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth)
-    , _ephemerisCommonContent_fit_interval = gpsFitInterval (m ^. msg1019_ephemeris ^. gpsEphemeris_fitInterval) (m ^. msg1019_ephemeris ^. gpsEphemeris_iodc)
-    , _ephemerisCommonContent_valid        = validateIodcIode (m ^. msg1019_ephemeris ^. gpsEphemeris_iodc) (m ^. msg1019_ephemeris ^. gpsEphemeris_iode)
-    , _ephemerisCommonContent_health_bits  = m ^. msg1019_ephemeris ^. gpsEphemeris_svHealth
+    , _ephemerisCommonContent_ura          = uriToUra (m ^. msg1019_ephemeris . gpsEphemeris_svHealth)
+    , _ephemerisCommonContent_fit_interval = gpsFitInterval (m ^. msg1019_ephemeris . gpsEphemeris_fitInterval) (m ^. msg1019_ephemeris . gpsEphemeris_iodc)
+    , _ephemerisCommonContent_valid        = validateIodcIode (m ^. msg1019_ephemeris . gpsEphemeris_iodc) (m ^. msg1019_ephemeris . gpsEphemeris_iode)
+    , _ephemerisCommonContent_health_bits  = m ^. msg1019_ephemeris . gpsEphemeris_svHealth
     }
 
 -- | Construct an EphemerisCommonContent from an RTCM 1020 message.
 --
 toGlonassEphemerisCommonContent :: MonadStore e m => Msg1020 -> m EphemerisCommonContent
 toGlonassEphemerisCommonContent m = do
-  toe <- toGlonassTimeSec (m ^. msg1020_ephemeris ^. glonassEphemeris_tb)
+  toe <- toGlonassTimeSec (m ^. msg1020_ephemeris . glonassEphemeris_tb)
   pure EphemerisCommonContent
     { _ephemerisCommonContent_sid = GnssSignal
-      { _gnssSignal_sat  = m ^. msg1020_header ^. glonassEphemerisHeader_sat
+      { _gnssSignal_sat  = m ^. msg1020_header . glonassEphemerisHeader_sat
       , _gnssSignal_code = 3
       }
     , _ephemerisCommonContent_toe          = toe
-    , _ephemerisCommonContent_ura          = ftToUra (m ^. msg1020_ephemeris ^. glonassEphemeris_mft)
-    , _ephemerisCommonContent_fit_interval = glonassFitInterval (m ^. msg1020_ephemeris ^. glonassEphemeris_p1)
+    , _ephemerisCommonContent_ura          = ftToUra (m ^. msg1020_ephemeris . glonassEphemeris_mft)
+    , _ephemerisCommonContent_fit_interval = glonassFitInterval (m ^. msg1020_ephemeris . glonassEphemeris_p1)
     , _ephemerisCommonContent_valid        = 1
-    , _ephemerisCommonContent_health_bits  = bool 0 1 $ (m ^. msg1020_ephemeris ^. glonassEphemeris_mln5) || (m ^. msg1020_ephemeris ^. glonassEphemeris_mi3)
+    , _ephemerisCommonContent_health_bits  = bool 0 1 $ (m ^. msg1020_ephemeris . glonassEphemeris_mln5) || (m ^. msg1020_ephemeris . glonassEphemeris_mi3)
     }
 
 (##) :: (Floating a1, Integral a2) => a1 -> a2 -> a1
@@ -169,31 +169,31 @@ toGlonassEphemerisCommonContent m = do
 gpsConverter :: MonadStore e m => Msg1019 -> Conduit i m [SBPMsg]
 gpsConverter m = do
   common <- toGpsEphemerisCommonContent m
-  toc    <- toGpsTimeSec (m ^. msg1019_ephemeris ^. gpsEphemeris_wn) (m ^. msg1019_ephemeris ^. gpsEphemeris_toc)
+  toc    <- toGpsTimeSec (m ^. msg1019_ephemeris . gpsEphemeris_wn) (m ^. msg1019_ephemeris . gpsEphemeris_toc)
   let pi' = 3.1415926535898
       m'  = MsgEphemerisGps
               { _msgEphemerisGps_common   = common
-              , _msgEphemerisGps_tgd      =       (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_tgd)
-              , _msgEphemerisGps_c_rs     =        (-5) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_rs)
-              , _msgEphemerisGps_c_rc     =        (-5) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_rc)
-              , _msgEphemerisGps_c_uc     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_uc)
-              , _msgEphemerisGps_c_us     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_us)
-              , _msgEphemerisGps_c_ic     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_ic)
-              , _msgEphemerisGps_c_is     =       (-29) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_c_is)
-              , _msgEphemerisGps_dn       = pi' * (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_dn)
-              , _msgEphemerisGps_m0       = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_m0)
-              , _msgEphemerisGps_ecc      =       (-33) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_ecc)
-              , _msgEphemerisGps_sqrta    =       (-19) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_sqrta)
-              , _msgEphemerisGps_omega0   = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_omega0)
-              , _msgEphemerisGps_omegadot = pi' * (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_omegadot)
-              , _msgEphemerisGps_w        = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_w)
-              , _msgEphemerisGps_inc      = pi' * (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_i0)
-              , _msgEphemerisGps_inc_dot  = pi' * (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_idot)
-              , _msgEphemerisGps_af0      =       (-31) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_af0)
-              , _msgEphemerisGps_af1      =       (-43) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_af1)
-              , _msgEphemerisGps_af2      =       (-55) ## (m ^. msg1019_ephemeris ^. gpsEphemeris_af2)
-              , _msgEphemerisGps_iodc     =                 m ^. msg1019_ephemeris ^. gpsEphemeris_iodc
-              , _msgEphemerisGps_iode     =                 m ^. msg1019_ephemeris ^. gpsEphemeris_iode
+              , _msgEphemerisGps_tgd      =       (-31) ## (m ^. msg1019_ephemeris . gpsEphemeris_tgd)
+              , _msgEphemerisGps_c_rs     =        (-5) ## (m ^. msg1019_ephemeris . gpsEphemeris_c_rs)
+              , _msgEphemerisGps_c_rc     =        (-5) ## (m ^. msg1019_ephemeris . gpsEphemeris_c_rc)
+              , _msgEphemerisGps_c_uc     =       (-29) ## (m ^. msg1019_ephemeris . gpsEphemeris_c_uc)
+              , _msgEphemerisGps_c_us     =       (-29) ## (m ^. msg1019_ephemeris . gpsEphemeris_c_us)
+              , _msgEphemerisGps_c_ic     =       (-29) ## (m ^. msg1019_ephemeris . gpsEphemeris_c_ic)
+              , _msgEphemerisGps_c_is     =       (-29) ## (m ^. msg1019_ephemeris . gpsEphemeris_c_is)
+              , _msgEphemerisGps_dn       = pi' * (-43) ## (m ^. msg1019_ephemeris . gpsEphemeris_dn)
+              , _msgEphemerisGps_m0       = pi' * (-31) ## (m ^. msg1019_ephemeris . gpsEphemeris_m0)
+              , _msgEphemerisGps_ecc      =       (-33) ## (m ^. msg1019_ephemeris . gpsEphemeris_ecc)
+              , _msgEphemerisGps_sqrta    =       (-19) ## (m ^. msg1019_ephemeris . gpsEphemeris_sqrta)
+              , _msgEphemerisGps_omega0   = pi' * (-31) ## (m ^. msg1019_ephemeris . gpsEphemeris_omega0)
+              , _msgEphemerisGps_omegadot = pi' * (-43) ## (m ^. msg1019_ephemeris . gpsEphemeris_omegadot)
+              , _msgEphemerisGps_w        = pi' * (-31) ## (m ^. msg1019_ephemeris . gpsEphemeris_w)
+              , _msgEphemerisGps_inc      = pi' * (-31) ## (m ^. msg1019_ephemeris . gpsEphemeris_i0)
+              , _msgEphemerisGps_inc_dot  = pi' * (-43) ## (m ^. msg1019_ephemeris . gpsEphemeris_idot)
+              , _msgEphemerisGps_af0      =       (-31) ## (m ^. msg1019_ephemeris . gpsEphemeris_af0)
+              , _msgEphemerisGps_af1      =       (-43) ## (m ^. msg1019_ephemeris . gpsEphemeris_af1)
+              , _msgEphemerisGps_af2      =       (-55) ## (m ^. msg1019_ephemeris . gpsEphemeris_af2)
+              , _msgEphemerisGps_iodc     =                 m ^. msg1019_ephemeris . gpsEphemeris_iodc
+              , _msgEphemerisGps_iode     =                 m ^. msg1019_ephemeris . gpsEphemeris_iode
               , _msgEphemerisGps_toc      = toc
               }
   yield [SBPMsgEphemerisGps m' $ toSBP m' 61440]
@@ -205,25 +205,25 @@ glonassConverter m = do
   common <- toGlonassEphemerisCommonContent m
   let m' = MsgEphemerisGlo
              { _msgEphemerisGlo_common = common
-             , _msgEphemerisGlo_gamma  = (-40) ## (m ^. msg1020_ephemeris ^. glonassEphemeris_gammaN)
-             , _msgEphemerisGlo_tau    = (-30) ## (m ^. msg1020_ephemeris ^. glonassEphemeris_tauN)
-             , _msgEphemerisGlo_d_tau  = (-30) ## (m ^. msg1020_ephemeris ^. glonassEphemeris_mdeltatau)
+             , _msgEphemerisGlo_gamma  = (-40) ## (m ^. msg1020_ephemeris . glonassEphemeris_gammaN)
+             , _msgEphemerisGlo_tau    = (-30) ## (m ^. msg1020_ephemeris . glonassEphemeris_tauN)
+             , _msgEphemerisGlo_d_tau  = (-30) ## (m ^. msg1020_ephemeris . glonassEphemeris_mdeltatau)
              , _msgEphemerisGlo_pos    = (* 1000) . ((-11) ##) <$>
-                 [ m ^. msg1020_ephemeris ^. glonassEphemeris_xn
-                 , m ^. msg1020_ephemeris ^. glonassEphemeris_yn
-                 , m ^. msg1020_ephemeris ^. glonassEphemeris_zn
+                 [ m ^. msg1020_ephemeris . glonassEphemeris_xn
+                 , m ^. msg1020_ephemeris . glonassEphemeris_yn
+                 , m ^. msg1020_ephemeris . glonassEphemeris_zn
                  ]
              , _msgEphemerisGlo_vel    = (* 1000) . ((-20) ##) <$>
-                 [ m ^. msg1020_ephemeris ^. glonassEphemeris_xndot
-                 , m ^. msg1020_ephemeris ^. glonassEphemeris_yndot
-                 , m ^. msg1020_ephemeris ^. glonassEphemeris_zndot
+                 [ m ^. msg1020_ephemeris . glonassEphemeris_xndot
+                 , m ^. msg1020_ephemeris . glonassEphemeris_yndot
+                 , m ^. msg1020_ephemeris . glonassEphemeris_zndot
                  ]
              , _msgEphemerisGlo_acc    = (* 1000) . ((-30) ##) <$>
-                 [ m ^. msg1020_ephemeris ^. glonassEphemeris_xndotdot
-                 , m ^. msg1020_ephemeris ^. glonassEphemeris_yndotdot
-                 , m ^. msg1020_ephemeris ^. glonassEphemeris_zndotdot
+                 [ m ^. msg1020_ephemeris . glonassEphemeris_xndotdot
+                 , m ^. msg1020_ephemeris . glonassEphemeris_yndotdot
+                 , m ^. msg1020_ephemeris . glonassEphemeris_zndotdot
                  ]
-             , _msgEphemerisGlo_fcn    = (m ^. msg1020_header ^. glonassEphemerisHeader_channel) + 1
-             , _msgEphemerisGlo_iod    = ((m ^. msg1020_ephemeris ^. glonassEphemeris_tb) * 15 * 60) .&. 127
+             , _msgEphemerisGlo_fcn    = (m ^. msg1020_header . glonassEphemerisHeader_channel) + 1
+             , _msgEphemerisGlo_iod    = ((m ^. msg1020_ephemeris . glonassEphemeris_tb) * 15 * 60) .&. 127
              }
   yield [SBPMsgEphemerisGlo m' $ toSBP m' 61440]
