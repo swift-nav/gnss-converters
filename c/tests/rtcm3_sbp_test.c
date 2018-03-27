@@ -10,12 +10,12 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include "rtcm3_sbp_test.h"
 #include "../src/rtcm3_sbp_internal.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <libsbp/logging.h>
+#include <config.h>
+#include <string.h>
 
 #define MAX_FILE_SIZE 26000
 
@@ -106,7 +106,7 @@ void test_RTCM3(const char* filename,
   FILE *fp = fopen(filename, "rb");
   u8 buffer[MAX_FILE_SIZE];
   if (fp == NULL) {
-    fprintf(stderr, "Can't open input file!\n");
+    fprintf(stderr, "Can't open input file! %s\n",filename);
     exit(1);
   }
 
@@ -135,73 +135,73 @@ int main(void) {
   gps_time_sec_t current_time;
   current_time.wn = 1945;
   current_time.tow = 277500;
-  test_RTCM3("../../tests/data/RTCM3.bin", sbp_callback_gps, current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/RTCM3.bin", sbp_callback_gps, current_time);
   current_time.wn = 1959;
   current_time.tow = 510191;
-  test_RTCM3("../../tests/data/glo_day_rollover.rtcm", sbp_callback_glo_day_rollover, current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/glo_day_rollover.rtcm", sbp_callback_glo_day_rollover, current_time);
   current_time.wn = 1945;
   current_time.tow = 211190;
-  test_RTCM3("../../tests/data/1012_first.rtcm", sbp_callback_1012_first, current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/1012_first.rtcm", sbp_callback_1012_first, current_time);
 
   // Test 1033 message sources
   set_expected_bias(TRIMBLE_BIAS_M,TRIMBLE_BIAS_M,TRIMBLE_BIAS_M,TRIMBLE_BIAS_M);
-  test_RTCM3("../../tests/data/trimble.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/trimble.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(JAVAD_BIAS_L1CA_M,0.0,0.0,JAVAD_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/javad.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/javad.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(NOVATEL_BIAS_M,NOVATEL_BIAS_M,NOVATEL_BIAS_M,NOVATEL_BIAS_M);
-  test_RTCM3("../../tests/data/leica.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/leica.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(SEPTENTRIO_BIAS_M,SEPTENTRIO_BIAS_M,SEPTENTRIO_BIAS_M,SEPTENTRIO_BIAS_M);
-  test_RTCM3("../../tests/data/sept.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/sept.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(NAVCOM_BIAS_L1CA_M,0.0,0.0,NAVCOM_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/navcom.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/navcom.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(TOPCON_BIAS_M,TOPCON_BIAS_M,TOPCON_BIAS_M,TOPCON_BIAS_M);
-  test_RTCM3("../../tests/data/topcon.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/topcon.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(HEMISPHERE_BIAS_L1CA_M,0.0,0.0,HEMISPHERE_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/hemi.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/hemi.rtcm",sbp_callback_bias,current_time);
 
   // Test MSM is properly rejected
-  test_RTCM3("../../tests/data/msm.rtcm",sbp_callback_msm,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/msm.rtcm",sbp_callback_msm,current_time);
 
   // Test 1033 messages from GEO++
   set_expected_bias(GPP_ASH1_BIAS_L1CA_M,0.0,0.0,GPP_ASH1_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_ASH1.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_ASH1.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_HEM_BIAS_L1CA_M,0.0,0.0,GPP_HEM_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_HEM.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_HEM.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_JAV_BIAS_L1CA_M,0.0,0.0,GPP_JAV_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_JAV.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_JAV.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_JPS_BIAS_L1CA_M,0.0,0.0,GPP_JPS_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_JPS.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_JPS.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_NOV_BIAS_L1CA_M,0.0,0.0,GPP_NOV_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_LEI.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_LEI.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_NAV_BIAS_L1CA_M,0.0,0.0,GPP_NAV_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_NAV.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_NAV.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_NOV_BIAS_L1CA_M,0.0,0.0,GPP_NOV_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_NOV.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_NOV.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_NVR_BIAS_L1CA_M,0.0,0.0,GPP_NVR_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_NVR.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_NVR.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_SEP_BIAS_L1CA_M,0.0,0.0,GPP_SEP_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_SEP1.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_SEP1.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_SOK_BIAS_L1CA_M,0.0,0.0,GPP_SOK_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_SOK.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_SOK.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_TPS_BIAS_L1CA_M,0.0,0.0,GPP_TPS_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_TPS1.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_TPS1.rtcm",sbp_callback_bias,current_time);
 
   set_expected_bias(GPP_TRM_BIAS_L1CA_M,0.0,0.0,GPP_TRM_BIAS_L2P_M);
-  test_RTCM3("../../tests/data/geo++_TRM.rtcm",sbp_callback_bias,current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_TRM.rtcm",sbp_callback_bias,current_time);
 }
