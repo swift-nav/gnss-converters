@@ -668,6 +668,18 @@
 ]
 [
     {
+        "crc": 24421,
+        "length": 21,
+        "level": 6,
+        "msg_type": 1025,
+        "payload": "BkdlbysrIEdtYkgsIEdhcmJzZW4A",
+        "preamble": 85,
+        "sender": 61460,
+        "text": "Geo++ GmbH, Garbsen\u0000"
+    }
+]
+[
+    {
         "crc": 55380,
         "header": {
             "n_obs": 48,

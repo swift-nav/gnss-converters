@@ -21,6 +21,7 @@ library
                      , Data.RTCM3.SBP
                      , Data.RTCM3.SBP.Biases
                      , Data.RTCM3.SBP.Ephemerides
+                     , Data.RTCM3.SBP.Logging
                      , Data.RTCM3.SBP.Observations
                      , Data.RTCM3.SBP.Positions
                      , Data.RTCM3.SBP.SSR
