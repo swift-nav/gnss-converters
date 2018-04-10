@@ -25,6 +25,7 @@ import           Data.IORef
 import           Data.RTCM3
 import qualified Data.RTCM3.SBP.Biases       as Biases
 import qualified Data.RTCM3.SBP.Ephemerides  as Ephemerides
+import qualified Data.RTCM3.SBP.Logging      as Logging
 import qualified Data.RTCM3.SBP.Observations as Observations
 import qualified Data.RTCM3.SBP.Positions    as Positions
 import qualified Data.RTCM3.SBP.SSR          as SSR
@@ -44,6 +45,7 @@ converter = \case
   (RTCM3Msg1006 m _rtcm3) -> Positions.converter m
   (RTCM3Msg1019 m _rtcm3) -> Ephemerides.gpsConverter m
   (RTCM3Msg1020 m _rtcm3) -> Ephemerides.glonassConverter m
+  (RTCM3Msg1029 m _rtcm3) -> Logging.converter m
   (RTCM3Msg1230 m _rtcm3) -> Biases.converter m
   (RTCM3Msg1060 m _rtcm3) -> SSR.gpsOrbitClockConverter m
   (RTCM3Msg1066 m _rtcm3) -> SSR.glonassOrbitClockConverter m
