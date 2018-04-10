@@ -1,6 +1,0 @@
-resolver: lts-10.10
-packages:
-- .
-extra-deps:
-- rtcm-0.2.14
-- sbp-2.3.9
