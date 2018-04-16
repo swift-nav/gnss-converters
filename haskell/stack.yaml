@@ -2,5 +2,5 @@ resolver: lts-10.10
 packages:
 - .
 extra-deps:
-- rtcm-0.2.15
-- sbp-2.3.13
+- rtcm-0.2.16
+- sbp-2.3.15
