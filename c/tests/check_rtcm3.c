@@ -71,16 +71,17 @@ void sbp_callback_glo_day_rollover(u16 msg_id, u8 length, u8 *buffer,
 
 void check_biases(msg_glo_biases_t *sbp_glo_msg) {
   if (sbp_glo_msg->mask & 0x01) {
-    ck_assert_double_eq(sbp_glo_msg->l1ca_bias / GLO_BIAS_RESOLUTION, expected_L1CA_bias);
+    //ck_assert_double_eq(sbp_glo_msg->l1ca_bias / GLO_BIAS_RESOLUTION, expected_L1CA_bias);
+    ck_assert(sbp_glo_msg->l1ca_bias / GLO_BIAS_RESOLUTION == expected_L1CA_bias);
   }
   if (sbp_glo_msg->mask & 0x02) {
-    ck_assert_double_eq(sbp_glo_msg->l1p_bias / GLO_BIAS_RESOLUTION, expected_L1P_bias);
+    ck_assert(sbp_glo_msg->l1p_bias / GLO_BIAS_RESOLUTION == expected_L1P_bias);
   }
   if (sbp_glo_msg->mask & 0x04) {
-    ck_assert_double_eq(sbp_glo_msg->l2ca_bias / GLO_BIAS_RESOLUTION, expected_L2CA_bias);
+    ck_assert(sbp_glo_msg->l2ca_bias / GLO_BIAS_RESOLUTION == expected_L2CA_bias);
   }
   if (sbp_glo_msg->mask & 0x08) {
-    ck_assert_double_eq(sbp_glo_msg->l2p_bias / GLO_BIAS_RESOLUTION, expected_L2P_bias);
+    ck_assert(sbp_glo_msg->l2p_bias / GLO_BIAS_RESOLUTION == expected_L2P_bias);
   }
 }
 
