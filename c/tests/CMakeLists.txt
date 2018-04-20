@@ -14,7 +14,6 @@ endif()
 
 set(TEST_SOURCE_FILES
     check_main.c
-    rtcm3_sbp_test.c
     check_rtcm3.c
     )
 add_executable(test_gnss_converters ${TEST_SOURCE_FILES})
