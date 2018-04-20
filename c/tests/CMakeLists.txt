@@ -27,7 +27,7 @@ configure_file("../include/config.h.in"
                ${CONFIG_LOCATION})
 
 target_include_directories(test_gnss_converters PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(test_gnss_converters gnss_converters ${CHECK_LIBRARIES})
+target_link_libraries(test_gnss_converters gnss_converters ${CHECK_LIBRARIES} pthread)
 add_custom_command(
     TARGET test_gnss_converters POST_BUILD
     COMMENT "Running unit tests"
