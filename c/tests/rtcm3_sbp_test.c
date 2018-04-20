@@ -131,7 +131,7 @@ void set_expected_bias(double L1CA_bias, double L1P_bias, double L2CA_bias, doub
   expected_L2P_bias = L2P_bias;
 }
 
-int main(void) {
+int rtcm3_sbp_test(void) {
   gps_time_sec_t current_time;
   current_time.wn = 1945;
   current_time.tow = 277500;
@@ -204,4 +204,6 @@ int main(void) {
 
   set_expected_bias(GPP_TRM_BIAS_L1CA_M,0.0,0.0,GPP_TRM_BIAS_L2P_M);
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/geo++_TRM.rtcm",sbp_callback_bias,current_time);
+
+  return 0;
 }

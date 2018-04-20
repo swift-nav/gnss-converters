@@ -13,5 +13,6 @@
 #ifndef GNSS_CONVERTERS_RTCM3_SBP_TEST_C_H
 #define GNSS_CONVERTERS_RTCM3_SBP_TEST_C_H
 
+int rtcm3_sbp_test(void);
 
 #endif // GNSS_CONVERTERS_RTCM3_SBP_TEST_C_H
