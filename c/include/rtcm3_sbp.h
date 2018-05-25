@@ -17,7 +17,21 @@
 #include <libsbp/logging.h>
 #include <libsbp/observation.h>
 
-#define MAX_OBS_PER_EPOCH 56
+/* This is the maximum number of SBP observations possible per epoch:
+   - Max number of observation messages comes from the 4 bits assigned to the
+     sequence count in header.n_obs
+   - The number of observations per message comes from the max 255 byte
+     message length
+*/
+#define SBP_FRAMING_MAX_PAYLOAD_SIZE (255u)
+#define SBP_HDR_SIZE (sizeof(observation_header_t))
+#define SBP_OBS_SIZE (sizeof(packed_obs_content_t))
+#define SBP_MAX_OBS_SEQ (15u)
+#define MAX_OBS_IN_SBP \
+  ((SBP_FRAMING_MAX_PAYLOAD_SIZE - SBP_HDR_SIZE) / SBP_OBS_SIZE)
+#define MAX_OBS_PER_EPOCH (SBP_MAX_OBS_SEQ * MAX_OBS_IN_SBP)
+#define OBS_BUFFER_SIZE (SBP_HDR_SIZE + MAX_OBS_PER_EPOCH * SBP_OBS_SIZE)
+
 /* MAX valid value (ms) for GPS is 604799999 and GLO is 86401999 */
 #define INVALID_TIME 0xFFFF
 
@@ -30,10 +44,10 @@ struct rtcm3_sbp_state {
   gps_time_sec_t last_gps_time;
   gps_time_sec_t last_glo_time;
   gps_time_sec_t last_1230_received;
-  void (*cb_rtcm_to_sbp)(u16 msg_id, u8 buff, u8 *len, u16 sender_id);
+  gps_time_sec_t last_msm_received;
+  void (*cb_rtcm_to_sbp)(u16 msg_id, u8 len, u8 *buff, u16 sender_id);
   void (*cb_base_obs_invalid)(double time_diff);
-  u8 obs_buffer[sizeof(observation_header_t) +
-                MAX_OBS_PER_EPOCH * sizeof(packed_obs_content_t)];
+  u8 obs_buffer[OBS_BUFFER_SIZE];
   bool sent_msm_warning;
 };
 
@@ -51,4 +65,4 @@ void rtcm2sbp_init(
     void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id),
     void (*cb_base_obs_invalid)(double time_diff));
 
-#endif  // GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
+#endif /* GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H */

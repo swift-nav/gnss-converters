@@ -19,38 +19,29 @@
 #define MSG_OBS_P_MULTIPLIER ((double)5e1)
 #define MSG_OBS_CN0_MULTIPLIER ((float)4)
 #define MSG_OBS_LF_MULTIPLIER ((double)(1 << 8))
+#define MSG_OBS_DF_MULTIPLIER ((double)(1 << 8))
 #define MSG_OBS_FLAGS_CODE_VALID ((u8)(1 << 0))
 #define MSG_OBS_FLAGS_PHASE_VALID ((u8)(1 << 1))
 #define MSG_OBS_FLAGS_HALF_CYCLE_KNOWN ((u8)(1 << 2))
+#define MSG_OBS_FLAGS_DOPPLER_VALID ((u8)(1 << 3))
 
-#define SBP_FRAMING_MAX_PAYLOAD_SIZE (255u)
-#define RTCM_1029_LOGGING_LEVEL (6u) /* This represents LOG_INFO */
-#define RTCM_MSM_LOGGING_LEVEL (4u)  /* This represents LOG_WARN */
+#define RTCM_1029_LOGGING_LEVEL (6u)        /* This represents LOG_INFO */
+#define RTCM_MSM_LOGGING_LEVEL (4u)         /* This represents LOG_WARN */
+#define RTCM_BUFFER_FULL_LOGGING_LEVEL (3u) /* This represents LOG_ERROR */
 
 #define MS_TO_S 1e-3
 #define S_TO_MS 1e3
 
 extern bool rtcm3_debug;
 
-/** Code identifier. */
-typedef enum code {
-  CODE_INVALID = -1,
-  CODE_GPS_L1CA = 0,
-  CODE_GPS_L2CM = 1,
-  CODE_SBAS_L1CA = 2,
-  CODE_GLO_L1CA = 3,
-  CODE_GLO_L2CA = 4,
-  CODE_GPS_L1P = 5,
-  CODE_GPS_L2P = 6,
-  CODE_GPS_L2CL = 7,
-  CODE_COUNT,
-} code_t;
-
 /** Number of milliseconds in a second. */
 #define SECS_MS 1000
 #define SEC_IN_DAY 86400
 #define SEC_IN_WEEK 604800
 #define SEC_IN_HOUR 3600
+
+/** Constant difference of Beidou time from GPS time */
+#define BDS_SECOND_TO_GPS_SECOND 14
 
 /* PREAMBLE to append to an RTCM3 log message */
 #define RTCM_LOG_PREAMBLE "RTCM: "
@@ -61,6 +52,10 @@ typedef enum code {
 /* How long to wait after receiving a 1230 message before accepting the 1033
  * message again */
 #define MSG_1230_TIMEOUT_SEC 120
+
+/* How long to wait after receiving an MSM message before accepting the legacy
+ * 1002/1004/1010/1012 observation messages again */
+#define MSM_TIMEOUT_SEC 60
 
 /* Third party receiver bias value - these have been sourced from RTCM1230
  * message, the data can be found with the unit tests*/
@@ -133,7 +128,9 @@ void sbp_to_rtcm3_1230(const msg_glo_biases_t *sbp_glo_bias,
 
 void encode_RTCM_obs(const rtcm_obs_message *rtcm_msg);
 
-void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs, msg_obs_t *sbp_obs);
+void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
+                  msg_obs_t *sbp_obs,
+                  struct rtcm3_sbp_state *state);
 
 void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state);
@@ -165,8 +162,17 @@ void send_sbp_log_message(const uint8_t level,
                           const uint8_t *message,
                           const uint16_t length,
                           const uint16_t stn_id,
-                          struct rtcm3_sbp_state *state);
+                          const struct rtcm3_sbp_state *state);
 
 void send_MSM_warning(const uint8_t *frame, struct rtcm3_sbp_state *state);
+
+void send_buffer_full_error(const struct rtcm3_sbp_state *state);
+
+void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
+                           struct rtcm3_sbp_state *state);
+
+void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
+                      msg_obs_t *new_sbp_obs,
+                      const struct rtcm3_sbp_state *state);
 
 #endif /* GNSS_CONVERTERS_RTCM3_SBP_H */
