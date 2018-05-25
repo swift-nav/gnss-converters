@@ -21,12 +21,19 @@ module Data.RTCM3.SBP.Time
   , toStartDate
   , toTow
   , currentGpsTime
-  , rolloverTowGpsTime
-  , rolloverEpochGpsTime
+  , gpsRolloverGpsTime
+  , glonassRolloverGpsTime
+  , glonassRolloverGpsTime'
+  , beidouRolloverGpsTime
+  , modifyIORefM
+  , toGpsTime
   ) where
 
 import BasicPrelude
 import Control.Lens
+import Data.Bits
+import Data.IORef
+import Data.RTCM3.SBP.Types
 import Data.Time
 import Data.Time.Calendar.WeekDate
 import Data.Word
@@ -46,6 +53,16 @@ gpsLeapSeconds = 18
 --
 gpsLeapMillis :: Integer
 gpsLeapMillis = 1000 * gpsLeapSeconds
+
+-- | Number of BeiDou offset seconds.
+--
+beidouOffsetSeconds :: Integer
+beidouOffsetSeconds = 14
+
+-- | Number of BeiDou offet milliseconds.
+--
+beidouOffsetMillis :: Integer
+beidouOffsetMillis = 1000 * beidouOffsetSeconds
 
 -- | Minute seconds
 --
@@ -124,8 +141,8 @@ currentGpsTime = do
 
 -- | Update GPS time based on GPS time of week, handling week rollover.
 --
-rolloverTowGpsTime :: Word32 -> GpsTime -> GpsTime
-rolloverTowGpsTime tow t = t & gpsTime_tow .~ tow & rollover
+gpsRolloverGpsTime :: Word32 -> GpsTime -> GpsTime
+gpsRolloverGpsTime tow t = t & gpsTime_tow .~ tow & rollover
   where
     rollover
       | increment = gpsTime_wn +~ 1
@@ -138,8 +155,8 @@ rolloverTowGpsTime tow t = t & gpsTime_tow .~ tow & rollover
 
 -- | Update GPS time based on GLONASS epoch, handling week rollover.
 --
-rolloverEpochGpsTime :: Word32 -> GpsTime -> GpsTime
-rolloverEpochGpsTime epoch t = rolloverTowGpsTime tow t
+glonassRolloverGpsTime :: Word32 -> GpsTime -> GpsTime
+glonassRolloverGpsTime epoch t = gpsRolloverGpsTime tow t
   where
     epoch' = fromIntegral epoch - 3 * hourMillis + gpsLeapMillis
     epoch''
@@ -153,4 +170,42 @@ rolloverEpochGpsTime epoch t = rolloverTowGpsTime tow t
       | otherwise = dow
     increment = epoch'' > tod && epoch'' - tod > dayMillis `div` 2
     decrement = tod > epoch'' && tod - epoch'' > dayMillis `div` 2
-    tow = fromIntegral $ dow' * dayMillis + epoch''
+    tow       = fromIntegral $ dow' * dayMillis + epoch''
+
+-- | Update GPS time based on MSM GLONASS epoch, handling week rollover.
+--
+glonassRolloverGpsTime' :: Word32 -> GpsTime -> GpsTime
+glonassRolloverGpsTime' epoch = glonassRolloverGpsTime epoch'
+  where
+    epoch' = epoch .&. 134217727
+
+-- | Update GPS time based on MSM BeiDou epoch, handling week rollover.
+--
+beidouRolloverGpsTime :: Word32 -> GpsTime -> GpsTime
+beidouRolloverGpsTime epoch = gpsRolloverGpsTime tow
+  where
+    epoch' = fromIntegral epoch + beidouOffsetMillis
+    epoch''
+      | epoch' >= dayMillis = epoch' - dayMillis
+      | otherwise           = epoch'
+    tow = fromIntegral epoch''
+
+-- | Monadic IORef modify.
+--
+modifyIORefM :: MonadIO m => IORef a -> (a -> m (a, b)) -> m b
+modifyIORefM ref f = do
+  x      <- liftIO $ readIORef ref
+  (y, z) <- f x
+  liftIO $ writeIORef ref y
+  pure z
+
+-- | Update and convert stored and incoming GPS times.
+--
+toGpsTime :: MonadStore e m => Word16 -> (GpsTime -> GpsTime) -> m (GpsTime, GpsTime)
+toGpsTime station rollover = do
+  timeMap <- view storeGpsTimeMap
+  modifyIORefM timeMap $ \timeMap' -> do
+    time <- view storeCurrentGpsTime
+    t    <- maybe (liftIO time) pure (timeMap' ^. at station)
+    let t' = rollover t
+    pure (timeMap' & at station ?~ t', (t, t'))

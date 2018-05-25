@@ -28,26 +28,6 @@ import Data.Vector          hiding (concatMap, length)
 import Data.Word
 import SwiftNav.SBP
 
--- | Monadic IORef modify.
---
-modifyIORefM :: MonadIO m => IORef a -> (a -> m (a, b)) -> m b
-modifyIORefM ref f = do
-  x      <- liftIO $ readIORef ref
-  (y, z) <- f x
-  liftIO $ writeIORef ref y
-  pure z
-
--- | Update and convert stored and incoming GPS times.
---
-toGpsTime :: MonadStore e m => Word16 -> (GpsTime -> GpsTime) -> m (GpsTime, GpsTime)
-toGpsTime station rollover = do
-  timeMap <- view storeGpsTimeMap
-  modifyIORefM timeMap $ \timeMap' -> do
-    time <- view storeCurrentGpsTime
-    t    <- maybe (liftIO time) pure (timeMap' ^. at station)
-    let t' = rollover t
-    pure (timeMap' & at station ?~ t', (t, t'))
-
 -- | Default observation doppler.
 --
 obsDoppler :: Doppler
@@ -310,25 +290,25 @@ class FromObservations a where
   synchronous       :: a -> Bool
 
 instance FromObservations Msg1002 where
-  gpsTime m         = toGpsTime (m ^. msg1002_header . gpsObservationHeader_station) $ rolloverTowGpsTime (m ^. msg1002_header . gpsObservationHeader_tow)
+  gpsTime m         = toGpsTime (m ^. msg1002_header . gpsObservationHeader_station) $ gpsRolloverGpsTime (m ^. msg1002_header . gpsObservationHeader_tow)
   packedObsContents = toPackedObsContent . view msg1002_observations
   sender            = toSender . view (msg1002_header . gpsObservationHeader_station)
   synchronous       = view (msg1002_header . gpsObservationHeader_synchronous)
 
 instance FromObservations Msg1004 where
-  gpsTime m         = toGpsTime (m ^. msg1004_header . gpsObservationHeader_station) $ rolloverTowGpsTime (m ^. msg1004_header . gpsObservationHeader_tow)
+  gpsTime m         = toGpsTime (m ^. msg1004_header . gpsObservationHeader_station) $ gpsRolloverGpsTime (m ^. msg1004_header . gpsObservationHeader_tow)
   packedObsContents = toPackedObsContent . view msg1004_observations
   sender            = toSender . view (msg1004_header . gpsObservationHeader_station)
   synchronous       = view (msg1004_header . gpsObservationHeader_synchronous)
 
 instance FromObservations Msg1010 where
-  gpsTime m         = toGpsTime (m ^. msg1010_header . glonassObservationHeader_station) $ rolloverEpochGpsTime (m ^. msg1010_header . glonassObservationHeader_epoch)
+  gpsTime m         = toGpsTime (m ^. msg1010_header . glonassObservationHeader_station) $ glonassRolloverGpsTime (m ^. msg1010_header . glonassObservationHeader_epoch)
   packedObsContents = toPackedObsContent . view msg1010_observations
   sender            = toSender . view (msg1010_header . glonassObservationHeader_station)
   synchronous       = view (msg1010_header . glonassObservationHeader_synchronous)
 
 instance FromObservations Msg1012 where
-  gpsTime m         = toGpsTime (m ^. msg1012_header . glonassObservationHeader_station) $ rolloverEpochGpsTime (m ^. msg1012_header . glonassObservationHeader_epoch)
+  gpsTime m         = toGpsTime (m ^. msg1012_header . glonassObservationHeader_station) $ glonassRolloverGpsTime (m ^. msg1012_header . glonassObservationHeader_epoch)
   packedObsContents = toPackedObsContent . view msg1012_observations
   sender            = toSender . view (msg1012_header . glonassObservationHeader_station)
   synchronous       = view (msg1012_header . glonassObservationHeader_synchronous)
