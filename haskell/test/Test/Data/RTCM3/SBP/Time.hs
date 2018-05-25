@@ -17,19 +17,19 @@ testRolloverGpsTime :: TestTree
 testRolloverGpsTime =
   testGroup "Rollover GPS time tests"
     [ testCase "No rollover" $ do
-        rolloverTowGpsTime 0 (GpsTime 0 0 1960) @?= GpsTime 0 0 1960
-        rolloverTowGpsTime 302400000 (GpsTime 302400000 0 1960) @?= GpsTime 302400000 0 1960
-        rolloverTowGpsTime 604800000 (GpsTime 604800000 0 1960) @?= GpsTime 604800000 0 1960
-        rolloverTowGpsTime 0 (GpsTime 302400000 0 1960) @?= GpsTime 0 0 1960
-        rolloverTowGpsTime 302400000 (GpsTime 604800000 0 1960) @?= GpsTime 302400000 0 1960
+        gpsRolloverGpsTime 0 (GpsTime 0 0 1960) @?= GpsTime 0 0 1960
+        gpsRolloverGpsTime 302400000 (GpsTime 302400000 0 1960) @?= GpsTime 302400000 0 1960
+        gpsRolloverGpsTime 604800000 (GpsTime 604800000 0 1960) @?= GpsTime 604800000 0 1960
+        gpsRolloverGpsTime 0 (GpsTime 302400000 0 1960) @?= GpsTime 0 0 1960
+        gpsRolloverGpsTime 302400000 (GpsTime 604800000 0 1960) @?= GpsTime 302400000 0 1960
     , testCase "Positive rollover" $ do
-        rolloverTowGpsTime 0 (GpsTime 302400001 0 1960) @?= GpsTime 0 0 1961
-        rolloverTowGpsTime 0 (GpsTime 604800000 0 1960) @?= GpsTime 0 0 1961
-        rolloverTowGpsTime 302399999 (GpsTime 604800000 0 1960) @?= GpsTime 302399999 0 1961
+        gpsRolloverGpsTime 0 (GpsTime 302400001 0 1960) @?= GpsTime 0 0 1961
+        gpsRolloverGpsTime 0 (GpsTime 604800000 0 1960) @?= GpsTime 0 0 1961
+        gpsRolloverGpsTime 302399999 (GpsTime 604800000 0 1960) @?= GpsTime 302399999 0 1961
     , testCase "Negative rollover" $ do
-        rolloverTowGpsTime 604800000 (GpsTime 0 0 1961) @?= GpsTime 604800000 0 1960
-        rolloverTowGpsTime 604800000 (GpsTime 302399999 0 1961) @?= GpsTime 604800000 0 1960
-        rolloverTowGpsTime 302400001 (GpsTime 0 0 1961) @?= GpsTime 302400001 0 1960
+        gpsRolloverGpsTime 604800000 (GpsTime 0 0 1961) @?= GpsTime 604800000 0 1960
+        gpsRolloverGpsTime 604800000 (GpsTime 302399999 0 1961) @?= GpsTime 604800000 0 1960
+        gpsRolloverGpsTime 302400001 (GpsTime 0 0 1961) @?= GpsTime 302400001 0 1960
     ]
 
 testStartDate :: TestTree
