@@ -922,6 +922,12 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
 
   gps_time_sec_t obs_time;
   if (CONSTELLATION_GLO == cons) {
+    if (!state->leap_second_known) {
+      /* cannot use the GLO measurements without leap second, clear the buffer
+       * and exit */
+      memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
+      return;
+    }
     compute_glo_time(new_rtcm_obs->header.tow_ms,
                      &obs_time,
                      &state->time_from_rover_obs,
