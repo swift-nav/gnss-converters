@@ -992,8 +992,8 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
         break;
       }
 
-      u16 len = SBP_HDR_SIZE + (obs_index_buffer + 1) * SBP_OBS_SIZE;
-      assert(len <= OBS_BUFFER_SIZE);
+      assert(SBP_HDR_SIZE + (obs_index_buffer + 1) * SBP_OBS_SIZE <=
+             OBS_BUFFER_SIZE);
 
       sbp_obs_buffer->obs[obs_index_buffer] = new_sbp_obs->obs[obs_count];
       obs_index_buffer++;
