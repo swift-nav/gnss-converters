@@ -53,7 +53,7 @@ toCells hdr =
 
 toGpsSat :: Word8 -> Maybe Word8
 toGpsSat sat
-  | sat == 64 = Nothing
+  | sat >= 64 = Nothing
   | otherwise = Just sat
 
 toGpsCode :: Word8 -> Maybe Word8
