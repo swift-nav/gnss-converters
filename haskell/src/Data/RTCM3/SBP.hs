@@ -26,6 +26,7 @@ import           Data.RTCM3
 import qualified Data.RTCM3.SBP.Biases       as Biases
 import qualified Data.RTCM3.SBP.Ephemerides  as Ephemerides
 import qualified Data.RTCM3.SBP.Logging      as Logging
+import qualified Data.RTCM3.SBP.MSM          as MSM
 import qualified Data.RTCM3.SBP.Observations as Observations
 import qualified Data.RTCM3.SBP.Positions    as Positions
 import qualified Data.RTCM3.SBP.SSR          as SSR
@@ -46,6 +47,30 @@ converter = \case
   (RTCM3Msg1019 m _rtcm3) -> Ephemerides.gpsConverter m
   (RTCM3Msg1020 m _rtcm3) -> Ephemerides.glonassConverter m
   (RTCM3Msg1029 m _rtcm3) -> Logging.converter m
+  (RTCM3Msg1074 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1075 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1076 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1077 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1084 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1085 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1086 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1087 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1094 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1095 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1096 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1097 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1104 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1105 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1106 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1107 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1114 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1115 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1116 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1117 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1124 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1125 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1126 m _rtcm3) -> MSM.converter m
+  (RTCM3Msg1127 m _rtcm3) -> MSM.converter m
   (RTCM3Msg1230 m _rtcm3) -> Biases.converter m
   (RTCM3Msg1060 m _rtcm3) -> SSR.gpsOrbitClockConverter m
   (RTCM3Msg1066 m _rtcm3) -> SSR.glonassOrbitClockConverter m
