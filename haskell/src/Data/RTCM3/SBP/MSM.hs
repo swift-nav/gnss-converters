@@ -51,6 +51,11 @@ toCells hdr =
     sig <- zip [0..] $ mask (hdr ^. msmHeader_signalMask)
     pure (sat, sig)
 
+toGpsSat :: Word8 -> Maybe Word8
+toGpsSat sat
+  | sat == 64 = Nothing
+  | otherwise = Just sat
+
 toGpsCode :: Word8 -> Maybe Word8
 toGpsCode sig
   | sig == 2  = Just 0
@@ -65,11 +70,10 @@ toGpsCode sig
   | otherwise = Nothing
 
 toGpsSignal :: Word8 -> Word8 -> Maybe GnssSignal
-toGpsSignal sat sig
-  | sat == 64 = Nothing
-  | otherwise = do
-      code <- toGpsCode sig
-      Just $ GnssSignal sat code
+toGpsSignal sat sig = do
+  sat' <- toGpsSat sat
+  code <- toGpsCode sig
+  Just $ GnssSignal sat' code
 
 toPackedObsContent :: MsmHeader -> Msm46SatelliteData -> Msm4SignalData -> (Int, Word8) -> (Int, Word8) -> Maybe PackedObsContent
 toPackedObsContent hdr satData sigData (satIndex, sat) (sigIndex, sig) = do
@@ -78,8 +82,8 @@ toPackedObsContent hdr satData sigData (satIndex, sat) (sigIndex, sig) = do
     { _packedObsContent_P     = undefined
     , _packedObsContent_L     = undefined
     , _packedObsContent_D     = undefined
-    , _packedObsContent_cn0   = undefined
-    , _packedObsContent_lock  = undefined
+    , _packedObsContent_cn0   = (sigData ^. msm4SignalData_cnrs) !! sigIndex
+    , _packedObsContent_lock  = (sigData ^. msm4SignalData_lockTimes) !! sigIndex
     , _packedObsContent_sid   = sid
     , _packedObsContent_flags = undefined
     }
