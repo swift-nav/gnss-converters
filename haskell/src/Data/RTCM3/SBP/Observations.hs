@@ -145,17 +145,17 @@ gpsL2Signal sat code
 
 -- | Map GLONASS L1 signal.
 --
-glonassL1Signal :: Word8 -> Bool -> Maybe GnssSignal
+glonassL1Signal :: Word8 -> Bool -> GnssSignal
 glonassL1Signal sat code
-  | code      = Just $ GnssSignal sat 3
-  | otherwise = Just $ GnssSignal sat 3
+  | code      = GnssSignal sat 3
+  | otherwise = GnssSignal sat 3
 
 -- | Map GLONASS L2 signal.
 --
-glonassL2Signal :: Word8 -> Word8 -> Maybe GnssSignal
+glonassL2Signal :: Word8 -> Word8 -> GnssSignal
 glonassL2Signal sat code
-  | code == 0 = Just $ GnssSignal sat 4
-  | otherwise = Just $ GnssSignal sat 4
+  | code == 0 = GnssSignal sat 4
+  | otherwise = GnssSignal sat 4
 
 -- | Max GPS satellite number.
 --
@@ -211,15 +211,14 @@ toGpsL2PackedObsContents sat l1o l1eo l2o l2eo
 toGlonassL1PackedObsContents :: Word8 -> GlonassL1Observation -> GlonassL1ExtObservation -> Maybe PackedObsContent
 toGlonassL1PackedObsContents sat l1o l1eo
   | no        = Nothing
-  | otherwise = do
-      sid <- glonassL1Signal sat (l1o ^. glonassL1Observation_code)
+  | otherwise =
       Just PackedObsContent
         { _packedObsContent_P     = toP p1
         , _packedObsContent_L     = toL l1
         , _packedObsContent_D     = obsDoppler
         , _packedObsContent_cn0   = l1eo ^. glonassL1ExtObservation_cnr
         , _packedObsContent_lock  = toLock $ lock (l1o ^. glonassL1Observation_lockTime)
-        , _packedObsContent_sid   = sid
+        , _packedObsContent_sid   = glonassL1Signal sat (l1o ^. glonassL1Observation_code)
         , _packedObsContent_flags = obsFlags
         }
   where
@@ -232,15 +231,14 @@ toGlonassL1PackedObsContents sat l1o l1eo
 toGlonassL2PackedObsContents :: Word8 -> GlonassL1Observation -> GlonassL1ExtObservation -> GlonassL2Observation -> GlonassL2ExtObservation -> Maybe PackedObsContent
 toGlonassL2PackedObsContents sat l1o l1eo l2o l2eo
   | no        = Nothing
-  | otherwise = do
-      sid <- glonassL2Signal sat (l2o ^. glonassL2Observation_code)
+  | otherwise =
       Just PackedObsContent
         { _packedObsContent_P     = toP p2
         , _packedObsContent_L     = toL l2
         , _packedObsContent_D     = obsDoppler
         , _packedObsContent_cn0   = l2eo ^. glonassL2ExtObservation_cnr
         , _packedObsContent_lock  = toLock $ lock (l2o ^. glonassL2Observation_lockTime)
-        , _packedObsContent_sid   = sid
+        , _packedObsContent_sid   = glonassL2Signal sat (l2o ^. glonassL2Observation_code)
         , _packedObsContent_flags = obsFlags
         }
   where

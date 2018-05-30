@@ -35,12 +35,54 @@ toSender station = station .|. 61440
 masks :: Bits a => Int -> a -> [b] -> [b]
 masks n a bs = fst <$> filter snd (zip bs $ testBit a <$> [n,n-1..0])
 
-mask :: (FiniteBits a, Num b, Enum b) => a -> [b]
-mask n = masks (finiteBitSize n-1) n [1..]
+mask :: FiniteBits a => a -> [Word8]
+mask n = masks (finiteBitSize n-1) n [(1::Word8)..]
 
-done :: (Enum a, Num a, Enum b, Num b) => Word64 -> Word32 -> Word64 -> [(a, b)]
-done sats sigs cells = masks (popCount sats * popCount sigs) cells
-  [(sat, sig) | sat <- mask sats, sig <- mask sigs]
+_cellsMask :: Word64 -> Word32 -> Word64 -> [((Int, Word8), (Int, Word8))]
+_cellsMask sats sigs cells = masks (popCount sats * popCount sigs) cells $ do
+  sat <- zip [0..] $ mask sats
+  sig <- zip [0..] $ mask sigs
+  pure (sat, sig)
+
+toCells :: MsmHeader -> [((Int, Word8), (Int, Word8))]
+toCells hdr =
+  masks (popCount (hdr ^. msmHeader_satelliteMask) * popCount (hdr ^. msmHeader_signalMask)) (hdr ^. msmHeader_cellMask) $ do
+    sat <- zip [0..] $ mask (hdr ^. msmHeader_satelliteMask)
+    sig <- zip [0..] $ mask (hdr ^. msmHeader_signalMask)
+    pure (sat, sig)
+
+toGpsCode :: Word8 -> Maybe Word8
+toGpsCode sig
+  | sig == 2  = Just 0
+  | sig == 3  = Just 5
+  | sig == 9  = Just 6
+  | sig == 15 = Just 1
+  | sig == 16 = Just 7
+  | sig == 17 = Just 8
+  | sig == 22 = Just 9
+  | sig == 23 = Just 10
+  | sig == 24 = Just 11
+  | otherwise = Nothing
+
+toGpsSignal :: Word8 -> Word8 -> Maybe GnssSignal
+toGpsSignal sat sig
+  | sat == 64 = Nothing
+  | otherwise = do
+      code <- toGpsCode sig
+      Just $ GnssSignal sat code
+
+toPackedObsContent :: MsmHeader -> Msm46SatelliteData -> Msm4SignalData -> (Int, Word8) -> (Int, Word8) -> Maybe PackedObsContent
+toPackedObsContent hdr satData sigData (satIndex, sat) (sigIndex, sig) = do
+  sid <- toGpsSignal sat sig
+  Just PackedObsContent
+    { _packedObsContent_P     = undefined
+    , _packedObsContent_L     = undefined
+    , _packedObsContent_D     = undefined
+    , _packedObsContent_cn0   = undefined
+    , _packedObsContent_lock  = undefined
+    , _packedObsContent_sid   = sid
+    , _packedObsContent_flags = undefined
+    }
 
 class FromObservations a where
   gpsTime           :: MonadStore e m => a -> m (GpsTime, GpsTime)
@@ -49,10 +91,10 @@ class FromObservations a where
   multiple          :: a -> Bool
 
 instance FromObservations Msg1074 where
-  gpsTime m         = toGpsTime (m ^. msg1074_header . msmHeader_station) $ gpsRolloverGpsTime (m ^. msg1074_header . msmHeader_epoch)
-  packedObsContents = const mempty
-  sender            = toSender . view (msg1074_header . msmHeader_station)
-  multiple          = view (msg1074_header . msmHeader_multiple)
+  gpsTime m           = toGpsTime (m ^. msg1074_header . msmHeader_station) $ gpsRolloverGpsTime (m ^. msg1074_header . msmHeader_epoch)
+  packedObsContents m = catMaybes $ uncurry (toPackedObsContent (m ^. msg1074_header) (m ^. msg1074_satelliteData) (m ^. msg1074_signalData)) <$> toCells (m ^. msg1074_header)
+  sender              = toSender . view (msg1074_header . msmHeader_station)
+  multiple            = view (msg1074_header . msmHeader_multiple)
 
 instance FromObservations Msg1075 where
   gpsTime m         = toGpsTime (m ^. msg1075_header . msmHeader_station) $ gpsRolloverGpsTime (m ^. msg1075_header . msmHeader_epoch)
