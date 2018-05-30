@@ -19,11 +19,11 @@ import Control.Lens
 import Data.Bits
 import Data.Conduit
 import Data.IORef
-import Data.List.Extra      hiding (null)
+import Data.List.Extra      hiding (filter, null, zip)
 import Data.RTCM3
 import Data.RTCM3.SBP.Time
 import Data.RTCM3.SBP.Types
-import Data.Vector          hiding (length)
+import Data.Vector          hiding (filter, length, zip)
 import Data.Word
 import SwiftNav.SBP
 
@@ -31,6 +31,16 @@ import SwiftNav.SBP
 --
 toSender :: Word16 -> Word16
 toSender station = station .|. 61440
+
+masks :: Bits a => Int -> a -> [b] -> [b]
+masks n a bs = fst <$> filter snd (zip bs $ testBit a <$> [n,n-1..0])
+
+mask :: (FiniteBits a, Num b, Enum b) => a -> [b]
+mask n = masks (finiteBitSize n-1) n [1..]
+
+done :: (Enum a, Num a, Enum b, Num b) => Word64 -> Word32 -> Word64 -> [(a, b)]
+done sats sigs cells = masks (popCount sats * popCount sigs) cells
+  [(sat, sig) | sat <- mask sats, sig <- mask sigs]
 
 class FromObservations a where
   gpsTime           :: MonadStore e m => a -> m (GpsTime, GpsTime)
