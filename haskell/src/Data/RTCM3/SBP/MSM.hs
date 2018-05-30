@@ -75,18 +75,61 @@ toGpsSignal sat sig = do
   code <- toGpsCode sig
   Just $ GnssSignal sat' code
 
-toPackedObsContent :: MsmHeader -> Msm46SatelliteData -> Msm4SignalData -> (Int, Word8) -> (Int, Word8) -> Maybe PackedObsContent
-toPackedObsContent hdr satData sigData (satIndex, sat) (sigIndex, sig) = do
-  sid <- toGpsSignal sat sig
+-- | Convert to SBP pseudorange.
+--
+toP :: Double -> Word32
+toP p = round $ 50 * p
+
+-- | Convert to SBP carrier-phase measurement.
+--
+toL :: Double -> CarrierPhase
+toL l = if f /= 256 then CarrierPhase i (fromIntegral f) else CarrierPhase (i + 1) 0
+  where
+    i = floor l
+    f = (round $ (l - fromIntegral i) * 256) :: Word16
+
+-- | GPS pseudorange unit.
+--
+gpsPseudorange :: Double
+gpsPseudorange = 299792.458
+
+toD :: Doppler
+toD = Doppler 0 0
+
+toGpsFrequency :: Word8 -> Maybe Double
+toGpsFrequency sig
+  | sig == 2  = Just 1.57542e9
+  | sig == 3  = Just 1.57542e9
+  | sig == 9  = Just 1.22760e9
+  | sig == 15 = Just 1.22760e9
+  | sig == 16 = Just 1.22760e9
+  | sig == 17 = Just 1.22760e9
+  | sig == 22 = Just (115 * 10.23e6)
+  | sig == 23 = Just (115 * 10.23e6)
+  | sig == 24 = Just (115 * 10.23e6)
+  | otherwise = Nothing
+
+toPackedObsContent :: Msm46SatelliteData -> Msm4SignalData -> (Int, Word8) -> (Int, Word8) -> Maybe PackedObsContent
+toPackedObsContent satData sigData (satIndex, sat) (sigIndex, sig) = do
+  sid  <- toGpsSignal sat sig
+  freq <- toGpsFrequency sig
   Just PackedObsContent
-    { _packedObsContent_P     = undefined
-    , _packedObsContent_L     = undefined
-    , _packedObsContent_D     = undefined
+    { _packedObsContent_P     = toP (roughPseudorange + finePseudorange)
+    , _packedObsContent_L     = toL ((roughPseudorange + finePhaserange) * (freq / 299792458.0))
+    , _packedObsContent_D     = toD
     , _packedObsContent_cn0   = (sigData ^. msm4SignalData_cnrs) !! sigIndex
     , _packedObsContent_lock  = (sigData ^. msm4SignalData_lockTimes) !! sigIndex
     , _packedObsContent_sid   = sid
-    , _packedObsContent_flags = undefined
+    , _packedObsContent_flags = pseudorangeValid .|. phaseValid .|. halfCycleResolved
     }
+  where
+    pseudorangeValid  = 1
+    phaseValid        = 2
+    halfCycleResolved = bool 0 4 $ (sigData ^. msm4SignalData_halfCycles) !! sigIndex
+    roughPseudorange  = fromIntegral ((satData ^. msm46SatelliteData_ranges) !! satIndex) * gpsPseudorange +
+                        fromIntegral ((satData ^. msm46SatelliteData_rangesModulo) !! satIndex) / (1024 * gpsPseudorange)
+    finePseudorange   = fromIntegral ((sigData ^. msm4SignalData_pseudoranges) !! sigIndex) * gpsPseudorange * (2 ** (-24))
+    finePhaserange    = fromIntegral ((sigData ^. msm4SignalData_phaseranges) !! sigIndex) * gpsPseudorange * (2 ** (-29))
 
 class FromObservations a where
   gpsTime           :: MonadStore e m => a -> m (GpsTime, GpsTime)
@@ -96,7 +139,7 @@ class FromObservations a where
 
 instance FromObservations Msg1074 where
   gpsTime m           = toGpsTime (m ^. msg1074_header . msmHeader_station) $ gpsRolloverGpsTime (m ^. msg1074_header . msmHeader_epoch)
-  packedObsContents m = catMaybes $ uncurry (toPackedObsContent (m ^. msg1074_header) (m ^. msg1074_satelliteData) (m ^. msg1074_signalData)) <$> toCells (m ^. msg1074_header)
+  packedObsContents m = catMaybes $ uncurry (toPackedObsContent (m ^. msg1074_satelliteData) (m ^. msg1074_signalData)) <$> toCells (m ^. msg1074_header)
   sender              = toSender . view (msg1074_header . msmHeader_station)
   multiple            = view (msg1074_header . msmHeader_multiple)
 
