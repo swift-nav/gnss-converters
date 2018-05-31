@@ -33,10 +33,10 @@ toSender :: Word16 -> Word16
 toSender station = station .|. 61440
 
 masks :: Bits a => Int -> a -> [b] -> [b]
-masks n a bs = fst <$> filter snd (zip bs $ testBit a <$> [n,n-1..0])
+masks n a bs = fst <$> filter snd (zip bs $ testBit a <$> [n-1,n-2..0])
 
 mask :: FiniteBits a => a -> [Word8]
-mask n = masks (finiteBitSize n-1) n [(1::Word8)..]
+mask n = masks (finiteBitSize n) n [1..]
 
 toCells :: MsmHeader -> [((Int, Word8), (Int, Word8))]
 toCells hdr =
