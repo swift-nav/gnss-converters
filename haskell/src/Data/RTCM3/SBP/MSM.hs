@@ -167,7 +167,7 @@ toPackedObsContent1074 satData sigData (satIndex, sat) (sigIndex, sig) = do
   where
     pseudorangeValid  = 1
     phaseValid        = 2
-    halfCycleResolved = bool 0 4 $ (sigData ^. msm4SignalData_halfCycles) !! sigIndex
+    halfCycleResolved = bool 4 0 $ (sigData ^. msm4SignalData_halfCycles) !! sigIndex
     roughPseudorange  = fromIntegral ((satData ^. msm46SatelliteData_ranges) !! satIndex) * gpsPseudorange +
                         fromIntegral ((satData ^. msm46SatelliteData_rangesModulo) !! satIndex) * gpsPseudorange / 1024
     finePseudorange   = fromIntegral ((sigData ^. msm4SignalData_pseudoranges) !! sigIndex) * gpsPseudorange * (2 ** (-24))
@@ -189,7 +189,7 @@ toPackedObsContent1077 satData sigData (satIndex, sat) (sigIndex, sig) = do
   where
     pseudorangeValid  = 1
     phaseValid        = 2
-    halfCycleResolved = bool 0 4 $ (sigData ^. msm7SignalData_halfCycles) !! sigIndex
+    halfCycleResolved = bool 4 0 $ (sigData ^. msm7SignalData_halfCycles) !! sigIndex
     roughPseudorange  = fromIntegral ((satData ^. msm57SatelliteData_ranges) !! satIndex) * gpsPseudorange +
                         fromIntegral ((satData ^. msm57SatelliteData_rangesModulo) !! satIndex) * gpsPseudorange / 1024
     finePseudorange   = fromIntegral ((sigData ^. msm7SignalData_pseudoranges) !! sigIndex) * gpsPseudorange * (2 ** (-29))
