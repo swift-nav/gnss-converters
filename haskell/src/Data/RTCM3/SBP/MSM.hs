@@ -19,11 +19,11 @@ import Control.Lens
 import Data.Bits
 import Data.Conduit
 import Data.IORef
-import Data.List.Extra      hiding (filter, null, zip)
+import Data.List.Extra      hiding (filter, map, null, zip)
 import Data.RTCM3
 import Data.RTCM3.SBP.Time
 import Data.RTCM3.SBP.Types
-import Data.Vector          hiding (filter, length, zip)
+import Data.Vector          hiding (filter, length, map, zip)
 import Data.Word
 import SwiftNav.SBP
 
@@ -40,10 +40,11 @@ mask n = masks (finiteBitSize n) n [1..]
 
 toCells :: MsmHeader -> [((Int, Word8), (Int, Word8))]
 toCells hdr =
-  masks (popCount (hdr ^. msmHeader_satelliteMask) * popCount (hdr ^. msmHeader_signalMask)) (hdr ^. msmHeader_cellMask) $ do
-    sat <- zip [0..] $ mask (hdr ^. msmHeader_satelliteMask)
-    sig <- zip [0..] $ mask (hdr ^. msmHeader_signalMask)
-    pure (sat, sig)
+  map (\(i, (sat, sig)) -> (sat, (i, sig))) $
+    zip [0..] $ masks (popCount (hdr ^. msmHeader_satelliteMask) * popCount (hdr ^. msmHeader_signalMask)) (hdr ^. msmHeader_cellMask) $ do
+      sat <- zip [0..] $ mask (hdr ^. msmHeader_satelliteMask)
+      sig <- mask (hdr ^. msmHeader_signalMask)
+      pure (sat, sig)
 
 toGpsSat :: Word8 -> Maybe Word8
 toGpsSat sat
