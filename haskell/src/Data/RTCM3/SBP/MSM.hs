@@ -46,9 +46,16 @@ toCells hdr =
       sig <- mask (hdr ^. msmHeader_signalMask)
       pure (sat, sig)
 
+
+-- | Max GPS satellite number.
+--
+gpsMaxSat :: Word8
+gpsMaxSat = 32
+
 toGpsSat :: Word8 -> Maybe Word8
 toGpsSat sat
-  | sat >= 64 = Nothing
+  | sat < 1 = Nothing
+  | sat > gpsMaxSat = Nothing
   | otherwise = Just sat
 
 toGpsCode :: Word8 -> Maybe Word8
