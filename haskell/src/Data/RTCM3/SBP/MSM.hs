@@ -46,7 +46,6 @@ toCells hdr =
       sig <- mask (hdr ^. msmHeader_signalMask)
       pure (sat, sig)
 
-
 -- | Max GPS satellite number.
 --
 gpsMaxSat :: Word8
@@ -160,19 +159,24 @@ toLock t
   | otherwise  = 15
 
 toPackedObsContent1074 :: Msm46SatelliteData -> Msm4SignalData -> (Int, Word8) -> (Int, Word8) -> Maybe PackedObsContent
-toPackedObsContent1074 satData sigData (satIndex, sat) (sigIndex, sig) = do
-  sid  <- toGpsSignal sat sig
-  freq <- toGpsFrequency sig
-  Just PackedObsContent
-    { _packedObsContent_P     = toP (roughPseudorange + finePseudorange)
-    , _packedObsContent_L     = toL ((roughPseudorange + finePhaserange) * (freq / 299792458.0))
-    , _packedObsContent_D     = toD
-    , _packedObsContent_cn0   = ((sigData ^. msm4SignalData_cnrs) !! sigIndex) * 4
-    , _packedObsContent_lock  = (sigData ^. msm4SignalData_lockTimes) !! sigIndex
-    , _packedObsContent_sid   = sid
-    , _packedObsContent_flags = pseudorangeValid .|. phaseValid .|. halfCycleResolved
-    }
+toPackedObsContent1074 satData sigData (satIndex, sat) (sigIndex, sig)
+  | no        = Nothing
+  | otherwise = do
+      sid  <- toGpsSignal sat sig
+      freq <- toGpsFrequency sig
+      Just PackedObsContent
+        { _packedObsContent_P     = toP (roughPseudorange + finePseudorange)
+        , _packedObsContent_L     = toL ((roughPseudorange + finePhaserange) * (freq / 299792458.0))
+        , _packedObsContent_D     = toD
+        , _packedObsContent_cn0   = ((sigData ^. msm4SignalData_cnrs) !! sigIndex) * 4
+        , _packedObsContent_lock  = (sigData ^. msm4SignalData_lockTimes) !! sigIndex
+        , _packedObsContent_sid   = sid
+        , _packedObsContent_flags = pseudorangeValid .|. phaseValid .|. halfCycleResolved
+        }
   where
+    no                = ((satData ^. msm46SatelliteData_ranges) !! satIndex) == 255 ||
+                        ((sigData ^. msm4SignalData_pseudoranges) !! sigIndex) == 16384 ||
+                        ((sigData ^. msm4SignalData_phaseranges) !! sigIndex) == 2097152
     pseudorangeValid  = 1
     phaseValid        = 2
     halfCycleResolved = bool 4 0 $ (sigData ^. msm4SignalData_halfCycles) !! sigIndex
@@ -182,19 +186,24 @@ toPackedObsContent1074 satData sigData (satIndex, sat) (sigIndex, sig) = do
     finePhaserange    = fromIntegral ((sigData ^. msm4SignalData_phaseranges) !! sigIndex) * gpsPseudorange * (2 ** (-29))
 
 toPackedObsContent1077 :: Msm57SatelliteData -> Msm7SignalData -> (Int, Word8) -> (Int, Word8) -> Maybe PackedObsContent
-toPackedObsContent1077 satData sigData (satIndex, sat) (sigIndex, sig) = do
-  sid  <- toGpsSignal sat sig
-  freq <- toGpsFrequency sig
-  Just PackedObsContent
-    { _packedObsContent_P     = toP (roughPseudorange + finePseudorange)
-    , _packedObsContent_L     = toL ((roughPseudorange + finePhaserange) * (freq / 299792458.0))
-    , _packedObsContent_D     = toD
-    , _packedObsContent_cn0   = round (fromIntegral ((sigData ^. msm7SignalData_cnrs) !! sigIndex) * ((2 :: Double) ** (-4)) * 4)
-    , _packedObsContent_lock  = toLock $ lock ((sigData ^. msm7SignalData_lockTimes) !! sigIndex)
-    , _packedObsContent_sid   = sid
-    , _packedObsContent_flags = pseudorangeValid .|. phaseValid .|. halfCycleResolved
-    }
+toPackedObsContent1077 satData sigData (satIndex, sat) (sigIndex, sig)
+  | no        = Nothing
+  | otherwise = do
+      sid  <- toGpsSignal sat sig
+      freq <- toGpsFrequency sig
+      Just PackedObsContent
+        { _packedObsContent_P     = toP (roughPseudorange + finePseudorange)
+        , _packedObsContent_L     = toL ((roughPseudorange + finePhaserange) * (freq / 299792458.0))
+        , _packedObsContent_D     = toD
+        , _packedObsContent_cn0   = round (fromIntegral ((sigData ^. msm7SignalData_cnrs) !! sigIndex) * ((2 :: Double) ** (-4)) * 4)
+        , _packedObsContent_lock  = toLock $ lock ((sigData ^. msm7SignalData_lockTimes) !! sigIndex)
+        , _packedObsContent_sid   = sid
+        , _packedObsContent_flags = pseudorangeValid .|. phaseValid .|. halfCycleResolved
+        }
   where
+    no                = ((satData ^. msm57SatelliteData_ranges) !! satIndex) == 255 ||
+                        ((sigData ^. msm7SignalData_pseudoranges) !! sigIndex) == 524288 ||
+                        ((sigData ^. msm7SignalData_phaseranges) !! sigIndex) == 8388608
     pseudorangeValid  = 1
     phaseValid        = 2
     halfCycleResolved = bool 4 0 $ (sigData ^. msm7SignalData_halfCycles) !! sigIndex
