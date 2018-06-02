@@ -222,7 +222,7 @@ toGlonassL1PackedObsContents sat l1o l1eo
         , _packedObsContent_flags = obsFlags
         }
   where
-    no = sat < 1 || sat > glonassMaxSat || l1o ^. glonassL1Observation_frequency < 0 || l1o ^. glonassL1Observation_frequency > 13 || l1o ^. glonassL1Observation_carrierMinusCode == -524288
+    no = sat < 1 || sat > glonassMaxSat || l1o ^. glonassL1Observation_frequency > 20 || l1o ^. glonassL1Observation_carrierMinusCode == -524288
     p1 = pseudorange glonassPseudorange (l1o ^. glonassL1Observation_pseudorange) (l1eo ^. glonassL1ExtObservation_ambiguity)
     l1 = carrierPhase (glonassL1CarrierPhase (l1o ^. glonassL1Observation_frequency)) p1 (l1o ^. glonassL1Observation_carrierMinusCode)
 
@@ -242,7 +242,7 @@ toGlonassL2PackedObsContents sat l1o l1eo l2o l2eo
         , _packedObsContent_flags = obsFlags
         }
   where
-    no = sat < 1 || sat > glonassMaxSat || l1o ^. glonassL1Observation_frequency < 0 || l1o ^. glonassL1Observation_frequency > 13 || l2o ^. glonassL2Observation_pseudorangeDifference == -8192 || l2o ^. glonassL2Observation_carrierMinusCode == -524288
+    no = sat < 1 || sat > glonassMaxSat || l1o ^. glonassL1Observation_frequency > 20 || l2o ^. glonassL2Observation_pseudorangeDifference == -8192 || l2o ^. glonassL2Observation_carrierMinusCode == -524288
     p1 = pseudorange glonassPseudorange (l1o ^. glonassL1Observation_pseudorange) (l1eo ^. glonassL1ExtObservation_ambiguity)
     p2 = p1 + pseudorangeDifference (l2o ^. glonassL2Observation_pseudorangeDifference)
     l2 = carrierPhase (glonassL2CarrierPhase (l1o ^. glonassL1Observation_frequency)) p1 (l2o ^. glonassL2Observation_carrierMinusCode)
