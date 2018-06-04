@@ -196,7 +196,7 @@ gpsConverter m = do
               , _msgEphemerisGps_iode     =                 m ^. msg1019_ephemeris . gpsEphemeris_iode
               , _msgEphemerisGps_toc      = toc
               }
-  yield [SBPMsgEphemerisGps m' $ toSBP m' 61440]
+  yield [SBPMsgEphemerisGps m' $ toSBP m' 61568]
 
 -- | Convert an RTCM 1020 GLONASS ephemeris message into an SBP MsgEphemerisGlo.
 --
@@ -226,4 +226,4 @@ glonassConverter m = do
              , _msgEphemerisGlo_fcn    = (m ^. msg1020_header . glonassEphemerisHeader_channel) + 1
              , _msgEphemerisGlo_iod    = ((m ^. msg1020_ephemeris . glonassEphemeris_tb) * 15 * 60) .&. 127
              }
-  yield [SBPMsgEphemerisGlo m' $ toSBP m' 61440]
+  yield [SBPMsgEphemerisGlo m' $ toSBP m' 61568]

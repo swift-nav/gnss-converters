@@ -25,7 +25,7 @@ import SwiftNav.SBP
 -- | Derive sender from station.
 --
 toSender :: Word16 -> Word16
-toSender station = station .|. 61440
+toSender station = station .|. 61568
 
 -- | FromPosition produces ecef x, y, x and sender values from RTCMv3 position messages.
 --

@@ -27,7 +27,7 @@ import SwiftNav.SBP
 -- | Derive sender from station.
 --
 toSender :: Word16 -> Word16
-toSender station = station .|. 61440
+toSender station = station .|. 61568
 
 -- | Convert an RTCM 1029 text message into an SBP MsgLog message.
 --

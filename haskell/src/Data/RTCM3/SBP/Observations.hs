@@ -277,7 +277,7 @@ toPackedObsContent = concatMap $ (<>) <$> maybeToList . l1PackedObsContents <*> 
 -- | Derive sender from station.
 --
 toSender :: Word16 -> Word16
-toSender station = station .|. 61440
+toSender station = station .|. 61568
 
 -- | FromObservations produces GPS time, SBP packed observations, and sender from RTCMv3 observation messages.
 --

@@ -28,7 +28,7 @@ import SwiftNav.SBP
 -- | Derive sender from station.
 --
 toSender :: Word16 -> Word16
-toSender station = station .|. 61440
+toSender station = station .|. 61568
 
 -- | Expand out array of biases.
 --
