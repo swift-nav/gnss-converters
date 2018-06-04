@@ -73,7 +73,7 @@ gpsOrbitClockConverter m = do
              , _msgSsrOrbitClock_c1              = c ^. gpsOrbitClockCorrection_deltaClockC1
              , _msgSsrOrbitClock_c2              = c ^. gpsOrbitClockCorrection_deltaClockC2
              }
-    SBPMsgSsrOrbitClock m' $ toSBP m' 61440
+    SBPMsgSsrOrbitClock m' $ toSBP m' 61568
 
 glonassOrbitClockConverter :: MonadStore e m => Msg1066 -> Conduit i m [SBPMsg]
 glonassOrbitClockConverter m = do
@@ -98,7 +98,7 @@ glonassOrbitClockConverter m = do
              , _msgSsrOrbitClock_c1              = c ^. glonassOrbitClockCorrection_deltaClockC1
              , _msgSsrOrbitClock_c2              = c ^. glonassOrbitClockCorrection_deltaClockC2
              }
-    SBPMsgSsrOrbitClock m' $ toSBP m' 61440
+    SBPMsgSsrOrbitClock m' $ toSBP m' 61568
 
 gpsCodeBiasConverter :: MonadStore e m => Msg1059 -> Conduit i m [SBPMsg]
 gpsCodeBiasConverter m = do
@@ -117,7 +117,7 @@ gpsCodeBiasConverter m = do
                , _codeBiasesContent_value = b ^. gpsCodeBias_codeBias
                }
              }
-    SBPMsgSsrCodeBiases m' $ toSBP m' 61440
+    SBPMsgSsrCodeBiases m' $ toSBP m' 61568
 
 glonassCodeBiasConverter :: MonadStore e m => Msg1065 -> Conduit i m [SBPMsg]
 glonassCodeBiasConverter m = do
@@ -136,7 +136,7 @@ glonassCodeBiasConverter m = do
                , _codeBiasesContent_value = b ^. glonassCodeBias_codeBias
                }
              }
-    SBPMsgSsrCodeBiases m' $ toSBP m' 61440
+    SBPMsgSsrCodeBiases m' $ toSBP m' 61568
 
 gpsPhaseBiasConverter :: MonadStore e m => Msg1265 -> Conduit i m [SBPMsg]
 gpsPhaseBiasConverter m = do
@@ -162,7 +162,7 @@ gpsPhaseBiasConverter m = do
                , _phaseBiasesContent_bias                       = b ^. gpsPhaseBias_phaseBias
                }
              }
-    SBPMsgSsrPhaseBiases m' $ toSBP m' 61440
+    SBPMsgSsrPhaseBiases m' $ toSBP m' 61568
 
 glonassPhaseBiasConverter :: MonadStore e m => Msg1266 -> Conduit i m [SBPMsg]
 glonassPhaseBiasConverter m = do
@@ -188,4 +188,4 @@ glonassPhaseBiasConverter m = do
                , _phaseBiasesContent_bias                       = b ^. glonassPhaseBias_phaseBias
                }
              }
-    SBPMsgSsrPhaseBiases m' $ toSBP m' 61440
+    SBPMsgSsrPhaseBiases m' $ toSBP m' 61568
