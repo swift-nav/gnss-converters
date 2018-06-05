@@ -62,6 +62,7 @@ toGpsCode sig
   | sig == 2  = Just 0
   | sig == 3  = Just 5
   | sig == 9  = Just 6
+  | sig == 10 = Just 6
   | sig == 15 = Just 1
   | sig == 16 = Just 7
   | sig == 17 = Just 1
