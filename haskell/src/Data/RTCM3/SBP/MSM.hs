@@ -103,6 +103,7 @@ toGpsFrequency sig
   | sig == 2  = Just 1.57542e9
   | sig == 3  = Just 1.57542e9
   | sig == 9  = Just 1.22760e9
+  | sig == 10 = Just 1.22760e9
   | sig == 15 = Just 1.22760e9
   | sig == 16 = Just 1.22760e9
   | sig == 17 = Just 1.22760e9
