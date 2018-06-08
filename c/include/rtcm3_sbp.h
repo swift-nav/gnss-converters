@@ -35,6 +35,9 @@
 /* MAX valid value (ms) for GPS is 604799999 and GLO is 86401999 */
 #define INVALID_TIME 0xFFFF
 
+#define SBP_GLO_FCN_OFFSET 8
+#define SBP_GLO_FCN_UNKNOWN 0
+
 struct rtcm3_sbp_state {
   gps_time_sec_t time_from_rover_obs;
   bool gps_time_updated;
@@ -49,6 +52,8 @@ struct rtcm3_sbp_state {
   void (*cb_base_obs_invalid)(double time_diff);
   u8 obs_buffer[OBS_BUFFER_SIZE];
   bool sent_msm_warning;
+  /* GLO FCN map, indexed by 1-based PRN */
+  u8 glo_sv_id_fcn_map[GLO_LAST_PRN + 1];
 };
 
 void rtcm2sbp_decode_frame(const uint8_t *frame,
@@ -59,6 +64,10 @@ void rtcm2sbp_set_gps_time(gps_time_sec_t *current_time,
                            struct rtcm3_sbp_state *state);
 
 void rtcm2sbp_set_leap_second(s8 leap_seconds, struct rtcm3_sbp_state *state);
+
+void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
+                          u8 fcn,
+                          struct rtcm3_sbp_state *state);
 
 void rtcm2sbp_init(
     struct rtcm3_sbp_state *state,

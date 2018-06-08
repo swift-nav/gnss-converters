@@ -15,6 +15,7 @@
 #include <math.h>
 #include <rtcm3_decode.h>
 #include <rtcm3_msm_utils.h>
+#include <stdio.h>
 #include <string.h>
 #include "rtcm3_sbp_internal.h"
 
@@ -47,6 +48,10 @@ void rtcm2sbp_init(
   state->last_msm_received.tow = 0;
 
   state->sent_msm_warning = false;
+
+  for (u8 i = 0; i < GLO_LAST_PRN + 1; i++) {
+    state->glo_sv_id_fcn_map[i] = MSM_GLO_FCN_UNKNOWN;
+  }
 
   memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
 }
@@ -187,7 +192,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     case 1114:
     case 1124: {
       rtcm_msm_message new_rtcm_msm;
-      if (RC_OK == rtcm3_decode_msm4(&frame[byte], &new_rtcm_msm)) {
+      if (RC_OK == rtcm3_decode_msm4(
+                       &frame[byte], state->glo_sv_id_fcn_map, &new_rtcm_msm)) {
         add_msm_obs_to_buffer(&new_rtcm_msm, state);
       }
       break;
@@ -211,7 +217,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     case 1116:
     case 1126: {
       rtcm_msm_message new_rtcm_msm;
-      if (RC_OK == rtcm3_decode_msm6(&frame[byte], &new_rtcm_msm)) {
+      if (RC_OK == rtcm3_decode_msm6(
+                       &frame[byte], state->glo_sv_id_fcn_map, &new_rtcm_msm)) {
         add_msm_obs_to_buffer(&new_rtcm_msm, state);
       }
       break;
@@ -781,6 +788,24 @@ void rtcm2sbp_set_gps_time(gps_time_sec_t *current_time,
 void rtcm2sbp_set_leap_second(s8 leap_seconds, struct rtcm3_sbp_state *state) {
   state->leap_seconds = leap_seconds;
   state->leap_second_known = true;
+}
+
+void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
+                          u8 sbp_fcn,
+                          struct rtcm3_sbp_state *state) {
+  /* convert FCN from SBP representation to RTCM representation */
+  if(sid.sat < GLO_FIRST_PRN || sid.sat > GLO_LAST_PRN) {
+    /* invalid PRN */
+    return;
+  }
+  if (SBP_GLO_FCN_UNKNOWN == sbp_fcn) {
+    state->glo_sv_id_fcn_map[sid.sat] = MSM_GLO_FCN_UNKNOWN;
+  } else {
+    /* in SBP, FCN is 1..14, with the unknown value 0 already checked above */
+    s8 fcn = sbp_fcn - SBP_GLO_FCN_OFFSET;
+    /* in RTCM, FCN is in 0..13 */
+    state->glo_sv_id_fcn_map[sid.sat] = fcn + MSM_GLO_FCN_OFFSET;
+  }
 }
 
 void compute_gps_time(double tow_ms,
