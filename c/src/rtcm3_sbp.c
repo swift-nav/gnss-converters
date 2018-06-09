@@ -188,8 +188,6 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     case 1074:
     case 1084:
     case 1094:
-    case 1104:
-    case 1114:
     case 1124: {
       rtcm_msm_message new_rtcm_msm;
       if (RC_OK == rtcm3_decode_msm4(
@@ -201,8 +199,6 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     case 1075:
     case 1085:
     case 1095:
-    case 1105:
-    case 1115:
     case 1125: {
       rtcm_msm_message new_rtcm_msm;
       if (RC_OK == rtcm3_decode_msm5(&frame[byte], &new_rtcm_msm)) {
@@ -213,8 +209,6 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     case 1076:
     case 1086:
     case 1096:
-    case 1106:
-    case 1116:
     case 1126: {
       rtcm_msm_message new_rtcm_msm;
       if (RC_OK == rtcm3_decode_msm6(
@@ -226,8 +220,6 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     case 1077:
     case 1087:
     case 1097:
-    case 1107:
-    case 1117:
     case 1127: {
       rtcm_msm_message new_rtcm_msm;
       if (RC_OK == rtcm3_decode_msm7(&frame[byte], &new_rtcm_msm)) {
@@ -235,6 +227,18 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
       }
       break;
     }
+    case 1104:
+    case 1105:
+    case 1106:
+    case 1107:
+      /* SBAS messages suppressed for now */
+      break;
+    case 1114:
+    case 1115:
+    case 1116:
+    case 1117:
+      /* QZSS messages suppressed for now */
+      break;
     case 1071:
     case 1072:
     case 1073:
