@@ -287,6 +287,13 @@ START_TEST(test_msm_reject) {
 }
 END_TEST
 
+/* Test parsing of raw file with MSM5 obs */
+START_TEST(test_msm5_parse) {
+  test_RTCM3(
+      RELATIVE_PATH_PREFIX "/data/jenoba-jrr32m.rtcm3", sbp_callback_msm, current_time);
+}
+END_TEST
+
 /* Test parsing of raw file with MSM7 obs */
 START_TEST(test_msm7_parse) {
   test_RTCM3(
@@ -526,6 +533,7 @@ Suite *rtcm3_suite(void) {
   TCase *tc_msm = tcase_create("MSM");
   tcase_add_checked_fixture(tc_msm, rtcm3_setup_basic, NULL);
   tcase_add_test(tc_msm, test_msm_reject);
+  tcase_add_test(tc_msm, test_msm5_parse);
   tcase_add_test(tc_msm, test_msm7_parse);
   tcase_add_test(tc_msm, test_msm_switching);
   tcase_add_test(tc_msm, test_msm_mixed);

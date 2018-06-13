@@ -61,6 +61,7 @@ toGpsCode :: Word8 -> Maybe Word8
 toGpsCode sig
   | sig == 2  = Just 0
   | sig == 3  = Just 5
+  | sig == 4  = Just 5
   | sig == 9  = Just 6
   | sig == 10 = Just 6
   | sig == 15 = Just 1
@@ -102,6 +103,7 @@ toGpsFrequency :: Word8 -> Maybe Double
 toGpsFrequency sig
   | sig == 2  = Just 1.57542e9
   | sig == 3  = Just 1.57542e9
+  | sig == 4  = Just 1.57542e9
   | sig == 9  = Just 1.22760e9
   | sig == 10 = Just 1.22760e9
   | sig == 15 = Just 1.22760e9
