@@ -48,7 +48,7 @@ void rtcm2sbp_init(
   state->last_msm_received.tow = 0;
 
   state->sent_msm_warning = false;
-  for(u8 i = 0; i < UNSUPPORTED_CODE_MAX; i++) {
+  for (u8 i = 0; i < UNSUPPORTED_CODE_MAX; i++) {
     state->sent_code_warning[i] = false;
   }
 
@@ -511,16 +511,18 @@ code_t get_glo_sbp_code(u8 freq,
       code = CODE_GLO_L1OF;
     } else {
       /* CODE_GLO_L1P currently not supported in sbp */
+      /* warn and then replace with a supported code for now */
       send_unsupported_code_warning(UNSUPPORTED_CODE_GLO_L1P, state);
-      code = CODE_INVALID;
+      code = CODE_GLO_L1OF;
     }
   } else if (freq == L2_FREQ) {
     if (rtcm_code == 0) {
       code = CODE_GLO_L2OF;
     } else if (rtcm_code == 1) {
       /* CODE_GLO_L2P currently not supported in sbp */
+      /* warn and then replace with a supported code for now */
       send_unsupported_code_warning(UNSUPPORTED_CODE_GLO_L2P, state);
-      code = CODE_INVALID;
+      code = CODE_GLO_L2OF;
     } else {
       /* rtcm_code == 2 or 3 is reserved */
       code = CODE_INVALID;
@@ -977,13 +979,14 @@ const char * unsupported_code_desc[UNSUPPORTED_CODE_MAX] = {
 
 void send_unsupported_code_warning(const unsupported_code_t unsupported_code, struct rtcm3_sbp_state *state) {
   assert(unsupported_code < UNSUPPORTED_CODE_MAX);
+  assert(sizeof(unsupported_code_desc)/sizeof(unsupported_code_desc[0]) >= UNSUPPORTED_CODE_MAX);
   if (!state->sent_code_warning[unsupported_code]) {
     /* Only send 1 warning */
     state->sent_code_warning[unsupported_code] = true;
     uint8_t msg[CODE_WARNING_BUFFER_SIZE];
     size_t count = snprintf((char *)msg, CODE_WARNING_BUFFER_SIZE, CODE_WARNING_FMT_STRING, unsupported_code_desc[unsupported_code]);
     assert(count < CODE_WARNING_BUFFER_SIZE);
-    send_sbp_log_message( RTCM_CODE_LOGGING_LEVEL, msg, count, 0, state);
+    send_sbp_log_message(RTCM_CODE_LOGGING_LEVEL, msg, count, 0, state);
   }
 }
 
@@ -1092,7 +1095,8 @@ static bool get_sid_from_msm(const rtcm_msm_header *header,
     sid->sat = sat;
     return true;
   } else {
-    if(CODE_INVALID == code) {
+    if (CODE_INVALID == code) {
+      // should have specific code warning but this requires modifiying librtcm
       send_unsupported_code_warning(UNSUPPORTED_CODE_UNKNOWN, state);
     }
     return false;
