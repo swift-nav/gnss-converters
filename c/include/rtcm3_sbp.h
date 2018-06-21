@@ -39,6 +39,13 @@
 #define SBP_GLO_FCN_OFFSET 8
 #define SBP_GLO_FCN_UNKNOWN 0
 
+typedef enum {
+  UNSUPPORTED_CODE_UNKNOWN = 0u,
+  UNSUPPORTED_CODE_GLO_L1P,
+  UNSUPPORTED_CODE_GLO_L2P,
+  UNSUPPORTED_CODE_MAX
+} unsupported_code_t;
+
 struct rtcm3_sbp_state {
   gps_time_sec_t time_from_rover_obs;
   bool gps_time_updated;
@@ -53,6 +60,7 @@ struct rtcm3_sbp_state {
   void (*cb_base_obs_invalid)(double time_diff);
   u8 obs_buffer[OBS_BUFFER_SIZE];
   bool sent_msm_warning;
+  bool sent_code_warning[UNSUPPORTED_CODE_MAX];
   /* GLO FCN map, indexed by 1-based PRN */
   u8 glo_sv_id_fcn_map[GLO_LAST_PRN + 1];
 };

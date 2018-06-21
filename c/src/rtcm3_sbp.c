@@ -14,6 +14,7 @@
 #include <bits.h>
 #include <math.h>
 #include <rtcm3_decode.h>
+#include <rtcm_logging.h>
 #include <rtcm3_msm_utils.h>
 #include <stdio.h>
 #include <string.h>
@@ -48,12 +49,17 @@ void rtcm2sbp_init(
   state->last_msm_received.tow = 0;
 
   state->sent_msm_warning = false;
+  for (u8 i = 0; i < UNSUPPORTED_CODE_MAX; i++) {
+    state->sent_code_warning[i] = false;
+  }
 
   for (u8 i = 0; i < GLO_LAST_PRN + 1; i++) {
     state->glo_sv_id_fcn_map[i] = MSM_GLO_FCN_UNKNOWN;
   }
 
   memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
+
+  rtcm_init_logging(&rtcm_log_callback_fn, state);
 }
 
 static double gps_diff_time(const gps_time_sec_t *end,
@@ -499,15 +505,31 @@ code_t get_gps_sbp_code(u8 freq, u8 rtcm_code) {
   return code;
 }
 
-code_t get_glo_sbp_code(u8 freq, u8 rtcm_code) {
-  (void)rtcm_code;
+code_t get_glo_sbp_code(u8 freq,
+                        u8 rtcm_code,
+                        struct rtcm3_sbp_state *state) {
   code_t code = CODE_INVALID;
   if (freq == L1_FREQ) {
-    code = CODE_GLO_L1OF;
-    /* CODE_GLO_L1P currently not supported in sbp */
+    if (rtcm_code == 0) {
+      code = CODE_GLO_L1OF;
+    } else {
+      /* CODE_GLO_L1P currently not supported in sbp */
+      /* warn and then replace with a supported code for now */
+      send_unsupported_code_warning(UNSUPPORTED_CODE_GLO_L1P, state);
+      code = CODE_GLO_L1OF;
+    }
   } else if (freq == L2_FREQ) {
-    code = CODE_GLO_L2OF;
-    /* CODE_GLO_L2P currently not supported in sbp */
+    if (rtcm_code == 0) {
+      code = CODE_GLO_L2OF;
+    } else if (rtcm_code == 1) {
+      /* CODE_GLO_L2P currently not supported in sbp */
+      /* warn and then replace with a supported code for now */
+      send_unsupported_code_warning(UNSUPPORTED_CODE_GLO_L2P, state);
+      code = CODE_GLO_L2OF;
+    } else {
+      /* rtcm_code == 2 or 3 is reserved */
+      code = CODE_INVALID;
+    }
   }
   return code;
 }
@@ -553,8 +575,14 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
         } else if (glo_obs_message(rtcm_obs->header.msg_num)) {
           if (sbp_freq->sid.sat >= 1 && sbp_freq->sid.sat <= 24) {
             /* GLO PRN, see DF038 */
-            sbp_freq->sid.code =
-                get_glo_sbp_code(freq, rtcm_obs->sats[sat].obs[freq].code);
+            code_t glo_sbp_code = get_glo_sbp_code(freq,
+                                                   rtcm_obs->sats[sat].obs[freq].code,
+                                                   state);
+            if (glo_sbp_code == CODE_INVALID) {
+              continue;
+            } else {
+              sbp_freq->sid.code = glo_sbp_code;
+            }
           } else {
             /* invalid PRN or slot number uknown*/
             continue;
@@ -945,6 +973,34 @@ void send_buffer_full_error(const struct rtcm3_sbp_state *state) {
       RTCM_BUFFER_FULL_LOGGING_LEVEL, log_msg, sizeof(log_msg), 0, state);
 }
 
+const char * unsupported_code_desc[UNSUPPORTED_CODE_MAX] = {
+  "Unknown or Unrecognized Code", /* UNSUPPORTED_CODE_UNKNOWN */
+  "GLONASS L1P", /* UNSUPPORTED_CODE_GLO_L1P */
+  "GLONASS L2P" /* UNSUPPORTED_CODE_GLO_L2P */
+  /* UNSUPPORTED_CODE_MAX */
+};
+
+void send_unsupported_code_warning(const unsupported_code_t unsupported_code, struct rtcm3_sbp_state *state) {
+  assert(unsupported_code < UNSUPPORTED_CODE_MAX);
+  assert(sizeof(unsupported_code_desc)/sizeof(unsupported_code_desc[0]) >= UNSUPPORTED_CODE_MAX);
+  if (!state->sent_code_warning[unsupported_code]) {
+    /* Only send 1 warning */
+    state->sent_code_warning[unsupported_code] = true;
+    uint8_t msg[CODE_WARNING_BUFFER_SIZE];
+    size_t count = snprintf((char *)msg, CODE_WARNING_BUFFER_SIZE, CODE_WARNING_FMT_STRING, unsupported_code_desc[unsupported_code]);
+    assert(count < CODE_WARNING_BUFFER_SIZE);
+    send_sbp_log_message(RTCM_CODE_LOGGING_LEVEL, msg, count, 0, state);
+  }
+}
+
+void rtcm_log_callback_fn(uint8_t level,
+                          uint8_t *message,
+                          uint16_t length,
+                          void *context) {
+  const struct rtcm3_sbp_state *state = (const struct rtcm3_sbp_state *)context;
+  send_sbp_log_message(level, message, length, 0, state);
+}
+
 void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state) {
   constellation_t cons = to_constellation(new_rtcm_obs->header.msg_num);
@@ -1041,7 +1097,8 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
 static bool get_sid_from_msm(const rtcm_msm_header *header,
                              u8 satellite_index,
                              u8 signal_index,
-                             sbp_gnss_signal_t *sid) {
+                             sbp_gnss_signal_t *sid,
+                             struct rtcm3_sbp_state *state) {
   code_t code = msm_signal_to_code(header, signal_index);
   u8 sat = msm_sat_to_prn(header, satellite_index);
   if (CODE_INVALID != code && PRN_INVALID != sat) {
@@ -1049,13 +1106,17 @@ static bool get_sid_from_msm(const rtcm_msm_header *header,
     sid->sat = sat;
     return true;
   } else {
+    if (CODE_INVALID == code) {
+      // should have specific code warning but this requires modifiying librtcm
+      send_unsupported_code_warning(UNSUPPORTED_CODE_UNKNOWN, state);
+    }
     return false;
   }
 }
 
 void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
                       msg_obs_t *new_sbp_obs,
-                      const struct rtcm3_sbp_state *state) {
+                      struct rtcm3_sbp_state *state) {
   uint8_t num_sats =
       count_mask_values(MSM_SATELLITE_MASK_SIZE, msg->header.satellite_mask);
   uint8_t num_sigs =
@@ -1067,7 +1128,7 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
       if (msg->header.cell_mask[sat * num_sigs + sig]) {
         sbp_gnss_signal_t sid;
         const rtcm_msm_signal_data *data = &msg->signals[cell_index];
-        if (get_sid_from_msm(&msg->header, sat, sig, &sid) &&
+        if (get_sid_from_msm(&msg->header, sat, sig, &sid, state) &&
             data->flags.valid_pr && data->flags.valid_cp) {
           if (new_sbp_obs->header.n_obs >= MAX_OBS_PER_EPOCH) {
             send_buffer_full_error(state);

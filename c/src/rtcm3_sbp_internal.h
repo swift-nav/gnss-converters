@@ -28,6 +28,10 @@
 #define RTCM_1029_LOGGING_LEVEL (6u)        /* This represents LOG_INFO */
 #define RTCM_MSM_LOGGING_LEVEL (4u)         /* This represents LOG_WARN */
 #define RTCM_BUFFER_FULL_LOGGING_LEVEL (3u) /* This represents LOG_ERROR */
+#define RTCM_CODE_LOGGING_LEVEL (4u)         /* This represents LOG_WARN */
+
+#define CODE_WARNING_BUFFER_SIZE (100u)
+#define CODE_WARNING_FMT_STRING "Unsupported code received from base: %s"
 
 #define MS_TO_S 1e-3
 #define S_TO_MS 1e3
@@ -168,11 +172,19 @@ void send_MSM_warning(const uint8_t *frame, struct rtcm3_sbp_state *state);
 
 void send_buffer_full_error(const struct rtcm3_sbp_state *state);
 
+void send_unsupported_code_warning(const unsupported_code_t unsupported_code,
+                                   struct rtcm3_sbp_state *state);
+
 void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state);
 
 void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
                       msg_obs_t *new_sbp_obs,
-                      const struct rtcm3_sbp_state *state);
+                      struct rtcm3_sbp_state *state);
+
+void rtcm_log_callback_fn(uint8_t level,
+                          uint8_t *message,
+                          uint16_t length,
+                          void *context);
 
 #endif /* GNSS_CONVERTERS_RTCM3_SBP_H */

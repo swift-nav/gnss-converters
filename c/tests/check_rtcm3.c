@@ -80,6 +80,8 @@ void sbp_callback_gps(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   (void)buffer;
   (void)sender_id;
   static uint32_t msg_count = 0;
+  /* ignore log messages */
+  if (msg_id == SBP_MSG_LOG) return;
   if (msg_count == 3 || msg_count == 20 || msg_count == 42) {
     ck_assert_uint_eq(msg_id, SBP_MSG_BASE_POS_ECEF);
   } else if (msg_count == 4) {
