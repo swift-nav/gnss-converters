@@ -182,4 +182,9 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
                       msg_obs_t *new_sbp_obs,
                       struct rtcm3_sbp_state *state);
 
+void rtcm_log_callback_fn(uint8_t level,
+                          uint8_t *message,
+                          uint16_t length,
+                          void *context);
+
 #endif /* GNSS_CONVERTERS_RTCM3_SBP_H */

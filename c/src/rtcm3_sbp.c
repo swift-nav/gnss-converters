@@ -14,6 +14,7 @@
 #include <bits.h>
 #include <math.h>
 #include <rtcm3_decode.h>
+#include <rtcm_logging.h>
 #include <rtcm3_msm_utils.h>
 #include <stdio.h>
 #include <string.h>
@@ -57,6 +58,8 @@ void rtcm2sbp_init(
   }
 
   memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
+
+  rtcm_init_logging(&rtcm_log_callback_fn, state);
 }
 
 static double gps_diff_time(const gps_time_sec_t *end,
@@ -988,6 +991,14 @@ void send_unsupported_code_warning(const unsupported_code_t unsupported_code, st
     assert(count < CODE_WARNING_BUFFER_SIZE);
     send_sbp_log_message(RTCM_CODE_LOGGING_LEVEL, msg, count, 0, state);
   }
+}
+
+void rtcm_log_callback_fn(uint8_t level,
+                          uint8_t *message,
+                          uint16_t length,
+                          void *context) {
+  const struct rtcm3_sbp_state *state = (const struct rtcm3_sbp_state *)context;
+  send_sbp_log_message(level, message, length, 0, state);
 }
 
 void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
