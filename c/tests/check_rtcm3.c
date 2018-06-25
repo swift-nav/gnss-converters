@@ -113,7 +113,7 @@ void sbp_callback_glo_day_rollover(u16 msg_id,
   if (msg_id == SBP_MSG_OBS) {
     msg_obs_t *msg = (msg_obs_t *)buffer;
     u8 num_sbp_msgs = msg->header.n_obs >> 4;
-    ck_assert(num_sbp_msgs > 2);
+    ck_assert_uint_gt(num_sbp_msgs, 2);
   }
 }
 
