@@ -1114,6 +1114,31 @@ static bool get_sid_from_msm(const rtcm_msm_header *header,
   }
 }
 
+bool unsupported_signal(sbp_gnss_signal_t* sid) {
+  switch(sid->code) {
+    case CODE_GPS_L5I:
+    case CODE_GPS_L5X:
+    case CODE_GPS_L5Q:
+    case CODE_GAL_E6B:
+    case CODE_GAL_E6C:
+    case CODE_GAL_E6X:
+    case CODE_GAL_E5I:
+    case CODE_GAL_E5Q:
+    case CODE_GAL_E5X:
+    case CODE_GAL_E8:
+    case CODE_QZS_L1CA:
+    case CODE_QZS_L2CM:
+    case CODE_QZS_L2CL:
+    case CODE_QZS_L2CX:
+    case CODE_QZS_L5I:
+    case CODE_QZS_L5Q:
+    case CODE_QZS_L5X:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
                       msg_obs_t *new_sbp_obs,
                       struct rtcm3_sbp_state *state) {
@@ -1130,6 +1155,10 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
         const rtcm_msm_signal_data *data = &msg->signals[cell_index];
         if (get_sid_from_msm(&msg->header, sat, sig, &sid, state) &&
             data->flags.valid_pr && data->flags.valid_cp) {
+          if(unsupported_signal(&sid)) {
+            continue;
+          }
+
           if (new_sbp_obs->header.n_obs >= MAX_OBS_PER_EPOCH) {
             send_buffer_full_error(state);
             return;
