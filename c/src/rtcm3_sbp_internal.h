@@ -25,10 +25,16 @@
 #define MSG_OBS_FLAGS_HALF_CYCLE_KNOWN ((u8)(1 << 2))
 #define MSG_OBS_FLAGS_DOPPLER_VALID ((u8)(1 << 3))
 
+/* message type range reserved for MSM */
+#define MSM_MSG_TYPE_MIN 1070
+#define MSM_MSG_TYPE_MAX 1229
+/* bit offset of the multiple message flag, regardless of MSM type */
+#define MSM_MULTIPLE_BIT_OFFSET 54
+
 #define RTCM_1029_LOGGING_LEVEL (6u)        /* This represents LOG_INFO */
 #define RTCM_MSM_LOGGING_LEVEL (4u)         /* This represents LOG_WARN */
 #define RTCM_BUFFER_FULL_LOGGING_LEVEL (3u) /* This represents LOG_ERROR */
-#define RTCM_CODE_LOGGING_LEVEL (4u)         /* This represents LOG_WARN */
+#define RTCM_CODE_LOGGING_LEVEL (4u)        /* This represents LOG_WARN */
 
 #define CODE_WARNING_BUFFER_SIZE (100u)
 #define CODE_WARNING_FMT_STRING "Unsupported code received from base: %s"

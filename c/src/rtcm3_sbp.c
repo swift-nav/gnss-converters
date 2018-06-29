@@ -14,8 +14,8 @@
 #include <bits.h>
 #include <math.h>
 #include <rtcm3_decode.h>
-#include <rtcm_logging.h>
 #include <rtcm3_msm_utils.h>
+#include <rtcm_logging.h>
 #include <stdio.h>
 #include <string.h>
 #include "rtcm3_sbp_internal.h"
@@ -272,6 +272,15 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     default:
       break;
   }
+
+  /* check if the message was the final MSM message in the epoch, and if so send
+   * out the SBP buffer */
+  if (message_type >= MSM_MSG_TYPE_MIN && message_type <= MSM_MSG_TYPE_MAX) {
+    /* The Multiple message bit DF393 is the same regardless of MSM msg type */
+    if (getbitu(&frame[byte], MSM_MULTIPLE_BIT_OFFSET, 1) == 0) {
+      send_observations(state);
+    }
+  }
 }
 
 void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
@@ -505,9 +514,7 @@ code_t get_gps_sbp_code(u8 freq, u8 rtcm_code) {
   return code;
 }
 
-code_t get_glo_sbp_code(u8 freq,
-                        u8 rtcm_code,
-                        struct rtcm3_sbp_state *state) {
+code_t get_glo_sbp_code(u8 freq, u8 rtcm_code, struct rtcm3_sbp_state *state) {
   code_t code = CODE_INVALID;
   if (freq == L1_FREQ) {
     if (rtcm_code == 0) {
@@ -575,9 +582,8 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
         } else if (glo_obs_message(rtcm_obs->header.msg_num)) {
           if (sbp_freq->sid.sat >= 1 && sbp_freq->sid.sat <= 24) {
             /* GLO PRN, see DF038 */
-            code_t glo_sbp_code = get_glo_sbp_code(freq,
-                                                   rtcm_obs->sats[sat].obs[freq].code,
-                                                   state);
+            code_t glo_sbp_code = get_glo_sbp_code(
+                freq, rtcm_obs->sats[sat].obs[freq].code, state);
             if (glo_sbp_code == CODE_INVALID) {
               continue;
             } else {
@@ -826,7 +832,7 @@ void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
                           u8 sbp_fcn,
                           struct rtcm3_sbp_state *state) {
   /* convert FCN from SBP representation to RTCM representation */
-  if(sid.sat < GLO_FIRST_PRN || sid.sat > GLO_LAST_PRN) {
+  if (sid.sat < GLO_FIRST_PRN || sid.sat > GLO_LAST_PRN) {
     /* invalid PRN */
     return;
   }
@@ -973,21 +979,33 @@ void send_buffer_full_error(const struct rtcm3_sbp_state *state) {
       RTCM_BUFFER_FULL_LOGGING_LEVEL, log_msg, sizeof(log_msg), 0, state);
 }
 
-const char * unsupported_code_desc[UNSUPPORTED_CODE_MAX] = {
-  "Unknown or Unrecognized Code", /* UNSUPPORTED_CODE_UNKNOWN */
-  "GLONASS L1P", /* UNSUPPORTED_CODE_GLO_L1P */
-  "GLONASS L2P" /* UNSUPPORTED_CODE_GLO_L2P */
-  /* UNSUPPORTED_CODE_MAX */
+void send_buffer_not_empty_warning(const struct rtcm3_sbp_state *state) {
+  uint8_t log_msg[] =
+      "RTCM MSM sequence not properly finished, sending incomplete message";
+  send_sbp_log_message(
+      RTCM_MSM_LOGGING_LEVEL, log_msg, sizeof(log_msg), 0, state);
+}
+
+const char *unsupported_code_desc[UNSUPPORTED_CODE_MAX] = {
+    "Unknown or Unrecognized Code", /* UNSUPPORTED_CODE_UNKNOWN */
+    "GLONASS L1P",                  /* UNSUPPORTED_CODE_GLO_L1P */
+    "GLONASS L2P"                   /* UNSUPPORTED_CODE_GLO_L2P */
+                                    /* UNSUPPORTED_CODE_MAX */
 };
 
-void send_unsupported_code_warning(const unsupported_code_t unsupported_code, struct rtcm3_sbp_state *state) {
+void send_unsupported_code_warning(const unsupported_code_t unsupported_code,
+                                   struct rtcm3_sbp_state *state) {
   assert(unsupported_code < UNSUPPORTED_CODE_MAX);
-  assert(sizeof(unsupported_code_desc)/sizeof(unsupported_code_desc[0]) >= UNSUPPORTED_CODE_MAX);
+  assert(sizeof(unsupported_code_desc) / sizeof(unsupported_code_desc[0]) >=
+         UNSUPPORTED_CODE_MAX);
   if (!state->sent_code_warning[unsupported_code]) {
     /* Only send 1 warning */
     state->sent_code_warning[unsupported_code] = true;
     uint8_t msg[CODE_WARNING_BUFFER_SIZE];
-    size_t count = snprintf((char *)msg, CODE_WARNING_BUFFER_SIZE, CODE_WARNING_FMT_STRING, unsupported_code_desc[unsupported_code]);
+    size_t count = snprintf((char *)msg,
+                            CODE_WARNING_BUFFER_SIZE,
+                            CODE_WARNING_FMT_STRING,
+                            unsupported_code_desc[unsupported_code]);
     assert(count < CODE_WARNING_BUFFER_SIZE);
     send_sbp_log_message(RTCM_CODE_LOGGING_LEVEL, msg, count, 0, state);
   }
@@ -1065,6 +1083,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
              rtcm_2_sbp_sender_id(new_rtcm_obs->header.stn_id))) {
       /* We either have missed a message, or we have a new station. Either way,
        send through the current buffer and clear before adding new obs */
+      send_buffer_not_empty_warning(state);
       send_observations(state);
     }
 
@@ -1085,11 +1104,6 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
     }
     sbp_obs_buffer->header.n_obs = obs_index_buffer;
     sbp_obs_buffer->header.t = new_sbp_obs->header.t;
-
-    /* If we aren't expecting another message, send the buffer */
-    if (0 == new_rtcm_obs->header.multiple) {
-      send_observations(state);
-    }
   }
 }
 
@@ -1107,15 +1121,16 @@ static bool get_sid_from_msm(const rtcm_msm_header *header,
     return true;
   } else {
     if (CODE_INVALID == code) {
-      // should have specific code warning but this requires modifiying librtcm
+      /* should have specific code warning but this requires modifiying librtcm
+       */
       send_unsupported_code_warning(UNSUPPORTED_CODE_UNKNOWN, state);
     }
     return false;
   }
 }
 
-bool unsupported_signal(sbp_gnss_signal_t* sid) {
-  switch(sid->code) {
+bool unsupported_signal(sbp_gnss_signal_t *sid) {
+  switch (sid->code) {
     case CODE_GPS_L5I:
     case CODE_GPS_L5X:
     case CODE_GPS_L5Q:
@@ -1154,11 +1169,8 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
         sbp_gnss_signal_t sid;
         const rtcm_msm_signal_data *data = &msg->signals[cell_index];
         if (get_sid_from_msm(&msg->header, sat, sig, &sid, state) &&
-            data->flags.valid_pr && data->flags.valid_cp) {
-          if(unsupported_signal(&sid)) {
-            continue;
-          }
-
+            data->flags.valid_pr && data->flags.valid_cp &&
+            !unsupported_signal(&sid)) {
           if (new_sbp_obs->header.n_obs >= MAX_OBS_PER_EPOCH) {
             send_buffer_full_error(state);
             return;

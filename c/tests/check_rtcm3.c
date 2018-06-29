@@ -103,6 +103,21 @@ void sbp_callback_1012_first(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   }
 }
 
+void sbp_callback_missing_obs(u16 msg_id,
+                              u8 length,
+                              u8 *buffer,
+                              u16 sender_id) {
+  (void)length;
+  (void)buffer;
+  (void)sender_id;
+  if (msg_id == SBP_MSG_OBS) {
+    msg_obs_t *msg = (msg_obs_t *)buffer;
+    u8 num_meas = msg->header.n_obs;
+    /* every epoch should have at least 80 base observations */
+    ck_assert_uint_ge(num_meas, 80);
+  }
+}
+
 void sbp_callback_glo_day_rollover(u16 msg_id,
                                    u8 length,
                                    u8 *buffer,
@@ -291,8 +306,9 @@ END_TEST
 
 /* Test parsing of raw file with MSM5 obs */
 START_TEST(test_msm5_parse) {
-  test_RTCM3(
-      RELATIVE_PATH_PREFIX "/data/jenoba-jrr32m.rtcm3", sbp_callback_msm, current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/jenoba-jrr32m.rtcm3",
+             sbp_callback_msm,
+             current_time);
 }
 END_TEST
 
@@ -300,6 +316,15 @@ END_TEST
 START_TEST(test_msm7_parse) {
   test_RTCM3(
       RELATIVE_PATH_PREFIX "/data/msm7.rtcm", sbp_callback_msm, current_time);
+}
+END_TEST
+
+START_TEST(test_msm_missing_obs) {
+  current_time.wn = 2007;
+  current_time.tow = 280000;
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/missing-gps.rtcm",
+             sbp_callback_missing_obs,
+             current_time);
 }
 END_TEST
 
@@ -539,6 +564,7 @@ Suite *rtcm3_suite(void) {
   tcase_add_test(tc_msm, test_msm7_parse);
   tcase_add_test(tc_msm, test_msm_switching);
   tcase_add_test(tc_msm, test_msm_mixed);
+  tcase_add_test(tc_msm, test_msm_missing_obs);
   suite_add_tcase(s, tc_msm);
 
   return s;
