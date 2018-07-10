@@ -109,9 +109,9 @@ toGpsFrequency sig
   | sig == 15 = Just 1.22760e9
   | sig == 16 = Just 1.22760e9
   | sig == 17 = Just 1.22760e9
-  | sig == 22 = Just (115 * 10.23e6)
-  | sig == 23 = Just (115 * 10.23e6)
-  | sig == 24 = Just (115 * 10.23e6)
+  | sig == 22 = Just 1.17645e9
+  | sig == 23 = Just 1.17645e9
+  | sig == 24 = Just 1.17645e9
   | otherwise = Nothing
 
 -- | Convert from RTCMv3 lock indicator.
