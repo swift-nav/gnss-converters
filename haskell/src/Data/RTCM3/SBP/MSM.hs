@@ -67,9 +67,9 @@ toGpsCode sig
   | sig == 15 = Just 1
   | sig == 16 = Just 7
   | sig == 17 = Just 1
-  -- | sig == 22 = Just 9
-  -- | sig == 23 = Just 10
-  -- | sig == 24 = Just 11
+  | sig == 22 = Just 9
+  | sig == 23 = Just 10
+  | sig == 24 = Just 11
   | otherwise = Nothing
 
 toGpsSignal :: Word8 -> Word8 -> Maybe GnssSignal
