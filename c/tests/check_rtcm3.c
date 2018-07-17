@@ -23,12 +23,16 @@
 
 /* rtcm helper defines and functions */
 
-#define MAX_FILE_SIZE 251818
+#define MAX_FILE_SIZE 2337772
 
 static double expected_L1CA_bias = 0.0;
 static double expected_L1P_bias = 0.0;
 static double expected_L2CA_bias = 0.0;
 static double expected_L2P_bias = 0.0;
+
+static sbp_gps_time_t previous_obs_time = {.tow = 0, .wn = INVALID_TIME};
+
+static struct rtcm3_sbp_state state;
 
 static const uint32_t crc24qtab[256] = {
     0x000000, 0x864CFB, 0x8AD50D, 0x0C99F6, 0x93E6E1, 0x15AA1A, 0x1933EC,
@@ -69,15 +73,29 @@ static const uint32_t crc24qtab[256] = {
     0xF6D10C, 0xFA48FA, 0x7C0401, 0x42FA2F, 0xC4B6D4, 0xC82F22, 0x4E63D9,
     0xD11CCE, 0x575035, 0x5BC9C3, 0xDD8538};
 
+/* difference between two sbp time stamps */
+static double sbp_diff_time(const sbp_gps_time_t *end,
+                            const sbp_gps_time_t *beginning) {
+  s16 week_diff = end->wn - beginning->wn;
+  double dt = (double)end->tow / SECS_MS - (double)beginning->tow / SECS_MS;
+  dt += week_diff * SEC_IN_WEEK;
+  return dt;
+}
+
 static uint32_t crc24q(const uint8_t *buf, uint32_t len, uint32_t crc) {
   for (uint32_t i = 0; i < len; i++)
     crc = ((crc << 8) & 0xFFFFFF) ^ crc24qtab[((crc >> 16) ^ buf[i]) & 0xff];
   return crc;
 }
 
+static void update_obs_time(const msg_obs_t *msg) {
+  gps_time_sec_t obs_time = {.tow = msg[0].header.t.tow * MS_TO_S,
+                             .wn = msg[0].header.t.wn};
+  rtcm2sbp_set_gps_time(&obs_time, &state);
+}
+
 void sbp_callback_gps(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   (void)length;
-  (void)buffer;
   (void)sender_id;
   static uint32_t msg_count = 0;
   /* ignore log messages */
@@ -88,6 +106,7 @@ void sbp_callback_gps(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
     ck_assert_uint_eq(msg_id, SBP_MSG_GLO_BIASES);
   } else {
     ck_assert_uint_eq(msg_id, SBP_MSG_OBS);
+    update_obs_time((msg_obs_t *)buffer);
   }
   msg_count++;
 }
@@ -100,6 +119,7 @@ void sbp_callback_1012_first(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
     msg_obs_t *msg = (msg_obs_t *)buffer;
     u8 num_sbp_msgs = msg->header.n_obs >> 4;
     ck_assert_uint_gt(num_sbp_msgs, 2);
+    update_obs_time(msg);
   }
 }
 
@@ -115,6 +135,7 @@ void sbp_callback_missing_obs(u16 msg_id,
     u8 num_meas = msg->header.n_obs;
     /* every epoch should have at least 80 base observations */
     ck_assert_uint_ge(num_meas, 80);
+    update_obs_time(msg);
   }
 }
 
@@ -129,6 +150,7 @@ void sbp_callback_glo_day_rollover(u16 msg_id,
     msg_obs_t *msg = (msg_obs_t *)buffer;
     u8 num_sbp_msgs = msg->header.n_obs >> 4;
     ck_assert_uint_gt(num_sbp_msgs, 2);
+    update_obs_time(msg);
   }
 }
 
@@ -155,6 +177,8 @@ void sbp_callback_bias(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   if (msg_id == SBP_MSG_GLO_BIASES) {
     msg_glo_biases_t *sbp_glo_msg = (msg_glo_biases_t *)buffer;
     check_biases(sbp_glo_msg);
+  } else if (msg_id == SBP_MSG_OBS) {
+    update_obs_time((msg_obs_t *)buffer);
   }
 }
 
@@ -164,24 +188,30 @@ void sbp_callback_msm(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   if (msg_id == SBP_MSG_LOG) {
     msg_log_t *sbp_log = (msg_log_t *)buffer;
     ck_assert_uint_eq(sbp_log->level, RTCM_MSM_LOGGING_LEVEL);
+  } else if (msg_id == SBP_MSG_OBS) {
+    update_obs_time((msg_obs_t *)buffer);
   }
 }
 
-void sbp_callback_msm_switch(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_msm_no_gaps(u16 msg_id,
+                              u8 length,
+                              u8 *buffer,
+                              u16 sender_id) {
   (void)length;
   (void)sender_id;
-  const u32 MAX_OBS_GAP_MS = (MSM_TIMEOUT_SEC + 5) * SECS_MS;
+  const u32 MAX_OBS_GAP_S = MSM_TIMEOUT_SEC + 5;
 
-  static u32 previous_obs_tow = 0;
   if (msg_id == SBP_MSG_OBS) {
     msg_obs_t *sbp_obs = (msg_obs_t *)buffer;
-    if (previous_obs_tow > 0) {
+    if (previous_obs_time.wn != INVALID_TIME) {
+      double dt = sbp_diff_time(&sbp_obs->header.t, &previous_obs_time);
       /* make sure time does not run backwards */
-      ck_assert_uint_ge(sbp_obs->header.t.tow, previous_obs_tow);
+      ck_assert(dt >= 0);
       /* check there aren't too long gaps between observations */
-      ck_assert((sbp_obs->header.t.tow - previous_obs_tow) < MAX_OBS_GAP_MS);
+      ck_assert(dt < MAX_OBS_GAP_S);
     }
-    previous_obs_tow = sbp_obs->header.t.tow;
+    previous_obs_time = sbp_obs->header.t;
+    update_obs_time(sbp_obs);
   }
 }
 
@@ -197,6 +227,7 @@ void sbp_callback_msm_mixed(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
       ck_assert_uint_ge(sbp_obs->header.t.tow, previous_obs_tow);
     }
     previous_obs_tow = sbp_obs->header.t.tow;
+    update_obs_time(sbp_obs);
   }
 }
 
@@ -224,10 +255,11 @@ void test_RTCM3(
     const char *filename,
     void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id),
     gps_time_sec_t current_time) {
-  struct rtcm3_sbp_state state;
   rtcm2sbp_init(&state, cb_rtcm_to_sbp, NULL);
   rtcm2sbp_set_gps_time(&current_time, &state);
   rtcm2sbp_set_leap_second(18, &state);
+
+  previous_obs_time.wn = INVALID_TIME;
 
   FILE *fp = fopen(filename, "rb");
   u8 buffer[MAX_FILE_SIZE];
@@ -321,9 +353,23 @@ END_TEST
 
 START_TEST(test_msm_missing_obs) {
   current_time.wn = 2007;
-  current_time.tow = 280000;
+  current_time.tow = 289790;
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/missing-gps.rtcm",
              sbp_callback_missing_obs,
+             current_time);
+}
+END_TEST
+
+START_TEST(test_msm_week_rollover) {
+  current_time.wn = 2009;
+  current_time.tow = 604200;
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/week-rollover-STR17.rtcm3",
+             sbp_callback_msm_no_gaps,
+             current_time);
+  current_time.wn = 2009;
+  current_time.tow = 604200;
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/week-rollover-STR24.rtcm3",
+             sbp_callback_msm_no_gaps,
              current_time);
 }
 END_TEST
@@ -348,7 +394,7 @@ START_TEST(test_msm_switching) {
   current_time.wn = 2002;
   current_time.tow = 308700;
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/switch-legacy-msm-legacy-msm.rtcm",
-             sbp_callback_msm_switch,
+             sbp_callback_msm_no_gaps,
              current_time);
 }
 END_TEST
@@ -520,6 +566,62 @@ START_TEST(test_bias_gpp_trm) {
 }
 END_TEST
 
+START_TEST(test_compute_glo_time) {
+  for (u8 day = 0; day < 7; day++) {
+    for (u8 hour = 0; hour < 24; hour++) {
+      for (u8 min = 0; min < 60; min++) {
+        for (u8 sec = 0; sec < 60; sec++) {
+          u32 tod = hour * SEC_IN_HOUR + min * SEC_IN_MINUTE + sec;
+          gps_time_sec_t rover_time = {.tow = day * SEC_IN_DAY + tod,
+                                       .wn = 1945};
+          rtcm2sbp_set_gps_time(&rover_time, &state);
+          double glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
+          gps_time_sec_t expected_time = rover_time;
+          expected_time.tow += state.leap_seconds;
+          if (expected_time.tow >= SEC_IN_WEEK) {
+            expected_time.tow -= SEC_IN_WEEK;
+            expected_time.wn++;
+          }
+
+          gps_time_sec_t obs_time;
+          compute_glo_time(glo_tod_ms, &obs_time, &rover_time, &state);
+          ck_assert_uint_eq(obs_time.wn, expected_time.wn);
+          ck_assert_uint_eq(obs_time.tow, expected_time.tow);
+        }
+      }
+    }
+  }
+
+  /* time conversion during leap second event should give invalid time */
+  u8 day = 3;
+  u8 hour = 23;
+  u8 min = 59;
+  u8 sec = 60;
+  u32 tod = hour * SEC_IN_HOUR + min * SEC_IN_MINUTE + sec;
+  gps_time_sec_t rover_time = {.tow = day * SEC_IN_DAY + tod, .wn = 1945};
+  double glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
+
+  gps_time_sec_t obs_time;
+  compute_glo_time(glo_tod_ms, &obs_time, &rover_time, &state);
+  ck_assert_uint_eq(obs_time.wn, INVALID_TIME);
+}
+END_TEST
+
+START_TEST(test_gps_diff_time_sec) {
+  gps_time_sec_t start = {.wn = 2009, .tow = 1000};
+  gps_time_sec_t end = {.wn = 2009, .tow = 1001};
+
+  ck_assert_int_eq(gps_diff_time_sec(&end, &start), 1);
+  ck_assert_int_eq(gps_diff_time_sec(&start, &end),
+                   -gps_diff_time_sec(&end, &start));
+
+  gps_time_sec_t t0 = {.wn = 0, .tow = 0};
+  ck_assert_int_eq(gps_diff_time_sec(&end, &t0),
+                   end.wn * SEC_IN_WEEK + end.tow);
+  ck_assert_int_eq(gps_diff_time_sec(&t0, &end), -gps_diff_time_sec(&end, &t0));
+}
+END_TEST
+
 Suite *rtcm3_suite(void) {
   Suite *s = suite_create("RTCMv3");
 
@@ -565,7 +667,14 @@ Suite *rtcm3_suite(void) {
   tcase_add_test(tc_msm, test_msm_switching);
   tcase_add_test(tc_msm, test_msm_mixed);
   tcase_add_test(tc_msm, test_msm_missing_obs);
+  tcase_add_test(tc_msm, test_msm_week_rollover);
   suite_add_tcase(s, tc_msm);
+
+  TCase *tc_utils = tcase_create("Utilities");
+  tcase_add_checked_fixture(tc_utils, rtcm3_setup_basic, NULL);
+  tcase_add_test(tc_utils, test_compute_glo_time);
+  tcase_add_test(tc_utils, test_gps_diff_time_sec);
+  suite_add_tcase(s, tc_utils);
 
   return s;
 }

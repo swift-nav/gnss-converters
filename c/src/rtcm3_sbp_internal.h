@@ -49,6 +49,18 @@ extern bool rtcm3_debug;
 #define SEC_IN_DAY 86400
 #define SEC_IN_WEEK 604800
 #define SEC_IN_HOUR 3600
+#define SEC_IN_MINUTE 60
+
+/** Maximum time difference representable by s32 seconds */
+#define MAX_WEEK_DIFF (INT32_MAX / SEC_IN_WEEK - 1)
+
+/** Threshold for base measurements coming from the future */
+#define BASE_FUTURE_THRESHOLD_S 10
+/** Threshold for GLO time difference from rover */
+#define GLO_SANITY_THRESHOLD_S 30
+
+/** UTC (SU) offset (hours) */
+#define UTC_SU_OFFSET 3
 
 /** Constant difference of Beidou time from GPS time */
 #define BDS_SECOND_TO_GPS_SECOND 14
@@ -152,15 +164,15 @@ void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                        gps_time_sec_t *new_sbp_obs,
                        struct rtcm3_sbp_state *state);
 
-void compute_gps_time(double tow_ms,
+void compute_gps_time(u32 tow_ms,
                       gps_time_sec_t *new_sbp_obs,
                       const gps_time_sec_t *rover_time,
                       struct rtcm3_sbp_state *state);
 
-void compute_glo_time(double tod_ms,
+void compute_glo_time(u32 tod_ms,
                       gps_time_sec_t *obs_time,
                       const gps_time_sec_t *rover_time,
-                      const s8 leap_second);
+                      struct rtcm3_sbp_state *state);
 
 void send_observations(struct rtcm3_sbp_state *state);
 
@@ -192,5 +204,8 @@ void rtcm_log_callback_fn(uint8_t level,
                           uint8_t *message,
                           uint16_t length,
                           void *context);
+
+s32 gps_diff_time_sec(const gps_time_sec_t *end,
+                      const gps_time_sec_t *beginning);
 
 #endif /* GNSS_CONVERTERS_RTCM3_SBP_H */

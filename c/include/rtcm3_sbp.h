@@ -33,8 +33,8 @@
 #define MAX_OBS_PER_EPOCH (SBP_MAX_OBS_SEQ * MAX_OBS_IN_SBP)
 #define OBS_BUFFER_SIZE (SBP_HDR_SIZE + MAX_OBS_PER_EPOCH * SBP_OBS_SIZE)
 
-/* MAX valid value (ms) for GPS is 604799999 and GLO is 86401999 */
 #define INVALID_TIME 0xFFFF
+#define MAX_WN (INT16_MAX)
 
 #define SBP_GLO_FCN_OFFSET 8
 #define SBP_GLO_FCN_UNKNOWN 0
@@ -48,7 +48,6 @@ typedef enum {
 
 struct rtcm3_sbp_state {
   gps_time_sec_t time_from_rover_obs;
-  bool gps_time_updated;
   s8 leap_seconds;
   bool leap_second_known;
   u16 sender_id;
@@ -69,7 +68,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
                            uint32_t frame_length,
                            struct rtcm3_sbp_state *state);
 
-void rtcm2sbp_set_gps_time(gps_time_sec_t *current_time,
+void rtcm2sbp_set_gps_time(const gps_time_sec_t *current_time,
                            struct rtcm3_sbp_state *state);
 
 void rtcm2sbp_set_leap_second(s8 leap_seconds, struct rtcm3_sbp_state *state);
