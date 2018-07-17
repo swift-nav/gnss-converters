@@ -31,6 +31,7 @@ static double expected_L2CA_bias = 0.0;
 static double expected_L2P_bias = 0.0;
 
 static sbp_gps_time_t previous_obs_time = {.tow = 0, .wn = INVALID_TIME};
+static u8 previous_n_meas = 0;
 
 static struct rtcm3_sbp_state state;
 
@@ -123,22 +124,6 @@ void sbp_callback_1012_first(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   }
 }
 
-void sbp_callback_missing_obs(u16 msg_id,
-                              u8 length,
-                              u8 *buffer,
-                              u16 sender_id) {
-  (void)length;
-  (void)buffer;
-  (void)sender_id;
-  if (msg_id == SBP_MSG_OBS) {
-    msg_obs_t *msg = (msg_obs_t *)buffer;
-    u8 num_meas = msg->header.n_obs;
-    /* every epoch should have at least 80 base observations */
-    ck_assert_uint_ge(num_meas, 80);
-    update_obs_time(msg);
-  }
-}
-
 void sbp_callback_glo_day_rollover(u16 msg_id,
                                    u8 length,
                                    u8 *buffer,
@@ -182,21 +167,10 @@ void sbp_callback_bias(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   }
 }
 
-void sbp_callback_msm(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
-  (void)length;
-  (void)sender_id;
-  if (msg_id == SBP_MSG_LOG) {
-    msg_log_t *sbp_log = (msg_log_t *)buffer;
-    ck_assert_uint_eq(sbp_log->level, RTCM_MSM_LOGGING_LEVEL);
-  } else if (msg_id == SBP_MSG_OBS) {
-    update_obs_time((msg_obs_t *)buffer);
-  }
-}
-
-void sbp_callback_msm_no_gaps(u16 msg_id,
-                              u8 length,
-                              u8 *buffer,
-                              u16 sender_id) {
+void sbp_callback_msm_switching(u16 msg_id,
+                                u8 length,
+                                u8 *buffer,
+                                u16 sender_id) {
   (void)length;
   (void)sender_id;
   const u32 MAX_OBS_GAP_S = MSM_TIMEOUT_SEC + 5;
@@ -215,18 +189,48 @@ void sbp_callback_msm_no_gaps(u16 msg_id,
   }
 }
 
-void sbp_callback_msm_mixed(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
-  (void)length;
+void sbp_callback_msm_no_gaps(u16 msg_id,
+                              u8 length,
+                              u8 *buffer,
+                              u16 sender_id) {
   (void)sender_id;
+  const u32 MAX_OBS_GAP_S = 1;
 
-  static u32 previous_obs_tow = 0;
   if (msg_id == SBP_MSG_OBS) {
     msg_obs_t *sbp_obs = (msg_obs_t *)buffer;
-    if (previous_obs_tow > 0) {
+
+    if (previous_obs_time.wn != INVALID_TIME) {
+      double dt = sbp_diff_time(&sbp_obs->header.t, &previous_obs_time);
       /* make sure time does not run backwards */
-      ck_assert_uint_ge(sbp_obs->header.t.tow, previous_obs_tow);
+      ck_assert(dt >= 0);
+      /* check there's an observation for every second */
+      ck_assert(dt <= MAX_OBS_GAP_S);
+
+      u8 n_meas = sbp_obs->header.n_obs;
+      u8 seq_counter = n_meas & 0x0F;
+      u8 seq_size = n_meas >> 4;
+      u8 prev_seq_counter = previous_n_meas & 0x0F;
+      u8 prev_seq_size = previous_n_meas >> 4;
+
+      ck_assert_uint_gt(seq_size, 0);
+
+      if (seq_counter == 0) {
+        /* new observation sequence, verify that the last one did complete */
+        ck_assert_uint_eq(prev_seq_counter, prev_seq_size - 1);
+      } else {
+        /* verify that the previous sequence continues */
+        ck_assert_uint_eq(sbp_obs->header.t.wn, previous_obs_time.wn);
+        ck_assert_uint_eq(sbp_obs->header.t.tow, previous_obs_time.tow);
+        ck_assert_uint_eq(seq_size, prev_seq_size);
+        ck_assert_uint_eq(seq_counter, prev_seq_counter + 1);
+      }
+      if (seq_counter < seq_size - 1) {
+        /* verify that all but the last packet in the sequence are full */
+        ck_assert_uint_eq(length, 249);
+      }
     }
-    previous_obs_tow = sbp_obs->header.t.tow;
+    previous_obs_time = sbp_obs->header.t;
+    previous_n_meas = sbp_obs->header.n_obs;
     update_obs_time(sbp_obs);
   }
 }
@@ -260,6 +264,7 @@ void test_RTCM3(
   rtcm2sbp_set_leap_second(18, &state);
 
   previous_obs_time.wn = INVALID_TIME;
+  previous_n_meas = 0;
 
   FILE *fp = fopen(filename, "rb");
   u8 buffer[MAX_FILE_SIZE];
@@ -329,25 +334,19 @@ START_TEST(test_1012_first) {
 }
 END_TEST
 
-/* Test MSM is properly rejected */
-START_TEST(test_msm_reject) {
-  test_RTCM3(
-      RELATIVE_PATH_PREFIX "/data/msm.rtcm", sbp_callback_msm, current_time);
-}
-END_TEST
-
 /* Test parsing of raw file with MSM5 obs */
 START_TEST(test_msm5_parse) {
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/jenoba-jrr32m.rtcm3",
-             sbp_callback_msm,
+             sbp_callback_msm_no_gaps,
              current_time);
 }
 END_TEST
 
 /* Test parsing of raw file with MSM7 obs */
 START_TEST(test_msm7_parse) {
-  test_RTCM3(
-      RELATIVE_PATH_PREFIX "/data/msm7.rtcm", sbp_callback_msm, current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/msm7.rtcm",
+             sbp_callback_msm_no_gaps,
+             current_time);
 }
 END_TEST
 
@@ -355,7 +354,7 @@ START_TEST(test_msm_missing_obs) {
   current_time.wn = 2007;
   current_time.tow = 289790;
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/missing-gps.rtcm",
-             sbp_callback_missing_obs,
+             sbp_callback_msm_no_gaps,
              current_time);
 }
 END_TEST
@@ -394,7 +393,7 @@ START_TEST(test_msm_switching) {
   current_time.wn = 2002;
   current_time.tow = 308700;
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/switch-legacy-msm-legacy-msm.rtcm",
-             sbp_callback_msm_no_gaps,
+             sbp_callback_msm_switching,
              current_time);
 }
 END_TEST
@@ -406,7 +405,7 @@ START_TEST(test_msm_mixed) {
   current_time.wn = 2002;
   current_time.tow = 375900;
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/mixed-msm-legacy.rtcm",
-             sbp_callback_msm_mixed,
+             sbp_callback_msm_no_gaps,
              current_time);
 }
 END_TEST
@@ -661,7 +660,6 @@ Suite *rtcm3_suite(void) {
 
   TCase *tc_msm = tcase_create("MSM");
   tcase_add_checked_fixture(tc_msm, rtcm3_setup_basic, NULL);
-  tcase_add_test(tc_msm, test_msm_reject);
   tcase_add_test(tc_msm, test_msm5_parse);
   tcase_add_test(tc_msm, test_msm7_parse);
   tcase_add_test(tc_msm, test_msm_switching);
