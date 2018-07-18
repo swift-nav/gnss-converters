@@ -24,6 +24,7 @@
 /* rtcm helper defines and functions */
 
 #define MAX_FILE_SIZE 2337772
+#define RTCM3_PREAMBLE 0xD3
 
 static double expected_L1CA_bias = 0.0;
 static double expected_L1P_bias = 0.0;
@@ -236,13 +237,13 @@ void sbp_callback_msm_no_gaps(u16 msg_id,
 }
 
 /* sanity check the length and CRC of the message */
-bool verify_crc(uint8_t *buffer, uint16_t buffer_length) {
+bool verify_crc(uint8_t *buffer, uint32_t buffer_length) {
   if (buffer_length < 6) {
     /* buffer too short to be a valid message */
     return false;
   }
   uint16_t message_size = ((buffer[1] & 0x3) << 8) | buffer[2];
-  if (buffer_length < message_size + 6) {
+  if (buffer_length < (uint32_t)message_size + 6) {
     /* buffer too short to contain the message */
     return false;
   }
@@ -275,13 +276,36 @@ void test_RTCM3(
 
   uint32_t file_size = fread(buffer, 1, MAX_FILE_SIZE, fp);
   uint32_t buffer_index = 0;
+
   while (buffer_index < file_size) {
-    if (buffer[buffer_index] == 0xD3 &&
-        verify_crc(&buffer[buffer_index], file_size - buffer_index)) {
-      rtcm2sbp_decode_frame(
-          &buffer[buffer_index], file_size - buffer_index, &state);
+    if (buffer[buffer_index] != RTCM3_PREAMBLE) {
+      /* not a start of RTCM frame, seeking forward */
+      buffer_index++;
+      continue;
     }
-    buffer_index++;
+
+    uint16_t message_size =
+        ((buffer[buffer_index + 1] & 0x3) << 8) | buffer[buffer_index + 2];
+
+    if (message_size == 0) {
+      buffer_index++;
+      continue;
+    }
+    if (message_size > 1023) {
+      /* too large message */
+      buffer_index++;
+      continue;
+    }
+
+    if (!verify_crc(&buffer[buffer_index], file_size - buffer_index)) {
+      /* CRC failure */
+      buffer_index++;
+      continue;
+    }
+
+    rtcm2sbp_decode_frame(&buffer[buffer_index], message_size, &state);
+    /* skip pointer to the end of this message */
+    buffer_index += message_size + 6;
   }
 
   return;
