@@ -33,6 +33,7 @@ static double expected_L2P_bias = 0.0;
 
 static sbp_gps_time_t previous_obs_time = {.tow = 0, .wn = INVALID_TIME};
 static u8 previous_n_meas = 0;
+static u8 previous_num_obs = 0;
 
 static struct rtcm3_sbp_state state;
 
@@ -228,6 +229,14 @@ void sbp_callback_msm_no_gaps(u16 msg_id,
       if (seq_counter < seq_size - 1) {
         /* verify that all but the last packet in the sequence are full */
         ck_assert_uint_eq(length, 249);
+      } else {
+        /* last message in sequence, check the total number of observations */
+        u8 num_obs = (seq_size - 1) * 14 + (length - 11) / 17;
+        if (previous_num_obs > 0) {
+          /* must not lose more than 5 observations between epochs */
+          ck_assert_uint_ge(num_obs, previous_num_obs - 5);
+        }
+        previous_num_obs = num_obs;
       }
     }
     previous_obs_time = sbp_obs->header.t;
@@ -266,6 +275,7 @@ void test_RTCM3(
 
   previous_obs_time.wn = INVALID_TIME;
   previous_n_meas = 0;
+  previous_num_obs = 0;
 
   FILE *fp = fopen(filename, "rb");
   u8 buffer[MAX_FILE_SIZE];
@@ -378,6 +388,12 @@ START_TEST(test_msm_missing_obs) {
   current_time.wn = 2007;
   current_time.tow = 289790;
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/missing-gps.rtcm",
+             sbp_callback_msm_no_gaps,
+             current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/dropped-packets-STR24.rtcm3",
+             sbp_callback_msm_no_gaps,
+             current_time);
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/missing-beidou-STR17.rtcm3",
              sbp_callback_msm_no_gaps,
              current_time);
 }
@@ -598,7 +614,7 @@ START_TEST(test_compute_glo_time) {
           gps_time_sec_t rover_time = {.tow = day * SEC_IN_DAY + tod,
                                        .wn = 1945};
           rtcm2sbp_set_gps_time(&rover_time, &state);
-          double glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
+          u32 glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
           gps_time_sec_t expected_time = rover_time;
           expected_time.tow += state.leap_seconds;
           if (expected_time.tow >= SEC_IN_WEEK) {
@@ -622,7 +638,7 @@ START_TEST(test_compute_glo_time) {
   u8 sec = 60;
   u32 tod = hour * SEC_IN_HOUR + min * SEC_IN_MINUTE + sec;
   gps_time_sec_t rover_time = {.tow = day * SEC_IN_DAY + tod, .wn = 1945};
-  double glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
+  u32 glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
 
   gps_time_sec_t obs_time;
   compute_glo_time(glo_tod_ms, &obs_time, &rover_time, &state);

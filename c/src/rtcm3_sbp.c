@@ -17,6 +17,7 @@
 #include <rtcm3_msm_utils.h>
 #include <rtcm_logging.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "rtcm3_sbp_internal.h"
 
@@ -891,6 +892,8 @@ void compute_gps_time(u32 tow_ms,
   validate_base_obs_sanity(state, obs_time, rover_time);
 }
 
+/* Compute full GLO time stamp from the time-of-day count, so that the result
+ * is close to the supplied reference gps time */
 void compute_glo_time(u32 tod_ms,
                       gps_time_sec_t *obs_time,
                       const gps_time_sec_t *rover_time,
@@ -901,33 +904,30 @@ void compute_glo_time(u32 tod_ms,
   }
   assert(gps_time_valid(rover_time));
 
-  /* Need to work out DOW from GPS time first */
-  /* NOTE: this will produce incorrect day of week during the leap second, but
-   * the failure will be caught by the sanity check at the end */
-  u8 rover_dow = rover_time->tow / SEC_IN_DAY;
-  s32 rover_tod = rover_time->tow - rover_dow * SEC_IN_DAY;
+  /* Approximate DOW from the reference GPS time */
+  u8 glo_dow = rover_time->tow / SEC_IN_DAY;
+  s32 glo_tod_sec = (u32)(tod_ms * MS_TO_S) - UTC_SU_OFFSET * SEC_IN_HOUR;
 
-  s32 glo_tod_sec = (u32)(tod_ms * MS_TO_S) - UTC_SU_OFFSET * SEC_IN_HOUR +
-                    state->leap_seconds;
-
-  if (glo_tod_sec < 0) {
-    glo_tod_sec += SEC_IN_DAY;
+  if (glo_tod_sec >= SEC_IN_DAY) {
+    /* Time of day overflows, can possibly happen during leap second event.
+     * Return as invalid. */
+    obs_time->wn = INVALID_TIME;
+    return;
   }
 
   obs_time->wn = rover_time->wn;
-  /* Check for day rollover */
-  if (glo_tod_sec > rover_tod && glo_tod_sec - rover_tod > SEC_IN_DAY / 2) {
-    rover_dow = (rover_dow + 1) % 7;
-  } else if (rover_tod > glo_tod_sec &&
-             rover_tod - glo_tod_sec > SEC_IN_DAY / 2) {
-    rover_dow = (rover_dow - 1) % 7;
-  }
-
-  obs_time->tow = rover_dow * SEC_IN_DAY + glo_tod_sec;
+  obs_time->tow = glo_dow * SEC_IN_DAY + glo_tod_sec + state->leap_seconds;
   normalize_gps_time(obs_time);
 
-  s32 time_diff = gps_diff_time_sec(obs_time, rover_time);
-  if (fabs(time_diff) > GLO_SANITY_THRESHOLD_S + state->leap_seconds) {
+  /* check for day rollover against reference time */
+  s32 timediff = gps_diff_time_sec(obs_time, rover_time);
+  if (abs(timediff) > SEC_IN_DAY / 2) {
+    obs_time->tow += (timediff < 0 ? 1 : -1) * SEC_IN_DAY;
+    normalize_gps_time(obs_time);
+    timediff = gps_diff_time_sec(obs_time, rover_time);
+  }
+
+  if (abs(timediff - state->leap_seconds) > GLO_SANITY_THRESHOLD_S) {
     /* time too far from rover time, invalidate */
     obs_time->wn = INVALID_TIME;
   }
@@ -1080,8 +1080,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
                      state);
     if (!gps_time_valid(&obs_time)) {
       /* time invalid because of missing leap second info or ongoing leap second
-       * event, cannot use the GLO measuremenst so clear the buffer and exit */
-      memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
+       * event, skip these measurements */
       return;
     }
 
