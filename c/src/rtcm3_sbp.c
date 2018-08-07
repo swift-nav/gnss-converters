@@ -192,7 +192,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GPS,
                               (u8)sizeof(sbp_gps_eph),
                               (u8 *)&sbp_gps_eph,
-                              rtcm_2_sbp_sender_id(0));
+                              rtcm_2_sbp_sender_id(0)
+                              state->context);
       }
     }
     case 1020: {
@@ -203,7 +204,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GLO,
                               (u8)sizeof(sbp_glo_eph),
                               (u8 *)&sbp_glo_eph,
-                              rtcm_2_sbp_sender_id(0));
+                              rtcm_2_sbp_sender_id(0)
+                              state->context);
       }
     }
     case 1029: {
