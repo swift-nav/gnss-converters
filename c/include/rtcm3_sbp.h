@@ -18,6 +18,7 @@ extern "C" {
 #endif
 
 #include <libsbp/observation.h>
+#include <rtcm3_messages.h>
 
 /* This is the maximum number of SBP observations possible per epoch:
    - Max number of observation messages comes from the 4 bits assigned to the
