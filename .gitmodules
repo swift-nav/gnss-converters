@@ -1,3 +1,6 @@
 [submodule "c/librtcm"]
 	path = c/librtcm
 	url = ../librtcm.git
+[submodule "c/libsbp"]
+	path = c/libsbp
+	url = git@github.com:swift-nav/libsbp.git
