@@ -11,14 +11,13 @@
  */
 
 #include <check.h>
-#include <libsbp/ssr.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libsbp/ssr.h>
 
-#include <config.h>
-
+#include "config.h"
 #include "check_rtcm3.h"
 #include "check_suites.h"
 

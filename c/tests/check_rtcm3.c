@@ -16,8 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <config.h>
-
+#include "config.h"
 #include "check_rtcm3.h"
 #include "check_suites.h"
 
