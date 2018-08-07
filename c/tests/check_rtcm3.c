@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include <config.h>
+#include <libsbp/logging.h>
 #include "../src/rtcm3_sbp_internal.h"
 
 #include "check_suites.h"
@@ -25,6 +26,8 @@
 
 #define MAX_FILE_SIZE 2337772
 #define RTCM3_PREAMBLE 0xD3
+
+#define FLOAT_EPS 1e-6
 
 static double expected_L1CA_bias = 0.0;
 static double expected_L1P_bias = 0.0;
@@ -112,6 +115,53 @@ void sbp_callback_gps(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
     update_obs_time((msg_obs_t *)buffer);
   }
   msg_count++;
+}
+
+void sbp_callback_gps_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+  (void)length;
+  (void)sender_id;
+  static bool checked_eph = false;
+  /* ignore log messages */
+  if (msg_id == SBP_MSG_EPHEMERIS_GPS && !checked_eph) {
+    checked_eph = true;
+    msg_ephemeris_gps_t* msg = (msg_ephemeris_gps_t*)buffer;
+    ck_assert(msg->common.sid.sat == 1);
+    ck_assert(msg->common.sid.code == CODE_GPS_L1CA);
+    ck_assert(msg->common.toe.wn == 2012);
+    ck_assert(msg->common.toe.tow == 489600);
+    ck_assert(fabs(msg->common.ura - 2.8) < FLOAT_EPS);
+    ck_assert(msg->common.fit_interval == 14400);
+    ck_assert(msg->common.valid == 1);
+    ck_assert(msg->common.health_bits == 0);
+
+    ck_assert(fabs(msg->tgd - 5.587935447692871e-9) < FLOAT_EPS);
+    ck_assert(fabs(msg->c_rs - 10.34375) < FLOAT_EPS);
+    ck_assert(fabs(msg->c_rc - 269.15625) < FLOAT_EPS);
+    ck_assert(fabs(msg->c_uc - 7.599592208862305e-7) < FLOAT_EPS);
+    ck_assert(fabs(msg->c_us - 6.021931767463684e-6) < FLOAT_EPS);
+    ck_assert(fabs(msg->c_ic + 1.1175870895385742e-8) < FLOAT_EPS);
+    ck_assert(fabs(msg->c_is - 1.4901161193847656e-7) < FLOAT_EPS);
+
+    ck_assert(fabs(msg->dn - 4.626621288776081e-9) < FLOAT_EPS);
+    ck_assert(fabs(msg->m0 - 1.0410100899287642) < FLOAT_EPS);
+    ck_assert(fabs(msg->ecc - 8.054995676502585e-3) < FLOAT_EPS);
+    ck_assert(fabs(msg->sqrta - 5153.665510177612) < FLOAT_EPS);
+    ck_assert(fabs(msg->omega0 - 2.4056622999366137) < FLOAT_EPS);
+    ck_assert(fabs(msg->omegadot + 8.301774373653793e-9) < FLOAT_EPS);
+    ck_assert(fabs(msg->w - 0.673068866191342) < FLOAT_EPS);
+    ck_assert(fabs(msg->inc - 0.9720926277884092) < FLOAT_EPS);
+    ck_assert(fabs(msg->inc_dot - 6.643133856047175e-11) < FLOAT_EPS);
+
+    ck_assert(fabs(msg->af0 + 7.250206544995308e-5) < FLOAT_EPS);
+    ck_assert(fabs(msg->af1 + 3.979039320256561e-12) < FLOAT_EPS);
+    ck_assert(fabs(msg->af2 - 0.0) < FLOAT_EPS);
+
+    ck_assert(msg->toc.wn == 2012);
+    ck_assert(msg->toc.tow == 489600);
+    ck_assert(msg->iode == 104);
+    ck_assert(msg->iodc == 104);
+  }
+  return;
 }
 
 void sbp_callback_1012_first(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
@@ -661,6 +711,14 @@ START_TEST(test_gps_diff_time_sec) {
 }
 END_TEST
 
+START_TEST(tc_rtcm_eph_gps) {
+  current_time.wn = 2012;
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/eph.rtcm",
+             sbp_callback_gps_eph,
+             current_time);
+}
+END_TEST
+
 Suite *rtcm3_suite(void) {
   Suite *s = suite_create("RTCMv3");
 
@@ -713,6 +771,14 @@ Suite *rtcm3_suite(void) {
   tcase_add_test(tc_utils, test_compute_glo_time);
   tcase_add_test(tc_utils, test_gps_diff_time_sec);
   suite_add_tcase(s, tc_utils);
+
+  TCase *tc_eph = tcase_create("ephemeris");
+  tcase_add_checked_fixture(tc_eph, rtcm3_setup_basic, NULL);
+  tcase_add_test(tc_eph, tc_rtcm_eph_gps);
+  // tcase_add_test(tc_eph, tc_rtcm_eph_glo);
+  // tcase_add_test(tc_eph, tc_rtcm_eph_gal);
+  // tcase_add_test(tc_eph, tc_rtcm_eph_bds);
+  suite_add_tcase(s, tc_eph);
 
   return s;
 }
