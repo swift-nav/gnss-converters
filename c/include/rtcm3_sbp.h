@@ -67,6 +67,10 @@ struct rtcm3_sbp_state {
   u8 glo_sv_id_fcn_map[GLO_LAST_PRN + 1];
 };
 
+void rtcm2sbp_decode_payload(const uint8_t *payload,
+                             uint32_t payload_length,
+                             struct rtcm3_sbp_state *state);
+
 void rtcm2sbp_decode_frame(const uint8_t *frame,
                            uint32_t frame_length,
                            struct rtcm3_sbp_state *state);

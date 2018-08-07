@@ -100,22 +100,18 @@ static u16 rtcm_2_sbp_sender_id(u16 rtcm_id) {
   return rtcm_id | 0xF000;
 }
 
-void rtcm2sbp_decode_frame(const uint8_t *frame,
-                           uint32_t frame_length,
-                           struct rtcm3_sbp_state *state) {
-  if (!gps_time_valid(&state->time_from_rover_obs) || frame_length < 1) {
+
+void rtcm2sbp_decode_payload(const uint8_t *payload,
+                             uint32_t payload_length,
+                             struct rtcm3_sbp_state *state) {
+  (void)payload_length;
+
+  if (!gps_time_valid(&state->time_from_rover_obs)) {
     return;
   }
 
-  uint16_t byte = 1;
-  uint16_t message_size = ((frame[byte] & 0x3) << 8) | frame[byte + 1];
-
-  if (frame_length < message_size) {
-    return;
-  }
-
-  byte += 2;
-  uint16_t message_type = (frame[byte] << 4) | ((frame[byte + 1] >> 4) & 0xf);
+  uint16_t byte = 0;
+  uint16_t message_type = (payload[byte] << 4) | ((payload[byte + 1] >> 4) & 0xf);
 
   switch (message_type) {
     case 1001:
@@ -123,7 +119,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
       break;
     case 1002: {
       rtcm_obs_message new_rtcm_obs;
-      if (RC_OK == rtcm3_decode_1002(&frame[byte], &new_rtcm_obs)) {
+      if (RC_OK == rtcm3_decode_1002(&payload[byte], &new_rtcm_obs)) {
         /* Need to check if we've got obs in the buffer from the previous epoch
          and send before accepting the new message */
         add_gps_obs_to_buffer(&new_rtcm_obs, state);
@@ -132,7 +128,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     }
     case 1004: {
       rtcm_obs_message new_rtcm_obs;
-      if (RC_OK == rtcm3_decode_1004(&frame[byte], &new_rtcm_obs)) {
+      if (RC_OK == rtcm3_decode_1004(&payload[byte], &new_rtcm_obs)) {
         /* Need to check if we've got obs in the buffer from the previous epoch
          and send before accepting the new message */
         add_gps_obs_to_buffer(&new_rtcm_obs, state);
@@ -141,7 +137,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     }
     case 1005: {
       rtcm_msg_1005 msg_1005;
-      if (RC_OK == rtcm3_decode_1005(&frame[byte], &msg_1005)) {
+      if (RC_OK == rtcm3_decode_1005(&payload[byte], &msg_1005)) {
         msg_base_pos_ecef_t sbp_base_pos;
         rtcm3_1005_to_sbp(&msg_1005, &sbp_base_pos);
         state->cb_rtcm_to_sbp(SBP_MSG_BASE_POS_ECEF,
@@ -154,7 +150,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     }
     case 1006: {
       rtcm_msg_1006 msg_1006;
-      if (RC_OK == rtcm3_decode_1006(&frame[byte], &msg_1006)) {
+      if (RC_OK == rtcm3_decode_1006(&payload[byte], &msg_1006)) {
         msg_base_pos_ecef_t sbp_base_pos;
         rtcm3_1006_to_sbp(&msg_1006, &sbp_base_pos);
         state->cb_rtcm_to_sbp(SBP_MSG_BASE_POS_ECEF,
@@ -170,7 +166,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
       break;
     case 1010: {
       rtcm_obs_message new_rtcm_obs;
-      if (RC_OK == rtcm3_decode_1010(&frame[byte], &new_rtcm_obs) &&
+      if (RC_OK == rtcm3_decode_1010(&payload[byte], &new_rtcm_obs) &&
           state->leap_second_known) {
         add_glo_obs_to_buffer(&new_rtcm_obs, state);
       }
@@ -178,7 +174,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     }
     case 1012: {
       rtcm_obs_message new_rtcm_obs;
-      if (RC_OK == rtcm3_decode_1012(&frame[byte], &new_rtcm_obs) &&
+      if (RC_OK == rtcm3_decode_1012(&payload[byte], &new_rtcm_obs) &&
           state->leap_second_known) {
         add_glo_obs_to_buffer(&new_rtcm_obs, state);
       }
@@ -186,7 +182,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     }
     case 1019: {
       rtcm_msg_eph msg_eph;
-      if (RC_OK == rtcm3_decode_gps_eph(&frame[byte], &msg_eph)){
+      if (RC_OK == rtcm3_decode_gps_eph(&payload[byte], &msg_eph)){
         msg_ephemeris_gps_t sbp_gps_eph;
         rtcm3_gps_eph_to_sbp(&msg_eph, &sbp_gps_eph, state);
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GPS,
@@ -198,7 +194,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     }
     case 1020: {
       rtcm_msg_eph msg_eph;
-      if (RC_OK == rtcm3_decode_glo_eph(&frame[byte], &msg_eph)){
+      if (RC_OK == rtcm3_decode_glo_eph(&payload[byte], &msg_eph)){
         msg_ephemeris_glo_t sbp_glo_eph;
         rtcm3_glo_eph_to_sbp(&msg_eph, &sbp_glo_eph, state);
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GLO,
@@ -210,14 +206,14 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     }
     case 1029: {
       rtcm_msg_1029 msg_1029;
-      if (RC_OK == rtcm3_decode_1029(&frame[byte], &msg_1029)) {
+      if (RC_OK == rtcm3_decode_1029(&payload[byte], &msg_1029)) {
         send_1029(&msg_1029, state);
       }
       break;
     }
     case 1033: {
       rtcm_msg_1033 msg_1033;
-      if (RC_OK == rtcm3_decode_1033(&frame[byte], &msg_1033) &&
+      if (RC_OK == rtcm3_decode_1033(&payload[byte], &msg_1033) &&
           no_1230_received(state)) {
         msg_glo_biases_t sbp_glo_cpb;
         rtcm3_1033_to_sbp(&msg_1033, &sbp_glo_cpb);
@@ -231,7 +227,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     }
     case 1230: {
       rtcm_msg_1230 msg_1230;
-      if (RC_OK == rtcm3_decode_1230(&frame[byte], &msg_1230)) {
+      if (RC_OK == rtcm3_decode_1230(&payload[byte], &msg_1230)) {
         msg_glo_biases_t sbp_glo_cpb;
         rtcm3_1230_to_sbp(&msg_1230, &sbp_glo_cpb);
         state->cb_rtcm_to_sbp(SBP_MSG_GLO_BIASES,
@@ -249,7 +245,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     case 1124: {
       rtcm_msm_message new_rtcm_msm;
       if (RC_OK == rtcm3_decode_msm4(
-                       &frame[byte], state->glo_sv_id_fcn_map, &new_rtcm_msm)) {
+                       &payload[byte], state->glo_sv_id_fcn_map, &new_rtcm_msm)) {
         add_msm_obs_to_buffer(&new_rtcm_msm, state);
       }
       break;
@@ -259,7 +255,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     case 1095:
     case 1125: {
       rtcm_msm_message new_rtcm_msm;
-      if (RC_OK == rtcm3_decode_msm5(&frame[byte], &new_rtcm_msm)) {
+      if (RC_OK == rtcm3_decode_msm5(&payload[byte], &new_rtcm_msm)) {
         add_msm_obs_to_buffer(&new_rtcm_msm, state);
       }
       break;
@@ -270,7 +266,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     case 1126: {
       rtcm_msm_message new_rtcm_msm;
       if (RC_OK == rtcm3_decode_msm6(
-                       &frame[byte], state->glo_sv_id_fcn_map, &new_rtcm_msm)) {
+                       &payload[byte], state->glo_sv_id_fcn_map, &new_rtcm_msm)) {
         add_msm_obs_to_buffer(&new_rtcm_msm, state);
       }
       break;
@@ -280,7 +276,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
     case 1097:
     case 1127: {
       rtcm_msm_message new_rtcm_msm;
-      if (RC_OK == rtcm3_decode_msm7(&frame[byte], &new_rtcm_msm)) {
+      if (RC_OK == rtcm3_decode_msm7(&payload[byte], &new_rtcm_msm)) {
         add_msm_obs_to_buffer(&new_rtcm_msm, state);
       }
       break;
@@ -318,7 +314,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
       /* MSM1-3 messages (1xx3) are currently not supported, warn the user once
        * if these messages are seen - only warn once as these messages can be
        * present in streams that contain MSM4-7 or 1004 and 1012 so are valid */
-      send_MSM_warning(&frame[byte], state);
+      send_MSM_warning(&payload[byte], state);
       break;
     }
     default:
@@ -329,10 +325,28 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
    * out the SBP buffer */
   if (message_type >= MSM_MSG_TYPE_MIN && message_type <= MSM_MSG_TYPE_MAX) {
     /* The Multiple message bit DF393 is the same regardless of MSM msg type */
-    if (rtcm_getbitu(&frame[byte], MSM_MULTIPLE_BIT_OFFSET, 1) == 0) {
+    if (rtcm_getbitu(&payload[byte], MSM_MULTIPLE_BIT_OFFSET, 1) == 0) {
       send_observations(state);
     }
   }
+}
+
+void rtcm2sbp_decode_frame(const uint8_t *frame,
+                           uint32_t frame_length,
+                           struct rtcm3_sbp_state *state) {
+  if (frame_length < 1) {
+    return;
+  }
+
+  uint16_t byte = 1;
+  uint16_t message_size = ((frame[byte] & 0x3) << 8) | frame[byte + 1];
+
+  if (frame_length < message_size) {
+    return;
+  }
+
+  byte += 2;
+  rtcm2sbp_decode_payload(&frame[byte], message_size, state);
 }
 
 void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
