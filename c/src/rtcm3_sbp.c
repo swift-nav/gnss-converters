@@ -29,8 +29,9 @@ static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
 
 void rtcm2sbp_init(
     struct rtcm3_sbp_state *state,
-    void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id),
-    void (*cb_base_obs_invalid)(double timediff)) {
+    void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context),
+    void (*cb_base_obs_invalid)(double timediff, void *context),
+    void *context) {
   state->time_from_rover_obs.wn = INVALID_TIME;
   state->time_from_rover_obs.tow = 0;
 
@@ -40,6 +41,7 @@ void rtcm2sbp_init(
   state->sender_id = 0;
   state->cb_rtcm_to_sbp = cb_rtcm_to_sbp;
   state->cb_base_obs_invalid = cb_base_obs_invalid;
+  state->context = context;
 
   state->last_gps_time.wn = INVALID_TIME;
   state->last_gps_time.tow = 0;
@@ -145,7 +147,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
         state->cb_rtcm_to_sbp(SBP_MSG_BASE_POS_ECEF,
                               (u8)sizeof(sbp_base_pos),
                               (u8 *)&sbp_base_pos,
-                              rtcm_2_sbp_sender_id(msg_1005.stn_id));
+                              rtcm_2_sbp_sender_id(msg_1005.stn_id),
+                              state->context);
       }
       break;
     }
@@ -157,7 +160,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
         state->cb_rtcm_to_sbp(SBP_MSG_BASE_POS_ECEF,
                               (u8)sizeof(sbp_base_pos),
                               (u8 *)&sbp_base_pos,
-                              rtcm_2_sbp_sender_id(msg_1006.msg_1005.stn_id));
+                              rtcm_2_sbp_sender_id(msg_1006.msg_1005.stn_id),
+                              state->context);
       }
       break;
     }
@@ -188,7 +192,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GPS,
                               (u8)sizeof(sbp_gps_eph),
                               (u8 *)&sbp_gps_eph,
-                              rtcm_2_sbp_sender_id(0));
+                              rtcm_2_sbp_sender_id(0),
+                              state->context);
       }
     }
     case 1020: {
@@ -199,7 +204,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GLO,
                               (u8)sizeof(sbp_glo_eph),
                               (u8 *)&sbp_glo_eph,
-                              rtcm_2_sbp_sender_id(0));
+                              rtcm_2_sbp_sender_id(0),
+                              state->context);
       }
     }
     case 1029: {
@@ -218,7 +224,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
         state->cb_rtcm_to_sbp(SBP_MSG_GLO_BIASES,
                               (u8)sizeof(sbp_glo_cpb),
                               (u8 *)&sbp_glo_cpb,
-                              rtcm_2_sbp_sender_id(msg_1033.stn_id));
+                              rtcm_2_sbp_sender_id(msg_1033.stn_id),
+                              state->context);
       }
       break;
     }
@@ -230,7 +237,8 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
         state->cb_rtcm_to_sbp(SBP_MSG_GLO_BIASES,
                               (u8)sizeof(sbp_glo_cpb),
                               (u8 *)&sbp_glo_cpb,
-                              rtcm_2_sbp_sender_id(msg_1230.stn_id));
+                              rtcm_2_sbp_sender_id(msg_1230.stn_id),
+                              state->context);
         state->last_1230_received = state->time_from_rover_obs;
       }
       break;
@@ -469,7 +477,7 @@ void send_observations(struct rtcm3_sbp_state *state) {
     u16 len = SBP_HDR_SIZE + obs_index * SBP_OBS_SIZE;
     assert(len <= SBP_FRAMING_MAX_PAYLOAD_SIZE);
 
-    state->cb_rtcm_to_sbp(SBP_MSG_OBS, len, obs_data, state->sender_id);
+    state->cb_rtcm_to_sbp(SBP_MSG_OBS, len, obs_data, state->sender_id, state->context);
   }
   /* clear the observation buffer, so also header.n_obs is set to zero */
   memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
@@ -967,7 +975,7 @@ static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
   /* exclude base measurements with time stamp too far in the future */
   if (timediff >= BASE_FUTURE_THRESHOLD_S &&
       state->cb_base_obs_invalid != NULL) {
-    state->cb_base_obs_invalid(timediff);
+    state->cb_base_obs_invalid(timediff, state->context);
   }
 }
 
@@ -1027,7 +1035,8 @@ void send_sbp_log_message(const uint8_t level,
   state->cb_rtcm_to_sbp(SBP_MSG_LOG,
                         sizeof(*sbp_log_msg) + length,
                         (u8 *)frame_buffer,
-                        rtcm_2_sbp_sender_id(stn_id));
+                        rtcm_2_sbp_sender_id(stn_id),
+                        state->context);
 }
 
 void send_MSM_warning(const uint8_t *frame, struct rtcm3_sbp_state *state) {

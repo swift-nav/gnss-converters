@@ -100,9 +100,10 @@ static void update_obs_time(const msg_obs_t *msg) {
   rtcm2sbp_set_gps_time(&obs_time, &state);
 }
 
-void sbp_callback_gps(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_gps(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
   (void)sender_id;
+  (void)context;
   static uint32_t msg_count = 0;
   /* ignore log messages */
   if (msg_id == SBP_MSG_LOG) return;
@@ -117,9 +118,10 @@ void sbp_callback_gps(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   msg_count++;
 }
 
-void sbp_callback_gps_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_gps_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
   (void)sender_id;
+  (void)context;
   static bool checked_eph = false;
   /* ignore log messages */
   if (msg_id == SBP_MSG_EPHEMERIS_GPS && !checked_eph) {
@@ -164,10 +166,11 @@ void sbp_callback_gps_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
   return;
 }
 
-void sbp_callback_1012_first(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_1012_first(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
   (void)buffer;
   (void)sender_id;
+  (void)context;
   if (msg_id == SBP_MSG_OBS) {
     msg_obs_t *msg = (msg_obs_t *)buffer;
     u8 num_sbp_msgs = msg->header.n_obs >> 4;
@@ -179,10 +182,12 @@ void sbp_callback_1012_first(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
 void sbp_callback_glo_day_rollover(u16 msg_id,
                                    u8 length,
                                    u8 *buffer,
-                                   u16 sender_id) {
+                                   u16 sender_id,
+                                   void *context) {
   (void)length;
   (void)buffer;
   (void)sender_id;
+  (void)context;
   if (msg_id == SBP_MSG_OBS) {
     msg_obs_t *msg = (msg_obs_t *)buffer;
     u8 num_sbp_msgs = msg->header.n_obs >> 4;
@@ -208,9 +213,10 @@ void check_biases(msg_glo_biases_t *sbp_glo_msg) {
   }
 }
 
-void sbp_callback_bias(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
+void sbp_callback_bias(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
   (void)sender_id;
+  (void)context;
   if (msg_id == SBP_MSG_GLO_BIASES) {
     msg_glo_biases_t *sbp_glo_msg = (msg_glo_biases_t *)buffer;
     check_biases(sbp_glo_msg);
@@ -222,9 +228,11 @@ void sbp_callback_bias(u16 msg_id, u8 length, u8 *buffer, u16 sender_id) {
 void sbp_callback_msm_switching(u16 msg_id,
                                 u8 length,
                                 u8 *buffer,
-                                u16 sender_id) {
+                                u16 sender_id,
+                                void *context) {
   (void)length;
   (void)sender_id;
+  (void)context;
   const u32 MAX_OBS_GAP_S = MSM_TIMEOUT_SEC + 5;
 
   if (msg_id == SBP_MSG_OBS) {
@@ -244,8 +252,10 @@ void sbp_callback_msm_switching(u16 msg_id,
 void sbp_callback_msm_no_gaps(u16 msg_id,
                               u8 length,
                               u8 *buffer,
-                              u16 sender_id) {
+                              u16 sender_id,
+                              void *context) {
   (void)sender_id;
+  (void)context;
   const u32 MAX_OBS_GAP_S = 1;
 
   if (msg_id == SBP_MSG_OBS) {
@@ -317,9 +327,9 @@ bool verify_crc(uint8_t *buffer, uint32_t buffer_length) {
 
 void test_RTCM3(
     const char *filename,
-    void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id),
+    void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context),
     gps_time_sec_t current_time) {
-  rtcm2sbp_init(&state, cb_rtcm_to_sbp, NULL);
+  rtcm2sbp_init(&state, cb_rtcm_to_sbp, NULL, NULL);
   rtcm2sbp_set_gps_time(&current_time, &state);
   rtcm2sbp_set_leap_second(18, &state);
 

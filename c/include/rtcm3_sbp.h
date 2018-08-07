@@ -57,8 +57,9 @@ struct rtcm3_sbp_state {
   gps_time_sec_t last_glo_time;
   gps_time_sec_t last_1230_received;
   gps_time_sec_t last_msm_received;
-  void (*cb_rtcm_to_sbp)(u16 msg_id, u8 len, u8 *buff, u16 sender_id);
-  void (*cb_base_obs_invalid)(double time_diff);
+  void (*cb_rtcm_to_sbp)(u16 msg_id, u8 len, u8 *buff, u16 sender_id, void *context);
+  void (*cb_base_obs_invalid)(double time_diff, void *context);
+  void *context;
   u8 obs_buffer[OBS_BUFFER_SIZE];
   bool sent_msm_warning;
   bool sent_code_warning[UNSUPPORTED_CODE_MAX];
@@ -81,8 +82,9 @@ void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
 
 void rtcm2sbp_init(
     struct rtcm3_sbp_state *state,
-    void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id),
-    void (*cb_base_obs_invalid)(double time_diff));
+    void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context),
+    void (*cb_base_obs_invalid)(double time_diff, void *context),
+    void *context);
 
 #ifdef __cplusplus
 }
