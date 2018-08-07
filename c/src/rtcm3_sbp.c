@@ -329,7 +329,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
    * out the SBP buffer */
   if (message_type >= MSM_MSG_TYPE_MIN && message_type <= MSM_MSG_TYPE_MAX) {
     /* The Multiple message bit DF393 is the same regardless of MSM msg type */
-    if (getbitu(&frame[byte], MSM_MULTIPLE_BIT_OFFSET, 1) == 0) {
+    if (rtcm_getbitu(&frame[byte], MSM_MULTIPLE_BIT_OFFSET, 1) == 0) {
       send_observations(state);
     }
   }

@@ -79,9 +79,9 @@ u32 decode_fit_interval(u8 fit_interval_flag, u16 iodc) {
  *
  * \return The absolute week number counted from 1980
  *
- * \sa gps_adjust_week_cycle256
+ * \sa rtcm3_gps_adjust_week_cycle256
  */
-u16 gps_adjust_week_cycle(u16 wn_raw, u16 wn_ref) {
+u16 rtcm3_gps_adjust_week_cycle(u16 wn_raw, u16 wn_ref) {
   /* note the week numbers are unsigned so they cannot be WN_UNKNOWN */
   if (wn_raw >= wn_ref) {
     return wn_raw;
@@ -92,7 +92,7 @@ u16 gps_adjust_week_cycle(u16 wn_raw, u16 wn_ref) {
 
 void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_gps_t *sbp_gps_eph, struct rtcm3_sbp_state *state) {
   /* RTCM gives wn module 1024, so take the current time and mask the lower 10 bits */
-  sbp_gps_eph->common.toe.wn = gps_adjust_week_cycle(state->time_from_rover_obs.wn,msg_eph->wn);
+  sbp_gps_eph->common.toe.wn = rtcm3_gps_adjust_week_cycle(state->time_from_rover_obs.wn,msg_eph->wn);
   sbp_gps_eph->common.toe.tow = msg_eph->toe * 16;
   sbp_gps_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gps_eph->common.sid.code = CODE_GPS_L1CA;
