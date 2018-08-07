@@ -13,8 +13,10 @@
 #ifndef GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
 #define GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
 
-#include <libsbp/gnss.h>
-#include <libsbp/logging.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <libsbp/observation.h>
 #include <rtcm3_messages.h>
 
@@ -81,5 +83,9 @@ void rtcm2sbp_init(
     struct rtcm3_sbp_state *state,
     void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id),
     void (*cb_base_obs_invalid)(double time_diff));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H */
