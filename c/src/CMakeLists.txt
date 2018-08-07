@@ -1,9 +1,5 @@
 file(GLOB gnss_converters_HEADERS "${PROJECT_SOURCE_DIR}/include/*.h")
 
-include_directories("${PROJECT_SOURCE_DIR}/include")
-include_directories("${PROJECT_SOURCE_DIR}/libsbp/c/include")
-include_directories("${PROJECT_SOURCE_DIR}/librtcm/c/include")
-
 add_library(gnss_converters rtcm3_sbp.c rtcm3_sbp_ephemeris.c)
 target_link_libraries(gnss_converters m sbp rtcm)
 
