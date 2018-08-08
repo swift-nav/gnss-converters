@@ -246,6 +246,13 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       }
       break;
     }
+    case 1059: {
+      rtcm_msg_code_bias msg_code_bias;
+      if (RC_OK == rtcm3_decode_code_bias(&payload[byte], &msg_code_bias)) {
+        rtcm3_1230_to_sbp(&msg_code_bias, state);
+      }
+      break;
+    }
     case 1074:
     case 1084:
     case 1094:
