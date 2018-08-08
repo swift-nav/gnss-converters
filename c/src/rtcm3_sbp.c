@@ -191,6 +191,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
                               rtcm_2_sbp_sender_id(0),
                               state->context);
       }
+      break;
     }
     case 1020: {
       rtcm_msg_eph msg_eph;
@@ -203,6 +204,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
                               rtcm_2_sbp_sender_id(0),
                               state->context);
       }
+      break;
     }
     case 1029: {
       rtcm_msg_1029 msg_1029;
