@@ -675,6 +675,9 @@ START_TEST(test_compute_glo_time) {
                                        .wn = 1945};
           rtcm2sbp_set_gps_time(&rover_time, &state);
           u32 glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
+          if (glo_tod_ms > SEC_IN_DAY * S_TO_MS) {
+            glo_tod_ms -= SEC_IN_DAY * S_TO_MS;
+          }
           gps_time_sec_t expected_time = rover_time;
           expected_time.tow += state.leap_seconds;
           if (expected_time.tow >= SEC_IN_WEEK) {
@@ -690,19 +693,6 @@ START_TEST(test_compute_glo_time) {
       }
     }
   }
-
-  /* time conversion during leap second event should give invalid time */
-  u8 day = 3;
-  u8 hour = 23;
-  u8 min = 59;
-  u8 sec = 60;
-  u32 tod = hour * SEC_IN_HOUR + min * SEC_IN_MINUTE + sec;
-  gps_time_sec_t rover_time = {.tow = day * SEC_IN_DAY + tod, .wn = 1945};
-  u32 glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
-
-  gps_time_sec_t obs_time;
-  compute_glo_time(glo_tod_ms, &obs_time, &rover_time, &state);
-  ck_assert_uint_eq(obs_time.wn, INVALID_TIME);
 }
 END_TEST
 

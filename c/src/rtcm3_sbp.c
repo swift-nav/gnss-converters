@@ -85,9 +85,14 @@ s32 gps_diff_time_sec(const gps_time_sec_t *end,
   assert(gps_time_valid(end));
 
   s16 week_diff = end->wn - beginning->wn;
-  /* assert the total difference in seconds is represantable by s32 (works out
-   * to 3549 weeks) */
-  assert(week_diff > -MAX_WEEK_DIFF && week_diff < MAX_WEEK_DIFF);
+  /* if the total difference in seconds is not represantable by s32 (works out
+   * to 3549 weeks), saturate to the difference */
+  if (week_diff <= -MAX_WEEK_DIFF) {
+    return INT32_MIN;
+  }
+  if (week_diff >= MAX_WEEK_DIFF) {
+    return INT32_MAX;
+  }
 
   s32 dt = (s32)end->tow - (s32)beginning->tow;
   dt += week_diff * SEC_IN_WEEK;
@@ -941,7 +946,9 @@ void compute_gps_time(u32 tow_ms,
 }
 
 /* Compute full GLO time stamp from the time-of-day count, so that the result
- * is close to the supplied reference gps time */
+ * is close to the supplied reference gps time
+ * TODO: correct functionality during/around leap second event to be
+ *       tested and implemented */
 void compute_glo_time(u32 tod_ms,
                       gps_time_sec_t *obs_time,
                       const gps_time_sec_t *rover_time,
@@ -950,21 +957,21 @@ void compute_glo_time(u32 tod_ms,
     obs_time->wn = INVALID_TIME;
     return;
   }
+  assert(tod_ms < (SEC_IN_DAY + 1) * S_TO_MS);
   assert(gps_time_valid(rover_time));
 
   /* Approximate DOW from the reference GPS time */
   u8 glo_dow = rover_time->tow / SEC_IN_DAY;
   s32 glo_tod_sec = (u32)(tod_ms * MS_TO_S) - UTC_SU_OFFSET * SEC_IN_HOUR;
 
-  if (glo_tod_sec >= SEC_IN_DAY) {
-    /* Time of day overflows, can possibly happen during leap second event.
-     * Return as invalid. */
-    obs_time->wn = INVALID_TIME;
-    return;
-  }
-
   obs_time->wn = rover_time->wn;
-  obs_time->tow = glo_dow * SEC_IN_DAY + glo_tod_sec + state->leap_seconds;
+  s32 tow = glo_dow * SEC_IN_DAY + glo_tod_sec + state->leap_seconds;
+  while (tow < 0) {
+    tow += SEC_IN_WEEK;
+    obs_time->wn -= 1;
+  }
+  obs_time->tow = tow;
+
   normalize_gps_time(obs_time);
 
   /* check for day rollover against reference time */
