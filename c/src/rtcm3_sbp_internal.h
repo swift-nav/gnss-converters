@@ -123,8 +123,8 @@ extern bool rtcm3_debug;
 #define GPP_TRM_BIAS_L1CA_M 18.8
 #define GPP_TRM_BIAS_L2P_M 23.2
 
-u8 encode_lock_time(double nm_lock_time);
-double decode_lock_time(u8 sbp_lock_time);
+u8 rtcm3_encode_lock_time(double nm_lock_time);
+double rtcm3_decode_lock_time(u8 sbp_lock_time);
 
 void sbp_to_rtcm3_obs(const msg_obs_t *sbp_obs,
                       const u8 msg_size,

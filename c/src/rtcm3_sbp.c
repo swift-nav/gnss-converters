@@ -513,7 +513,7 @@ void send_observations(struct rtcm3_sbp_state *state) {
  * \param nm_lock_time Navigation measurement lock time [s]
  * \return SBP lock time
  */
-u8 encode_lock_time(double nm_lock_time) {
+u8 rtcm3_encode_lock_time(double nm_lock_time) {
   assert(nm_lock_time >= 0.0);
 
   /* Convert to milliseconds */
@@ -547,7 +547,7 @@ u8 encode_lock_time(double nm_lock_time) {
  * \param sbp_lock_time SBP lock time
  * \return Minimum possible lock time [s]
  */
-double decode_lock_time(u8 sbp_lock_time) {
+double rtcm3_decode_lock_time(u8 sbp_lock_time) {
   /* MSB nibble is reserved */
   sbp_lock_time &= 0x0F;
 
@@ -703,7 +703,7 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
         }
 
         if (rtcm_freq->flags.valid_lock == 1) {
-          sbp_freq->lock = encode_lock_time(rtcm_freq->lock);
+          sbp_freq->lock = rtcm3_encode_lock_time(rtcm_freq->lock);
         }
 
         new_sbp_obs->header.n_obs++;
@@ -1323,7 +1323,7 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
           }
 
           if (data->flags.valid_lock) {
-            sbp_freq->lock = encode_lock_time(data->lock_time_s);
+            sbp_freq->lock = rtcm3_encode_lock_time(data->lock_time_s);
           }
 
           if (data->flags.valid_dop) {

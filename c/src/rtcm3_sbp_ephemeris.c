@@ -43,7 +43,7 @@ float convert_ura_to_uri(uint8_t ura) {
 * \param iodc The IODC value.
 * \return the curve fit interval in seconds.
 */
-u32 decode_fit_interval(u8 fit_interval_flag, u16 iodc) {
+u32 rtcm3_decode_fit_interval(u8 fit_interval_flag, u16 iodc) {
   u8 fit_interval = 4; /* This is in hours */
 
   if (fit_interval_flag) {
@@ -97,7 +97,7 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_gps_t *sbp_gps_ep
   sbp_gps_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gps_eph->common.sid.code = CODE_GPS_L1CA;
   sbp_gps_eph->common.ura = convert_ura_to_uri(msg_eph->ura);
-  sbp_gps_eph->common.fit_interval = decode_fit_interval(msg_eph->fit_interval, msg_eph->kepler.iodc);
+  sbp_gps_eph->common.fit_interval = rtcm3_decode_fit_interval(msg_eph->fit_interval, msg_eph->kepler.iodc);
   sbp_gps_eph->common.valid = msg_eph->kepler.iodc == msg_eph->kepler.iode;
   sbp_gps_eph->common.health_bits = msg_eph->health_bits;
 
