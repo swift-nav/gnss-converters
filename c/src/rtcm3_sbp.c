@@ -15,6 +15,7 @@
 #include <math.h>
 #include <rtcm3_decode.h>
 #include <rtcm3_eph_decode.h>
+#include <rtcm3_ssr_decode.h>
 #include <rtcm3_msm_utils.h>
 #include <rtcm_logging.h>
 #include <stdio.h>
@@ -248,8 +249,9 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
     }
     case 1059: {
       rtcm_msg_code_bias msg_code_bias;
+      printf("Msg %u\n",message_type);
       if (RC_OK == rtcm3_decode_code_bias(&payload[byte], &msg_code_bias)) {
-        rtcm3_1230_to_sbp(&msg_code_bias, state);
+        rtcm3_ssr_code_bias_to_sbp(&msg_code_bias, state);
       }
       break;
     }
@@ -935,20 +937,26 @@ void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
   }
 }
 
+void compute_gps_message_time(u32 tow_ms,
+  gps_time_sec_t *obs_time,
+  const gps_time_sec_t *rover_time) {
+    assert(gps_time_valid(rover_time));
+    obs_time->tow = (u32)(tow_ms * MS_TO_S);
+    obs_time->wn = rover_time->wn;
+    s32 timediff = gps_diff_time_sec(obs_time, rover_time);
+    if (timediff < -SEC_IN_WEEK / 2) {
+      obs_time->wn = rover_time->wn + 1;
+    } else if (timediff > SEC_IN_WEEK / 2) {
+      obs_time->wn = rover_time->wn - 1;
+    }
+    assert(gps_time_valid(obs_time));
+}
+
 void compute_gps_time(u32 tow_ms,
                       gps_time_sec_t *obs_time,
                       const gps_time_sec_t *rover_time,
                       struct rtcm3_sbp_state *state) {
-  assert(gps_time_valid(rover_time));
-  obs_time->tow = (u32)(tow_ms * MS_TO_S);
-  obs_time->wn = rover_time->wn;
-  s32 timediff = gps_diff_time_sec(obs_time, rover_time);
-  if (timediff < -SEC_IN_WEEK / 2) {
-    obs_time->wn = rover_time->wn + 1;
-  } else if (timediff > SEC_IN_WEEK / 2) {
-    obs_time->wn = rover_time->wn - 1;
-  }
-  assert(gps_time_valid(obs_time));
+  compute_gps_message_time(tow_ms, obs_time, rover_time);
   validate_base_obs_sanity(state, obs_time, rover_time);
 }
 

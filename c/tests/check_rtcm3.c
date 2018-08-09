@@ -17,28 +17,9 @@
 #include <string.h>
 
 #include <config.h>
-#include <libsbp/logging.h>
-#include "../src/rtcm3_sbp_internal.h"
 
+#include "check_rtcm3.h"
 #include "check_suites.h"
-
-/* rtcm helper defines and functions */
-
-#define MAX_FILE_SIZE 2337772
-#define RTCM3_PREAMBLE 0xD3
-
-#define FLOAT_EPS 1e-6
-
-static double expected_L1CA_bias = 0.0;
-static double expected_L1P_bias = 0.0;
-static double expected_L2CA_bias = 0.0;
-static double expected_L2P_bias = 0.0;
-
-static sbp_gps_time_t previous_obs_time = {.tow = 0, .wn = INVALID_TIME};
-static u8 previous_n_meas = 0;
-static u8 previous_num_obs = 0;
-
-static struct rtcm3_sbp_state state;
 
 static const uint32_t crc24qtab[256] = {
     0x000000, 0x864CFB, 0x8AD50D, 0x0C99F6, 0x93E6E1, 0x15AA1A, 0x1933EC,
@@ -94,7 +75,7 @@ static uint32_t crc24q(const uint8_t *buf, uint32_t len, uint32_t crc) {
   return crc;
 }
 
-static void update_obs_time(const msg_obs_t *msg) {
+void update_obs_time(const msg_obs_t *msg) {
   gps_time_sec_t obs_time = {.tow = msg[0].header.t.tow * MS_TO_S,
                              .wn = msg[0].header.t.wn};
   rtcm2sbp_set_gps_time(&obs_time, &state);
@@ -328,9 +309,9 @@ bool verify_crc(uint8_t *buffer, uint32_t buffer_length) {
 void test_RTCM3(
     const char *filename,
     void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context),
-    gps_time_sec_t current_time) {
+    gps_time_sec_t current_time_) {
   rtcm2sbp_init(&state, cb_rtcm_to_sbp, NULL, NULL);
-  rtcm2sbp_set_gps_time(&current_time, &state);
+  rtcm2sbp_set_gps_time(&current_time_, &state);
   rtcm2sbp_set_leap_second(18, &state);
 
   previous_obs_time.wn = INVALID_TIME;
@@ -394,7 +375,6 @@ void set_expected_bias(double L1CA_bias,
 /* end rtcm helpers */
 
 /* fixture globals and functions */
-gps_time_sec_t current_time;
 
 void rtcm3_setup_basic(void) {
   memset(&current_time, 0, sizeof(current_time));
