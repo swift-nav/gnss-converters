@@ -249,9 +249,22 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
     }
     case 1059: {
       rtcm_msg_code_bias msg_code_bias;
-      printf("Msg %u\n",message_type);
       if (RC_OK == rtcm3_decode_code_bias(&payload[byte], &msg_code_bias)) {
         rtcm3_ssr_code_bias_to_sbp(&msg_code_bias, state);
+      }
+      break;
+    }
+    case 1066: {
+      rtcm_msg_orbit_clock msg_orbit_clock;
+      if (RC_OK == rtcm3_decode_orbit_clock(&payload[byte], &msg_orbit_clock)) {
+        rtcm3_ssr_orbit_clock_to_sbp(&msg_orbit_clock, state);
+      }
+      break;
+    }
+    case 1264: {
+      rtcm_msg_phase_bias msg_phase_bias;
+      if (RC_OK == rtcm3_decode_phase_bias(&payload[byte], &msg_phase_bias)) {
+        rtcm3_ssr_phase_bias_to_sbp(&msg_phase_bias, state);
       }
       break;
     }
