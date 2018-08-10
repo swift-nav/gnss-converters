@@ -76,7 +76,7 @@ static void normalize_gps_time(gps_time_sec_t *t) {
   }
 }
 
-static bool gps_time_valid(const gps_time_sec_t *t) {
+bool gps_time_valid(const gps_time_sec_t *t) {
   return (t->wn != INVALID_TIME) && (t->wn < MAX_WN) && (t->tow < SEC_IN_WEEK);
 }
 
@@ -247,13 +247,15 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       }
       break;
     }
-    case 1059: {
+    case 1059:
+    case 1065: {
       rtcm_msg_code_bias msg_code_bias;
       if (RC_OK == rtcm3_decode_code_bias(&payload[byte], &msg_code_bias)) {
         rtcm3_ssr_code_bias_to_sbp(&msg_code_bias, state);
       }
       break;
     }
+    case 1060:
     case 1066: {
       rtcm_msg_orbit_clock msg_orbit_clock;
       if (RC_OK == rtcm3_decode_orbit_clock(&payload[byte], &msg_orbit_clock)) {

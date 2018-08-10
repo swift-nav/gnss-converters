@@ -17,7 +17,16 @@ void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock, struct 
   for(int sat_count=0; sat_count < msg_orbit_clock->header.num_sats; sat_count++){
     memset(buffer,0,SSR_MESSAGE_LENGTH);
     length = 0;
-    compute_gps_message_time(msg_orbit_clock->header.epoch_time * S_TO_MS, &sbp_orbit_clock->time, &state->time_from_rover_obs);
+    if(msg_orbit_clock->header.constellation == CONSTELLATION_GPS) {
+      compute_gps_message_time(msg_orbit_clock->header.epoch_time * S_TO_MS, &sbp_orbit_clock->time, &state->time_from_rover_obs);
+    } else if (msg_orbit_clock->header.constellation == CONSTELLATION_GLO) {
+      compute_glo_time(msg_orbit_clock->header.epoch_time * S_TO_MS, &sbp_orbit_clock->time, &state->time_from_rover_obs, state);
+    }
+    if(!gps_time_valid(&sbp_orbit_clock->time)){
+      /* Invalid time */
+      return;
+    }
+
     length += sizeof(sbp_orbit_clock->time);
 
     sbp_orbit_clock->sid.sat = msg_orbit_clock->orbit[sat_count].sat_id;
@@ -75,7 +84,15 @@ void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases, struct rtcm
   for(int sat_count=0; sat_count < msg_code_biases->header.num_sats; sat_count++){
     memset(buffer,0,SSR_MESSAGE_LENGTH);
     length = 0;
-    compute_gps_message_time(msg_code_biases->header.epoch_time * S_TO_MS, &sbp_code_bias->time, &state->time_from_rover_obs);
+    if(msg_code_biases->header.constellation == CONSTELLATION_GPS) {
+      compute_gps_message_time(msg_code_biases->header.epoch_time * S_TO_MS, &sbp_code_bias->time, &state->time_from_rover_obs);
+    } else if (msg_code_biases->header.constellation == CONSTELLATION_GLO) {
+      compute_glo_time(msg_code_biases->header.epoch_time * S_TO_MS, &sbp_code_bias->time, &state->time_from_rover_obs, state);
+    }
+    if(!gps_time_valid(&sbp_code_bias->time)){
+      /* Invalid time */
+      return;
+    }
     length += sizeof(sbp_code_bias->time);
 
     sbp_code_bias->sid.sat = msg_code_biases->sats[sat_count].sat_id;
@@ -109,7 +126,15 @@ void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases, struct r
   for(int sat_count=0; sat_count < msg_phase_biases->header.num_sats; sat_count++){
     memset(buffer,0,SSR_MESSAGE_LENGTH);
     length = 0;
-    compute_gps_message_time(msg_phase_biases->header.epoch_time * S_TO_MS, &sbp_phase_bias->time, &state->time_from_rover_obs);
+    if(msg_phase_biases->header.constellation == CONSTELLATION_GPS) {
+      compute_gps_message_time(msg_phase_biases->header.epoch_time * S_TO_MS, &sbp_phase_bias->time, &state->time_from_rover_obs);
+    } else if (msg_phase_biases->header.constellation == CONSTELLATION_GLO) {
+      compute_glo_time(msg_phase_biases->header.epoch_time * S_TO_MS, &sbp_phase_bias->time, &state->time_from_rover_obs, state);  
+    }
+    if(!gps_time_valid(&sbp_phase_bias->time)){
+      /* Invalid time */
+      return;
+    }
     length += sizeof(sbp_phase_bias->time);
 
     sbp_phase_bias->sid.sat = msg_phase_biases->sats[sat_count].sat_id;

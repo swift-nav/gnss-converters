@@ -211,6 +211,7 @@ void rtcm_log_callback_fn(uint8_t level,
 
 s32 gps_diff_time_sec(const gps_time_sec_t *end,
                       const gps_time_sec_t *beginning);
+                      bool gps_time_valid(const gps_time_sec_t *t);
 
 void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_gps_t *sbp_gps_eph, struct rtcm3_sbp_state *state);
 void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_glo_t *sbp_glo_eph, struct rtcm3_sbp_state *state);
