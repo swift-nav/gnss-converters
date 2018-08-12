@@ -11,7 +11,7 @@ int main(void) {
   SRunner *sr = srunner_create(s);
   srunner_set_xml(sr, "test_results.xml");
 
-  //srunner_add_suite(sr, rtcm3_suite());
+  srunner_add_suite(sr, rtcm3_suite());
   srunner_add_suite(sr, rtcm3_ssr_suite());
 
   srunner_set_fork_status(sr, CK_NOFORK);
