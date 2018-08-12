@@ -15,6 +15,7 @@
 #include <math.h>
 #include <rtcm3_decode.h>
 #include <rtcm3_eph_decode.h>
+#include <rtcm3_ssr_decode.h>
 #include <rtcm3_msm_utils.h>
 #include <rtcm_logging.h>
 #include <stdio.h>
@@ -73,10 +74,6 @@ static void normalize_gps_time(gps_time_sec_t *t) {
     t->tow -= SEC_IN_WEEK;
     t->wn += 1;
   }
-}
-
-static bool gps_time_valid(const gps_time_sec_t *t) {
-  return (t->wn != INVALID_TIME) && (t->wn < MAX_WN) && (t->tow < SEC_IN_WEEK);
 }
 
 s32 gps_diff_time_sec(const gps_time_sec_t *end,
@@ -243,6 +240,29 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
                               rtcm_2_sbp_sender_id(msg_1230.stn_id),
                               state->context);
         state->last_1230_received = state->time_from_rover_obs;
+      }
+      break;
+    }
+    case 1059:
+    case 1065: {
+      rtcm_msg_code_bias msg_code_bias;
+      if (RC_OK == rtcm3_decode_code_bias(&payload[byte], &msg_code_bias)) {
+        rtcm3_ssr_code_bias_to_sbp(&msg_code_bias, state);
+      }
+      break;
+    }
+    case 1060:
+    case 1066: {
+      rtcm_msg_orbit_clock msg_orbit_clock;
+      if (RC_OK == rtcm3_decode_orbit_clock(&payload[byte], &msg_orbit_clock)) {
+        rtcm3_ssr_orbit_clock_to_sbp(&msg_orbit_clock, state);
+      }
+      break;
+    }
+    case 1265: {
+      rtcm_msg_phase_bias msg_phase_bias;
+      if (RC_OK == rtcm3_decode_phase_bias(&payload[byte], &msg_phase_bias)) {
+        rtcm3_ssr_phase_bias_to_sbp(&msg_phase_bias, state);
       }
       break;
     }
@@ -928,20 +948,26 @@ void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
   }
 }
 
+void compute_gps_message_time(u32 tow_ms,
+  gps_time_sec_t *obs_time,
+  const gps_time_sec_t *rover_time) {
+    assert(gps_time_valid(rover_time));
+    obs_time->tow = (u32)(tow_ms * MS_TO_S);
+    obs_time->wn = rover_time->wn;
+    s32 timediff = gps_diff_time_sec(obs_time, rover_time);
+    if (timediff < -SEC_IN_WEEK / 2) {
+      obs_time->wn = rover_time->wn + 1;
+    } else if (timediff > SEC_IN_WEEK / 2) {
+      obs_time->wn = rover_time->wn - 1;
+    }
+    assert(gps_time_valid(obs_time));
+}
+
 void compute_gps_time(u32 tow_ms,
                       gps_time_sec_t *obs_time,
                       const gps_time_sec_t *rover_time,
                       struct rtcm3_sbp_state *state) {
-  assert(gps_time_valid(rover_time));
-  obs_time->tow = (u32)(tow_ms * MS_TO_S);
-  obs_time->wn = rover_time->wn;
-  s32 timediff = gps_diff_time_sec(obs_time, rover_time);
-  if (timediff < -SEC_IN_WEEK / 2) {
-    obs_time->wn = rover_time->wn + 1;
-  } else if (timediff > SEC_IN_WEEK / 2) {
-    obs_time->wn = rover_time->wn - 1;
-  }
-  assert(gps_time_valid(obs_time));
+  compute_gps_message_time(tow_ms, obs_time, rover_time);
   validate_base_obs_sanity(state, obs_time, rover_time);
 }
 
@@ -1246,7 +1272,9 @@ bool unsupported_signal(sbp_gnss_signal_t *sid) {
     case CODE_GAL_E5I:
     case CODE_GAL_E5Q:
     case CODE_GAL_E5X:
-    case CODE_GAL_E8:
+    case CODE_GAL_E8I:
+    case CODE_GAL_E8Q:
+    case CODE_GAL_E8X:
     case CODE_QZS_L1CA:
     case CODE_QZS_L2CM:
     case CODE_QZS_L2CL:
