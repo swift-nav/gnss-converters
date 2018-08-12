@@ -76,10 +76,6 @@ static void normalize_gps_time(gps_time_sec_t *t) {
   }
 }
 
-bool gps_time_valid(const gps_time_sec_t *t) {
-  return (t->wn != INVALID_TIME) && (t->wn < MAX_WN) && (t->tow < SEC_IN_WEEK);
-}
-
 s32 gps_diff_time_sec(const gps_time_sec_t *end,
                       const gps_time_sec_t *beginning) {
   assert(gps_time_valid(beginning));
