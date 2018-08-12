@@ -263,7 +263,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       }
       break;
     }
-    case 1264: {
+    case 1265: {
       rtcm_msg_phase_bias msg_phase_bias;
       if (RC_OK == rtcm3_decode_phase_bias(&payload[byte], &msg_phase_bias)) {
         rtcm3_ssr_phase_bias_to_sbp(&msg_phase_bias, state);

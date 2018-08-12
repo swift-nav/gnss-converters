@@ -22,6 +22,12 @@
 #include "check_rtcm3.h"
 #include "check_suites.h"
 
+static bool gps_orbit_clock_processed = false;
+static bool gps_code_bias_processed = false;
+static bool gps_phase_bias_processed = false;
+static bool glo_orbit_clock_processed = false;
+static bool glo_code_bias_processed = false;
+
 void sbp_callback_gps_orbit_clock(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
   (void)sender_id;
@@ -35,7 +41,8 @@ void sbp_callback_gps_orbit_clock(u16 msg_id, u8 length, u8 *buffer, u16 sender_
       return;
     }
     msg_checked = true;
-    
+    gps_orbit_clock_processed = true;
+
     ck_assert(sbp_orbit_clock->time.wn == 2013);
     ck_assert(sbp_orbit_clock->time.tow == 171680);
     ck_assert(sbp_orbit_clock->sid.sat == 1);
@@ -69,6 +76,7 @@ void sbp_callback_gps_code_bias(u16 msg_id, u8 length, u8 *buffer, u16 sender_id
       return;
     }
     msg_checked = true;
+    gps_code_bias_processed = true;
 
     ck_assert(sbp_code_bias->time.wn == 2013);
     ck_assert(sbp_code_bias->time.tow == 171680);
@@ -113,6 +121,7 @@ void sbp_callback_gps_phase_bias(u16 msg_id, u8 length, u8 *buffer, u16 sender_i
       return;
     }
     msg_checked = true;
+    gps_phase_bias_processed = true;
 
     ck_assert(sbp_phase_bias->time.wn == 2013);
     ck_assert(sbp_phase_bias->time.tow == 171680);
@@ -131,17 +140,17 @@ void sbp_callback_gps_phase_bias(u16 msg_id, u8 length, u8 *buffer, u16 sender_i
     ck_assert(sbp_phase_bias->biases[0].integer_indicator == 1);
     ck_assert(sbp_phase_bias->biases[0].code == 0);
 
-    ck_assert(sbp_phase_bias->biases[0].discontinuity_counter == 14);
-    ck_assert(sbp_phase_bias->biases[0].widelane_integer_indicator == 2);
-    ck_assert(sbp_phase_bias->biases[0].bias == 8922);
-    ck_assert(sbp_phase_bias->biases[0].integer_indicator == 1);
-    ck_assert(sbp_phase_bias->biases[0].code == 11);
+    ck_assert(sbp_phase_bias->biases[1].discontinuity_counter == 14);
+    ck_assert(sbp_phase_bias->biases[1].widelane_integer_indicator == 2);
+    ck_assert(sbp_phase_bias->biases[1].bias == 8922);
+    ck_assert(sbp_phase_bias->biases[1].integer_indicator == 1);
+    ck_assert(sbp_phase_bias->biases[1].code == 11);
 
-    ck_assert(sbp_phase_bias->biases[0].discontinuity_counter == 14);
-    ck_assert(sbp_phase_bias->biases[0].widelane_integer_indicator == 2);
-    ck_assert(sbp_phase_bias->biases[0].bias == 9542);
-    ck_assert(sbp_phase_bias->biases[0].integer_indicator == 1);
-    ck_assert(sbp_phase_bias->biases[0].code == 14);
+    ck_assert(sbp_phase_bias->biases[2].discontinuity_counter == 14);
+    ck_assert(sbp_phase_bias->biases[2].widelane_integer_indicator == 2);
+    ck_assert(sbp_phase_bias->biases[2].bias == 9542);
+    ck_assert(sbp_phase_bias->biases[2].integer_indicator == 1);
+    ck_assert(sbp_phase_bias->biases[2].code == 14);
   }
 }
 
@@ -158,21 +167,22 @@ void sbp_callback_glo_orbit_clock(u16 msg_id, u8 length, u8 *buffer, u16 sender_
       return;
     }
     msg_checked = true;
+    glo_orbit_clock_processed = true;
 
     ck_assert(sbp_orbit_clock->time.wn == 2013);
-    ck_assert(sbp_orbit_clock->time.tow == 430885);
+    ck_assert(sbp_orbit_clock->time.tow == 171680);
     ck_assert(sbp_orbit_clock->sid.sat == 1);
     ck_assert(sbp_orbit_clock->sid.code == 3);
     ck_assert(sbp_orbit_clock->update_interval == 2);
     ck_assert(sbp_orbit_clock->iod_ssr == 0);
     ck_assert(sbp_orbit_clock->iod == 11);
-    ck_assert(sbp_orbit_clock->radial == 2134);
-    ck_assert(sbp_orbit_clock->along == 1628);
+    ck_assert(sbp_orbit_clock->radial == 2170);
+    ck_assert(sbp_orbit_clock->along == 1621);
     ck_assert(sbp_orbit_clock->cross == 1805);
-    ck_assert(sbp_orbit_clock->dot_radial == -889);
-    ck_assert(sbp_orbit_clock->dot_along == 90);
-    ck_assert(sbp_orbit_clock->dot_cross == -6);
-    ck_assert(sbp_orbit_clock->c0 == 21006);
+    ck_assert(sbp_orbit_clock->dot_radial == -831);
+    ck_assert(sbp_orbit_clock->dot_along == 96);
+    ck_assert(sbp_orbit_clock->dot_cross == -19);
+    ck_assert(sbp_orbit_clock->c0 == 20868);
     ck_assert(sbp_orbit_clock->c1 == 0);
     ck_assert(sbp_orbit_clock->c2 == 0);
   }
@@ -192,9 +202,10 @@ void sbp_callback_glo_code_bias(u16 msg_id, u8 length, u8 *buffer, u16 sender_id
       return;
     }
     msg_checked = true;
+    glo_code_bias_processed = true;
 
     ck_assert(sbp_code_bias->time.wn == 2013);
-    ck_assert(sbp_code_bias->time.tow == 430880);
+    ck_assert(sbp_code_bias->time.tow == 171680);
     ck_assert(sbp_code_bias->sid.sat == 1);
     ck_assert(sbp_code_bias->sid.code == 3);
     ck_assert(sbp_code_bias->update_interval == 2);
@@ -216,6 +227,7 @@ START_TEST(test_ssr_gps_orbit_clock) {
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/clk.rtcm",
              sbp_callback_gps_orbit_clock,
              current_time);
+  ck_assert(gps_orbit_clock_processed);
 }
 END_TEST
 
@@ -224,6 +236,7 @@ START_TEST(test_ssr_gps_code_bias) {
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/clk.rtcm",
              sbp_callback_gps_code_bias,
              current_time);
+  ck_assert(gps_code_bias_processed);
 }
 END_TEST
 
@@ -232,22 +245,27 @@ START_TEST(test_ssr_gps_phase_bias) {
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/clk.rtcm",
              sbp_callback_gps_phase_bias,
              current_time);
+  ck_assert(gps_phase_bias_processed);
 }
 END_TEST
 
 START_TEST(test_ssr_glo_orbit_clock) {
   current_time.wn = 2013;
+  current_time.tow = 171680;
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/clk.rtcm",
              sbp_callback_glo_orbit_clock,
              current_time);
+  ck_assert(glo_orbit_clock_processed);
 }
 END_TEST
 
 START_TEST(test_ssr_glo_code_bias) {
   current_time.wn = 2013;
+  current_time.tow = 171680;
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/clk.rtcm",
              sbp_callback_glo_code_bias,
              current_time);
+  ck_assert(glo_code_bias_processed);
 }
 END_TEST
 
