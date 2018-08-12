@@ -21,6 +21,17 @@
 #include "check_rtcm3.h"
 #include "check_suites.h"
 
+static double expected_L1CA_bias = 0.0;
+static double expected_L1P_bias = 0.0;
+static double expected_L2CA_bias = 0.0;
+static double expected_L2P_bias = 0.0;
+
+static sbp_gps_time_t previous_obs_time = {.tow = 0, .wn = INVALID_TIME};
+static u8 previous_n_meas = 0;
+static u8 previous_num_obs = 0;
+
+static struct rtcm3_sbp_state state;
+
 static const uint32_t crc24qtab[256] = {
     0x000000, 0x864CFB, 0x8AD50D, 0x0C99F6, 0x93E6E1, 0x15AA1A, 0x1933EC,
     0x9F7F17, 0xA18139, 0x27CDC2, 0x2B5434, 0xAD18CF, 0x3267D8, 0xB42B23,

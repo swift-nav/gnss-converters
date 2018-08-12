@@ -11,17 +11,6 @@
 
 #define FLOAT_EPS 1e-6
 
-static double expected_L1CA_bias = 0.0;
-static double expected_L1P_bias = 0.0;
-static double expected_L2CA_bias = 0.0;
-static double expected_L2P_bias = 0.0;
-
-static sbp_gps_time_t previous_obs_time = {.tow = 0, .wn = INVALID_TIME};
-static u8 previous_n_meas = 0;
-static u8 previous_num_obs = 0;
-
-static struct rtcm3_sbp_state state;
-
 /* fixture globals and functions */
 gps_time_sec_t current_time;
 
