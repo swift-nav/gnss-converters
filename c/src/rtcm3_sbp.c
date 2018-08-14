@@ -1263,15 +1263,9 @@ static bool get_sid_from_msm(const rtcm_msm_header *header,
 
 bool unsupported_signal(sbp_gnss_signal_t *sid) {
   switch (sid->code) {
-    case CODE_GPS_L5I:
-    case CODE_GPS_L5X:
-    case CODE_GPS_L5Q:
     case CODE_GAL_E6B:
     case CODE_GAL_E6C:
     case CODE_GAL_E6X:
-    case CODE_GAL_E5I:
-    case CODE_GAL_E5Q:
-    case CODE_GAL_E5X:
     case CODE_GAL_E8I:
     case CODE_GAL_E8Q:
     case CODE_GAL_E8X:
