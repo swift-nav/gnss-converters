@@ -9,6 +9,33 @@
 
 #define SSR_MESSAGE_LENGTH 256
 
+code_t constellation_to_l1_code(const enum constellation_e constellation) {
+  switch (constellation) {
+    case CONSTELLATION_GPS:
+      return CODE_GPS_L1CA;
+
+    case CONSTELLATION_SBAS:
+      return CODE_SBAS_L1CA;
+
+    case CONSTELLATION_GLO:
+      return CODE_GLO_L1OF;
+
+    case CONSTELLATION_BDS2:
+      return CODE_BDS2_B1;
+
+    case CONSTELLATION_QZS:
+      return CODE_QZS_L1CA;
+
+    case CONSTELLATION_GAL:
+      return CODE_GAL_E1B;
+
+    case CONSTELLATION_INVALID:
+    case CONSTELLATION_COUNT:
+    default:
+      return CODE_INVALID;
+  }
+}
+
 void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock, struct rtcm3_sbp_state *state){
   uint8_t buffer[SSR_MESSAGE_LENGTH];
   uint8_t length;
@@ -17,13 +44,16 @@ void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock, struct 
   for(int sat_count=0; sat_count < msg_orbit_clock->header.num_sats; sat_count++){
     memset(buffer,0,SSR_MESSAGE_LENGTH);
     length = 0;
-    if(msg_orbit_clock->header.constellation == CONSTELLATION_GPS) {
-      compute_gps_message_time(msg_orbit_clock->header.epoch_time * S_TO_MS, &sbp_orbit_clock->time, &state->time_from_rover_obs);
-      sbp_orbit_clock->sid.code = 0;
-    } else if (msg_orbit_clock->header.constellation == CONSTELLATION_GLO) {
-      compute_glo_time(msg_orbit_clock->header.epoch_time * S_TO_MS, &sbp_orbit_clock->time, &state->time_from_rover_obs, state);
-      sbp_orbit_clock->sid.code = 3;
+    if (msg_orbit_clock->header.constellation == CONSTELLATION_GLO) {
+      compute_glo_time(msg_orbit_clock->header.epoch_time * S_TO_MS, &sbp_orbit_clock->time,
+                       &state->time_from_rover_obs, state);
     }
+    else {
+      // GPS / GAL / BDS / QZSS / SBAS use GPS-like type of time
+      compute_gps_message_time(msg_orbit_clock->header.epoch_time * S_TO_MS, &sbp_orbit_clock->time, &state->time_from_rover_obs);
+    }
+    sbp_orbit_clock->sid.code = constellation_to_l1_code(msg_orbit_clock->header.constellation);
+
     if(!gps_time_valid(&sbp_orbit_clock->time)){
       /* Invalid time */
       return;
@@ -85,13 +115,15 @@ void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases, struct rtcm
   for(int sat_count=0; sat_count < msg_code_biases->header.num_sats; sat_count++){
     memset(buffer,0,SSR_MESSAGE_LENGTH);
     length = 0;
-    if(msg_code_biases->header.constellation == CONSTELLATION_GPS) {
+    if (msg_code_biases->header.constellation == CONSTELLATION_GLO) {
+      compute_glo_time(msg_code_biases->header.epoch_time * S_TO_MS, &sbp_code_bias->time, &state->time_from_rover_obs,
+                       state);
+    } else {
+      // GPS / GAL / BDS / QZSS / SBAS use GPS-like type of time
       compute_gps_message_time(msg_code_biases->header.epoch_time * S_TO_MS, &sbp_code_bias->time, &state->time_from_rover_obs);
-      sbp_code_bias->sid.code = 0;
-    } else if (msg_code_biases->header.constellation == CONSTELLATION_GLO) {
-      compute_glo_time(msg_code_biases->header.epoch_time * S_TO_MS, &sbp_code_bias->time, &state->time_from_rover_obs, state);
-      sbp_code_bias->sid.code = 3;
     }
+    sbp_code_bias->sid.code = constellation_to_l1_code(msg_code_biases->header.constellation);
+
     if(!gps_time_valid(&sbp_code_bias->time)){
       /* Invalid time */
       return;
@@ -128,13 +160,15 @@ void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases, struct r
   for(int sat_count=0; sat_count < msg_phase_biases->header.num_sats; sat_count++){
     memset(buffer,0,SSR_MESSAGE_LENGTH);
     length = 0;
-    if(msg_phase_biases->header.constellation == CONSTELLATION_GPS) {
+    if (msg_phase_biases->header.constellation == CONSTELLATION_GLO) {
+      compute_glo_time(msg_phase_biases->header.epoch_time * S_TO_MS, &sbp_phase_bias->time,
+                       &state->time_from_rover_obs, state);
+    } else {
+      // GPS / GAL / BDS / QZSS / SBAS use GPS-like type of time
       compute_gps_message_time(msg_phase_biases->header.epoch_time * S_TO_MS, &sbp_phase_bias->time, &state->time_from_rover_obs);
-      sbp_phase_bias->sid.code = 0;
-    } else if (msg_phase_biases->header.constellation == CONSTELLATION_GLO) {
-      compute_glo_time(msg_phase_biases->header.epoch_time * S_TO_MS, &sbp_phase_bias->time, &state->time_from_rover_obs, state);
-      sbp_phase_bias->sid.code = 3;
     }
+    sbp_phase_bias->sid.code = constellation_to_l1_code(msg_phase_biases->header.constellation);
+
     if(!gps_time_valid(&sbp_phase_bias->time)){
       /* Invalid time */
       return;

@@ -244,7 +244,10 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       break;
     }
     case 1059:
-    case 1065: {
+    case 1065:
+    case 1242:
+    case 1248:
+    case 1260: {
       rtcm_msg_code_bias msg_code_bias;
       if (RC_OK == rtcm3_decode_code_bias(&payload[byte], &msg_code_bias)) {
         rtcm3_ssr_code_bias_to_sbp(&msg_code_bias, state);
@@ -252,14 +255,22 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       break;
     }
     case 1060:
-    case 1066: {
+    case 1066:
+    case 1243:
+    case 1249:
+    case 1261: {
       rtcm_msg_orbit_clock msg_orbit_clock;
       if (RC_OK == rtcm3_decode_orbit_clock(&payload[byte], &msg_orbit_clock)) {
         rtcm3_ssr_orbit_clock_to_sbp(&msg_orbit_clock, state);
       }
       break;
     }
-    case 1265: {
+    case 1265:
+    case 1266:
+    case 1267:
+    case 1268:
+    case 1269:
+    case 1270: {
       rtcm_msg_phase_bias msg_phase_bias;
       if (RC_OK == rtcm3_decode_phase_bias(&payload[byte], &msg_phase_bias)) {
         rtcm3_ssr_phase_bias_to_sbp(&msg_phase_bias, state);
