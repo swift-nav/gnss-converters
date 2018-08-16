@@ -285,8 +285,8 @@ void sbp_callback_msm_no_gaps(u16 msg_id,
         /* last message in sequence, check the total number of observations */
         u8 num_obs = (seq_size - 1) * 14 + (length - 11) / 17;
         if (previous_num_obs > 0) {
-          /* must not lose more than 5 observations between epochs */
-          ck_assert_uint_ge(num_obs, previous_num_obs - 5);
+          /* must not lose more than 6 observations between epochs */
+          ck_assert_uint_ge(num_obs, previous_num_obs - 6);
         }
         previous_num_obs = num_obs;
       }
