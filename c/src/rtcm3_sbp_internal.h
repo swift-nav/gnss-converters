@@ -178,6 +178,8 @@ void compute_glo_time(u32 tod_ms,
                       const gps_time_sec_t *rover_time,
                       struct rtcm3_sbp_state *state);
 
+void beidou_tow_to_gps_tow(u32 *tow_ms);
+
 void send_observations(struct rtcm3_sbp_state *state);
 
 bool no_1230_received(struct rtcm3_sbp_state *state);

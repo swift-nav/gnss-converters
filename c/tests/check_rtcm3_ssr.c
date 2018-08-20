@@ -373,7 +373,7 @@ void sbp_callback_bds_orbit_clock(
     bds_orbit_clock_processed = true;
 
     ck_assert(sbp_orbit_clock->time.wn == 2013);
-    ck_assert(sbp_orbit_clock->time.tow == 171666);
+    ck_assert(sbp_orbit_clock->time.tow == 171680);
     ck_assert(sbp_orbit_clock->sid.sat == 5);
     ck_assert(sbp_orbit_clock->sid.code == CODE_BDS2_B1);
     ck_assert(sbp_orbit_clock->update_interval == 2);
@@ -409,7 +409,7 @@ void sbp_callback_bds_code_bias(
     bds_code_bias_processed = true;
 
     ck_assert(sbp_code_bias->time.wn == 2013);
-    ck_assert(sbp_code_bias->time.tow == 171666);
+    ck_assert(sbp_code_bias->time.tow == 171680);
     ck_assert(sbp_code_bias->sid.sat == 5);
     ck_assert(sbp_code_bias->sid.code == CODE_BDS2_B1);
     ck_assert(sbp_code_bias->update_interval == 2);
@@ -442,7 +442,7 @@ void sbp_callback_bds_phase_bias(
     bds_phase_bias_processed = true;
 
     ck_assert(sbp_phase_bias->time.wn == 2013);
-    ck_assert(sbp_phase_bias->time.tow == 171661);
+    ck_assert(sbp_phase_bias->time.tow == 171675);
     ck_assert(sbp_phase_bias->sid.sat == 5);
     ck_assert(sbp_phase_bias->sid.code == CODE_BDS2_B1);
     ck_assert(sbp_phase_bias->update_interval == 2);

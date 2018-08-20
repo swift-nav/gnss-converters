@@ -12,27 +12,30 @@
 
 #include <assert.h>
 #include <bits.h>
+#include <libsbp/logging.h>
 #include <math.h>
 #include <rtcm3_decode.h>
 #include <rtcm3_eph_decode.h>
-#include <rtcm3_ssr_decode.h>
 #include <rtcm3_msm_utils.h>
+#include <rtcm3_ssr_decode.h>
 #include <rtcm_logging.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libsbp/logging.h>
 #include "rtcm3_sbp_internal.h"
 
 static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
                                      const gps_time_sec_t *obs_time,
                                      const gps_time_sec_t *rover_time);
 
-void rtcm2sbp_init(
-    struct rtcm3_sbp_state *state,
-    void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context),
-    void (*cb_base_obs_invalid)(double timediff, void *context),
-    void *context) {
+void rtcm2sbp_init(struct rtcm3_sbp_state *state,
+                   void (*cb_rtcm_to_sbp)(u16 msg_id,
+                                          u8 length,
+                                          u8 *buffer,
+                                          u16 sender_id,
+                                          void *context),
+                   void (*cb_base_obs_invalid)(double timediff, void *context),
+                   void *context) {
   state->time_from_rover_obs.wn = INVALID_TIME;
   state->time_from_rover_obs.tow = 0;
 
@@ -102,7 +105,6 @@ static u16 rtcm_2_sbp_sender_id(u16 rtcm_id) {
   return rtcm_id | 0xF000;
 }
 
-
 void rtcm2sbp_decode_payload(const uint8_t *payload,
                              uint32_t payload_length,
                              struct rtcm3_sbp_state *state) {
@@ -113,7 +115,8 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
   }
 
   uint16_t byte = 0;
-  uint16_t message_type = (payload[byte] << 4) | ((payload[byte + 1] >> 4) & 0xf);
+  uint16_t message_type =
+      (payload[byte] << 4) | ((payload[byte + 1] >> 4) & 0xf);
 
   switch (message_type) {
     case 1001:
@@ -184,7 +187,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
     }
     case 1019: {
       rtcm_msg_eph msg_eph;
-      if (RC_OK == rtcm3_decode_gps_eph(&payload[byte], &msg_eph)){
+      if (RC_OK == rtcm3_decode_gps_eph(&payload[byte], &msg_eph)) {
         msg_ephemeris_gps_t sbp_gps_eph;
         rtcm3_gps_eph_to_sbp(&msg_eph, &sbp_gps_eph, state);
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GPS,
@@ -197,7 +200,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
     }
     case 1020: {
       rtcm_msg_eph msg_eph;
-      if (RC_OK == rtcm3_decode_glo_eph(&payload[byte], &msg_eph)){
+      if (RC_OK == rtcm3_decode_glo_eph(&payload[byte], &msg_eph)) {
         msg_ephemeris_glo_t sbp_glo_eph;
         rtcm3_glo_eph_to_sbp(&msg_eph, &sbp_glo_eph, state);
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GLO,
@@ -282,8 +285,9 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
     case 1094:
     case 1124: {
       rtcm_msm_message new_rtcm_msm;
-      if (RC_OK == rtcm3_decode_msm4(
-                       &payload[byte], state->glo_sv_id_fcn_map, &new_rtcm_msm)) {
+      if (RC_OK == rtcm3_decode_msm4(&payload[byte],
+                                     state->glo_sv_id_fcn_map,
+                                     &new_rtcm_msm)) {
         add_msm_obs_to_buffer(&new_rtcm_msm, state);
       }
       break;
@@ -303,8 +307,9 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
     case 1096:
     case 1126: {
       rtcm_msm_message new_rtcm_msm;
-      if (RC_OK == rtcm3_decode_msm6(
-                       &payload[byte], state->glo_sv_id_fcn_map, &new_rtcm_msm)) {
+      if (RC_OK == rtcm3_decode_msm6(&payload[byte],
+                                     state->glo_sv_id_fcn_map,
+                                     &new_rtcm_msm)) {
         add_msm_obs_to_buffer(&new_rtcm_msm, state);
       }
       break;
@@ -529,7 +534,8 @@ void send_observations(struct rtcm3_sbp_state *state) {
     u16 len = SBP_HDR_SIZE + obs_index * SBP_OBS_SIZE;
     assert(len <= SBP_FRAMING_MAX_PAYLOAD_SIZE);
 
-    state->cb_rtcm_to_sbp(SBP_MSG_OBS, len, obs_data, state->sender_id, state->context);
+    state->cb_rtcm_to_sbp(
+        SBP_MSG_OBS, len, obs_data, state->sender_id, state->context);
   }
   /* clear the observation buffer, so also header.n_obs is set to zero */
   memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
@@ -960,18 +966,26 @@ void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
 }
 
 void compute_gps_message_time(u32 tow_ms,
-  gps_time_sec_t *obs_time,
-  const gps_time_sec_t *rover_time) {
-    assert(gps_time_valid(rover_time));
-    obs_time->tow = (u32)(tow_ms * MS_TO_S);
-    obs_time->wn = rover_time->wn;
-    s32 timediff = gps_diff_time_sec(obs_time, rover_time);
-    if (timediff < -SEC_IN_WEEK / 2) {
-      obs_time->wn = rover_time->wn + 1;
-    } else if (timediff > SEC_IN_WEEK / 2) {
-      obs_time->wn = rover_time->wn - 1;
-    }
-    assert(gps_time_valid(obs_time));
+                              gps_time_sec_t *obs_time,
+                              const gps_time_sec_t *rover_time) {
+  assert(gps_time_valid(rover_time));
+  obs_time->tow = (u32)(tow_ms * MS_TO_S);
+  obs_time->wn = rover_time->wn;
+  s32 timediff = gps_diff_time_sec(obs_time, rover_time);
+  if (timediff < -SEC_IN_WEEK / 2) {
+    obs_time->wn = rover_time->wn + 1;
+  } else if (timediff > SEC_IN_WEEK / 2) {
+    obs_time->wn = rover_time->wn - 1;
+  }
+  assert(gps_time_valid(obs_time));
+}
+
+void beidou_tow_to_gps_tow(u32 *tow_ms) {
+  /* BDS system time has a constant offset */
+  *tow_ms += BDS_SECOND_TO_GPS_SECOND * SECS_MS;
+  if (*tow_ms >= SEC_IN_WEEK * S_TO_MS) {
+    *tow_ms -= SEC_IN_WEEK * S_TO_MS;
+  }
 }
 
 void compute_gps_time(u32 tow_ms,
@@ -1181,11 +1195,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
     u32 tow_ms = new_rtcm_obs->header.tow_ms;
 
     if (CONSTELLATION_BDS2 == cons) {
-      /* BDS system time has a constant offset */
-      tow_ms += BDS_SECOND_TO_GPS_SECOND * SECS_MS;
-      if (tow_ms >= SEC_IN_WEEK * S_TO_MS) {
-        tow_ms -= SEC_IN_WEEK * S_TO_MS;
-      }
+      beidou_tow_to_gps_tow(&tow_ms);
     }
 
     compute_gps_time(tow_ms, &obs_time, &state->time_from_rover_obs, state);
