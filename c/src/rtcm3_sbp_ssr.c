@@ -49,7 +49,7 @@ gps_time_sec_t compute_ssr_message_time(
     beidou_tow_to_gps_tow(&epoch_time_ms);
     compute_gps_message_time(epoch_time_ms, &obs_time, rover_time);
   } else {
-    // GPS / GAL / QZSS / SBAS use GPS-like type of time
+    // GAL / QZSS / SBAS are aligned to GPS time
     compute_gps_message_time(epoch_time_ms, &obs_time, rover_time);
   }
   return obs_time;

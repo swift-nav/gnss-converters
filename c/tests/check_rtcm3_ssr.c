@@ -424,7 +424,7 @@ void sbp_callback_bds_phase_bias(
   if (msg_id == SBP_MSG_SSR_PHASE_BIASES && !msg_checked) {
     msg_ssr_phase_biases_t *sbp_phase_bias = (msg_ssr_phase_biases_t *)buffer;
     if (sbp_phase_bias->sid.code != CODE_BDS2_B1) {
-      // This is not a GAL message, wait for first GAL message
+      // This is not a BDS message, wait for first BDS message
       return;
     }
     msg_checked = true;
