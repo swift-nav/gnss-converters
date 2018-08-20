@@ -43,8 +43,7 @@ void sbp_callback_gps_orbit_clock(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_ORBIT_CLOCK && !msg_checked) {
     msg_ssr_orbit_clock_t *sbp_orbit_clock = (msg_ssr_orbit_clock_t *)buffer;
-    if (sbp_orbit_clock->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_GPS)) {
+    if (sbp_orbit_clock->sid.code != CODE_GPS_L1CA) {
       // This is not a GPS message, wait for first GPS message
       return;
     }
@@ -79,8 +78,7 @@ void sbp_callback_gps_code_bias(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_CODE_BIASES && !msg_checked) {
     msg_ssr_code_biases_t *sbp_code_bias = (msg_ssr_code_biases_t *)buffer;
-    if (sbp_code_bias->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_GPS)) {
+    if (sbp_code_bias->sid.code != CODE_GPS_L1CA) {
       // This is not a GPS message, wait for first GPS message
       return;
     }
@@ -126,8 +124,7 @@ void sbp_callback_gps_phase_bias(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_PHASE_BIASES && !msg_checked) {
     msg_ssr_phase_biases_t *sbp_phase_bias = (msg_ssr_phase_biases_t *)buffer;
-    if (sbp_phase_bias->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_GPS)) {
+    if (sbp_phase_bias->sid.code != CODE_GPS_L1CA) {
       // This is not a GPS message, wait for first GPS message
       return;
     }
@@ -174,8 +171,7 @@ void sbp_callback_glo_orbit_clock(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_ORBIT_CLOCK && !msg_checked) {
     msg_ssr_orbit_clock_t *sbp_orbit_clock = (msg_ssr_orbit_clock_t *)buffer;
-    if (sbp_orbit_clock->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_GLO)) {
+    if (sbp_orbit_clock->sid.code != CODE_GLO_L1OF) {
       // This is not a GLO message, wait for first GLO message
       return;
     }
@@ -210,8 +206,7 @@ void sbp_callback_glo_code_bias(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_CODE_BIASES && !msg_checked) {
     msg_ssr_code_biases_t *sbp_code_bias = (msg_ssr_code_biases_t *)buffer;
-    if (sbp_code_bias->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_GLO)) {
+    if (sbp_code_bias->sid.code != CODE_GLO_L1OF) {
       // This is not a GLO message, wait for first GLO message
       return;
     }
@@ -245,8 +240,7 @@ void sbp_callback_gal_orbit_clock(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_ORBIT_CLOCK && !msg_checked) {
     msg_ssr_orbit_clock_t *sbp_orbit_clock = (msg_ssr_orbit_clock_t *)buffer;
-    if (sbp_orbit_clock->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_GAL)) {
+    if (sbp_orbit_clock->sid.code != CODE_GAL_E1B) {
       // This is not a GAL message, wait for first GAL message
       return;
     }
@@ -281,8 +275,7 @@ void sbp_callback_gal_code_bias(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_CODE_BIASES && !msg_checked) {
     msg_ssr_code_biases_t *sbp_code_bias = (msg_ssr_code_biases_t *)buffer;
-    if (sbp_code_bias->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_GAL)) {
+    if (sbp_code_bias->sid.code != CODE_GAL_E1B) {
       // This is not a GAL message, wait for first GAL message
       return;
     }
@@ -316,8 +309,7 @@ void sbp_callback_gal_phase_bias(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_PHASE_BIASES && !msg_checked) {
     msg_ssr_phase_biases_t *sbp_phase_bias = (msg_ssr_phase_biases_t *)buffer;
-    if (sbp_phase_bias->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_GAL)) {
+    if (sbp_phase_bias->sid.code != CODE_GAL_E1B) {
       // This is not a GAL message, wait for first GAL message
       return;
     }
@@ -364,8 +356,7 @@ void sbp_callback_bds_orbit_clock(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_ORBIT_CLOCK && !msg_checked) {
     msg_ssr_orbit_clock_t *sbp_orbit_clock = (msg_ssr_orbit_clock_t *)buffer;
-    if (sbp_orbit_clock->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_BDS2)) {
+    if (sbp_orbit_clock->sid.code != CODE_BDS2_B1) {
       // This is not a BDS message, wait for first BDS message
       return;
     }
@@ -400,8 +391,7 @@ void sbp_callback_bds_code_bias(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_CODE_BIASES && !msg_checked) {
     msg_ssr_code_biases_t *sbp_code_bias = (msg_ssr_code_biases_t *)buffer;
-    if (sbp_code_bias->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_BDS2)) {
+    if (sbp_code_bias->sid.code != CODE_BDS2_B1) {
       // This is not a BDS message, wait for first BDS message
       return;
     }
@@ -433,8 +423,7 @@ void sbp_callback_bds_phase_bias(
   static bool msg_checked = false;
   if (msg_id == SBP_MSG_SSR_PHASE_BIASES && !msg_checked) {
     msg_ssr_phase_biases_t *sbp_phase_bias = (msg_ssr_phase_biases_t *)buffer;
-    if (sbp_phase_bias->sid.code !=
-        constellation_to_l1_code(CONSTELLATION_BDS2)) {
+    if (sbp_phase_bias->sid.code != CODE_BDS2_B1) {
       // This is not a GAL message, wait for first GAL message
       return;
     }

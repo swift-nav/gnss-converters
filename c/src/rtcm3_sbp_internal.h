@@ -225,6 +225,4 @@ void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock, struct 
 void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases, struct rtcm3_sbp_state *state);
 void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases, struct rtcm3_sbp_state *state);
 
-code_t constellation_to_l1_code(const enum constellation_e constellation);
-
 #endif /* GNSS_CONVERTERS_RTCM3_SBP_H */

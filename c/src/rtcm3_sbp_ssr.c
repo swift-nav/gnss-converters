@@ -9,7 +9,8 @@
 
 #define SSR_MESSAGE_LENGTH 256
 
-code_t constellation_to_l1_code(const enum constellation_e constellation) {
+static inline code_t constellation_to_l1_code(
+    const enum constellation_e constellation) {
   switch (constellation) {
     case CONSTELLATION_GPS:
       return CODE_GPS_L1CA;
@@ -69,15 +70,15 @@ void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
                                  msg_orbit_clock->header.epoch_time * S_TO_MS,
                                  &state->time_from_rover_obs,
                                  state);
-    sbp_orbit_clock->sid.code =
-        constellation_to_l1_code(msg_orbit_clock->header.constellation);
 
     if (!gps_time_valid(&sbp_orbit_clock->time)) {
       /* Invalid time */
       return;
     }
-
     length += sizeof(sbp_orbit_clock->time);
+
+    sbp_orbit_clock->sid.code =
+        constellation_to_l1_code(msg_orbit_clock->header.constellation);
 
     sbp_orbit_clock->sid.sat = msg_orbit_clock->orbit[sat_count].sat_id;
     length += sizeof(sbp_orbit_clock->sid);
@@ -142,14 +143,15 @@ void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases,
                                  msg_code_biases->header.epoch_time * S_TO_MS,
                                  &state->time_from_rover_obs,
                                  state);
-    sbp_code_bias->sid.code =
-        constellation_to_l1_code(msg_code_biases->header.constellation);
 
     if (!gps_time_valid(&sbp_code_bias->time)) {
       /* Invalid time */
       return;
     }
     length += sizeof(sbp_code_bias->time);
+
+    sbp_code_bias->sid.code =
+        constellation_to_l1_code(msg_code_biases->header.constellation);
 
     sbp_code_bias->sid.sat = msg_code_biases->sats[sat_count].sat_id;
     length += sizeof(sbp_code_bias->sid);
@@ -192,14 +194,15 @@ void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases,
                                  msg_phase_biases->header.epoch_time * S_TO_MS,
                                  &state->time_from_rover_obs,
                                  state);
-    sbp_phase_bias->sid.code =
-        constellation_to_l1_code(msg_phase_biases->header.constellation);
 
     if (!gps_time_valid(&sbp_phase_bias->time)) {
       /* Invalid time */
       return;
     }
     length += sizeof(sbp_phase_bias->time);
+
+    sbp_phase_bias->sid.code =
+        constellation_to_l1_code(msg_phase_biases->header.constellation);
 
     sbp_phase_bias->sid.sat = msg_phase_biases->sats[sat_count].sat_id;
     length += sizeof(sbp_phase_bias->sid);
