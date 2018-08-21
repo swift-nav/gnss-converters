@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.8.7)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+
 if(CMAKE_CROSSCOMPILING)
     message(STATUS "Skipping unit tests, cross compiling")
     return()
