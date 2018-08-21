@@ -10,6 +10,7 @@
 #define RTCM3_PREAMBLE 0xD3
 
 #define FLOAT_EPS 1e-6
+#define GLO_SATELLITE_POSITION_EPS_METERS 1e-3
 
 /* fixture globals and functions */
 gps_time_sec_t current_time;

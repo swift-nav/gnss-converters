@@ -157,6 +157,90 @@ void sbp_callback_gps_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void
   return;
 }
 
+void sbp_callback_glo_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
+  (void)length;
+  (void)sender_id;
+  (void)context;
+  static bool checked_eph = false;
+  /* ignore log messages */
+  if (msg_id == SBP_MSG_EPHEMERIS_GLO && !checked_eph) {
+
+    /* Truth data from related RINEX file
+     R03 2018 08 20 22 45 00  1.410758122802e-04  0.000000000000e+00  8.100000000000e+04
+     7.333627929688e+03      -1.816708564758e+00  0.000000000000e+00  0.000000000000e+00
+     1.684325878906e+04      -1.609944343567e+00 -9.313225746155e-10  5.000000000000e+00
+    -1.763590478516e+04      -2.291357994080e+00  1.862645149231e-09  0.000000000000e+00
+     */
+    /* Truth from Haskell converter
+    {
+      "gamma": 0,
+      "vel": [
+        -1816.7085647583008,
+        -1609.9443435668945,
+        -2291.35799407959
+      ],
+      "iod": 28,
+      "d_tau": -2.7939677238464355e-09,
+      "pos": [
+        7333627.9296875,
+        16843258.7890625,
+        -17635904.78515625
+      ],
+      "crc": 39648,
+      "common": {
+        "health_bits": 0,
+        "fit_interval": 2400,
+        "valid": 1,
+        "sid": {
+          "sat": 3,
+          "code": 3
+        },
+        "toe": {
+          "wn": 2015,
+          "tow": 254718
+        },
+        "ura": 2.5
+      },
+      "tau": -0.00014107581228017807,
+      "fcn": 13,
+      "acc": [
+        0,
+        -9.313225746154785e-07,
+        1.862645149230957e-06
+      ]
+    }*/
+    checked_eph = true;
+    msg_ephemeris_glo_t* msg = (msg_ephemeris_glo_t*)buffer;
+    ck_assert(msg->common.sid.sat == 3);
+    ck_assert(msg->common.sid.code == CODE_GLO_L1OF);
+    ck_assert(msg->common.toe.wn == 2015);
+    ck_assert(msg->common.toe.tow == 168318);
+    ck_assert(fabs(msg->common.ura - 2.5) < FLOAT_EPS);
+    ck_assert(msg->common.fit_interval == 2400);
+    ck_assert(msg->common.valid == 1);
+    ck_assert(msg->common.health_bits == 0);
+    ck_assert(msg->iod == 28);
+
+    ck_assert(fabs(msg->pos[0] - 7.333627929688e6) < GLO_SATELLITE_POSITION_EPS_METERS);
+    ck_assert(fabs(msg->pos[1] - 1.684325878906e7) < GLO_SATELLITE_POSITION_EPS_METERS);
+    ck_assert(fabs(msg->pos[2] - -1.763590478516e7) < GLO_SATELLITE_POSITION_EPS_METERS);
+
+    ck_assert(fabs(msg->vel[0] - -1.816708564758e3) < FLOAT_EPS);
+    ck_assert(fabs(msg->vel[1] - -1.609944343567e3) < FLOAT_EPS);
+    ck_assert(fabs(msg->vel[2] -  -2.291357994080e3) < FLOAT_EPS);
+
+    ck_assert(fabs(msg->acc[0] - 0) < FLOAT_EPS);
+    ck_assert(fabs(msg->acc[1] - -9.313225746155e-7) < FLOAT_EPS);
+    ck_assert(fabs(msg->acc[2] -  1.862645149231e-6) < FLOAT_EPS);
+
+    ck_assert(fabs(msg->gamma - 0) < FLOAT_EPS);
+    ck_assert(fabs(msg->d_tau - -2.7939677238464355e-9) < FLOAT_EPS);
+    ck_assert(fabs(msg->tau -  -0.00014107581228017807) < FLOAT_EPS);
+
+  }
+  return;
+}
+
 void sbp_callback_1012_first(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
   (void)buffer;
@@ -709,6 +793,15 @@ START_TEST(tc_rtcm_eph_gps) {
 }
 END_TEST
 
+START_TEST(tc_rtcm_eph_glo) {
+    current_time.wn = 2015;
+    current_time.tow = 168318;
+    test_RTCM3(RELATIVE_PATH_PREFIX "/data/test_glo_eph.rtcm",
+               sbp_callback_glo_eph,
+               current_time);
+  }
+END_TEST
+
 Suite *rtcm3_suite(void) {
   Suite *s = suite_create("RTCMv3");
 
@@ -765,7 +858,7 @@ Suite *rtcm3_suite(void) {
   TCase *tc_eph = tcase_create("ephemeris");
   tcase_add_checked_fixture(tc_eph, rtcm3_setup_basic, NULL);
   tcase_add_test(tc_eph, tc_rtcm_eph_gps);
-  // tcase_add_test(tc_eph, tc_rtcm_eph_glo);
+  tcase_add_test(tc_eph, tc_rtcm_eph_glo);
   // tcase_add_test(tc_eph, tc_rtcm_eph_gal);
   // tcase_add_test(tc_eph, tc_rtcm_eph_bds);
   suite_add_tcase(s, tc_eph);

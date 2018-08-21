@@ -36,6 +36,49 @@ float convert_ura_to_uri(uint8_t ura) {
   return -1;
 }
 
+float convert_glo_ft_to_meters(const uint8_t ft) {
+  /* Convert between RTCM/GLO FT ("GLONASS-M predicted satellite user range accuracy") index to a number in meters.
+   * See table 4.4 in GLO signal specification.
+   * Indices 1, 3, and 5 are hard-coded according to spec, and 15 is hard-coded according
+   * to SBP/Piksi convention. */
+  switch(ft) {
+    case 0:
+      return 1.0;
+    case 1:
+      return 2.0;
+    case 2:
+      return 2.5;
+    case 3:
+      return 4.0;
+    case 4:
+      return 5.0;
+    case 5:
+      return 7.0;
+    case 6:
+      return 10.0;
+    case 7:
+      return 12.0;
+    case 8:
+      return 14.0;
+    case 9:
+      return 16.0;
+    case 10:
+      return 32.0;
+    case 11:
+      return 64.0;
+    case 12:
+      return 128.0;
+    case 13:
+      return 256.0;
+    case 14:
+      return 512.0;
+    case 15:
+      return 6144.0;
+    default:
+      return -1;
+  }
+}
+
 /** Calculate the GPS ephemeris curve fit interval.
 *
 * \param fit_interval_flag The curve fit interval flag. 0 is 4 hours, 1 is >4
@@ -43,7 +86,7 @@ float convert_ura_to_uri(uint8_t ura) {
 * \param iodc The IODC value.
 * \return the curve fit interval in seconds.
 */
-u32 rtcm3_decode_fit_interval(u8 fit_interval_flag, u16 iodc) {
+u32 rtcm3_decode_fit_interval_gps(u8 fit_interval_flag, u16 iodc) {
   u8 fit_interval = 4; /* This is in hours */
 
   if (fit_interval_flag) {
@@ -66,6 +109,27 @@ u32 rtcm3_decode_fit_interval(u8 fit_interval_flag, u16 iodc) {
   }
 
   return fit_interval * 60 * 60;
+}
+
+/** Calculate the GLO ephemeris curve fit interval.
+*
+* \param fit_interval_flag The curve fit interval flag. 0 is 4 hours, 1 is >4
+* hours.
+* \return the curve fit interval in seconds.
+*/
+u32 rtcm3_decode_fit_interval_glo(const u8 p1) {
+  switch (p1) {
+    case 0:
+      return (60 + 10) * 60;
+    case 1:
+      return (30 + 10) * 60;
+    case 2:
+      return (45 + 10) * 60;
+    case 3:
+      return (60 + 10) * 60;
+    default:
+      return (60 + 10) * 60;
+  }
 }
 
 /** Adjust the week number of wn_raw to correctly reflect the current week
@@ -97,7 +161,7 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_gps_t *sbp_gps_ep
   sbp_gps_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gps_eph->common.sid.code = CODE_GPS_L1CA;
   sbp_gps_eph->common.ura = convert_ura_to_uri(msg_eph->ura);
-  sbp_gps_eph->common.fit_interval = rtcm3_decode_fit_interval(msg_eph->fit_interval, msg_eph->kepler.iodc);
+  sbp_gps_eph->common.fit_interval = rtcm3_decode_fit_interval_gps(msg_eph->fit_interval, msg_eph->kepler.iodc);
   sbp_gps_eph->common.valid = msg_eph->kepler.iodc == msg_eph->kepler.iode;
   sbp_gps_eph->common.health_bits = msg_eph->health_bits;
 
@@ -132,18 +196,20 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_gps_t *sbp_gps_ep
 }
 
 void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_glo_t *sbp_glo_eph, struct rtcm3_sbp_state *state) {
-  sbp_glo_eph->common.toe.wn = (state->time_from_rover_obs.wn & 0xFC00) + msg_eph->wn;
-  sbp_glo_eph->common.toe.tow = msg_eph->toe;
+  compute_glo_time(msg_eph->glo.t_b * SEC_IN_15MINUTES * S_TO_MS,
+                   &sbp_glo_eph->common.toe,
+                   &state->time_from_rover_obs,
+                   state);
   sbp_glo_eph->common.sid.sat = msg_eph->sat_id;
   sbp_glo_eph->common.sid.code = CODE_GLO_L1OF;
-  sbp_glo_eph->common.ura = msg_eph->ura;
-  sbp_glo_eph->common.fit_interval = msg_eph->fit_interval;
-  sbp_glo_eph->common.valid = msg_eph->valid;
+  sbp_glo_eph->common.ura = convert_glo_ft_to_meters(msg_eph->ura);
+  sbp_glo_eph->common.fit_interval = rtcm3_decode_fit_interval_glo(msg_eph->fit_interval);
+  sbp_glo_eph->common.valid = 1;
   sbp_glo_eph->common.health_bits = msg_eph->health_bits;
 
   sbp_glo_eph->gamma = msg_eph->glo.gamma * power2_40;
   sbp_glo_eph->tau = msg_eph->glo.tau * power2_30;
-  sbp_glo_eph->d_tau = msg_eph->glo.d_tau * power2_40;
+  sbp_glo_eph->d_tau = msg_eph->glo.d_tau * power2_30;
 
   sbp_glo_eph->pos[0] = msg_eph->glo.pos[0] * power2_11 * 1000;
   sbp_glo_eph->pos[1] = msg_eph->glo.pos[1] * power2_11 * 1000;
@@ -158,5 +224,5 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_glo_t *sbp_glo_ep
   sbp_glo_eph->acc[2] = msg_eph->glo.acc[2] * power2_30 * 1000;
 
   sbp_glo_eph->fcn = msg_eph->glo.fcn + 1;
-  //sbp_glo_eph->iod = (msg_eph->glo.t_b * 15 * 60) % 127;
+  sbp_glo_eph->iod = (msg_eph->glo.t_b * 15 * 60) & 127;
 }

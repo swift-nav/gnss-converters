@@ -50,6 +50,7 @@ extern bool rtcm3_debug;
 #define SEC_IN_WEEK 604800
 #define SEC_IN_HOUR 3600
 #define SEC_IN_MINUTE 60
+#define SEC_IN_15MINUTES 60*15
 
 /** Maximum time difference representable by s32 seconds */
 #define MAX_WEEK_DIFF (INT32_MAX / SEC_IN_WEEK - 1)
