@@ -102,7 +102,7 @@ s32 gps_diff_time_sec(const gps_time_sec_t *end,
 static u16 rtcm_2_sbp_sender_id(u16 rtcm_id) {
   /* To avoid conflicts with reserved low number sender ID's we or
    * on the highest nibble as RTCM sender ID's are 12 bit */
-  return rtcm_id | 0xF000;
+  return rtcm_id | 0xF080;
 }
 
 void rtcm2sbp_decode_payload(const uint8_t *payload,
