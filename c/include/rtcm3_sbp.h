@@ -41,6 +41,10 @@ extern "C" {
 #define SBP_GLO_FCN_OFFSET 8
 #define SBP_GLO_FCN_UNKNOWN 0
 
+#define RTCM3_PREAMBLE      0xD3
+#define RTCM3_MSG_OVERHEAD     6
+#define RTCM3_MAX_MSG_LEN  0x3FF
+
 typedef enum {
   UNSUPPORTED_CODE_UNKNOWN = 0u,
   UNSUPPORTED_CODE_GLO_L1P,

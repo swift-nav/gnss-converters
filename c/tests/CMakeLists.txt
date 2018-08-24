@@ -1,13 +1,12 @@
 cmake_minimum_required(VERSION 2.8.7)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 if(CMAKE_CROSSCOMPILING)
     message(STATUS "Skipping unit tests, cross compiling")
     return()
 endif()
 
-# The C unit tests are dependent on the Check framework.
 find_package(Check)
 if(NOT CHECK_FOUND)
     message(STATUS "Skipping unit tests, Check library not found!")
@@ -21,13 +20,9 @@ set(TEST_SOURCE_FILES
     )
 add_executable(test_gnss_converters ${TEST_SOURCE_FILES})
 
-# Set relative path prefix to make unit test paths absolute
+# Used to generate absolute paths in the unit tests
 set(RELATIVE_PATH_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}")
-# Set config locaation
-set(CONFIG_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/config.h")
-# Write configuration to a templated header file.
-configure_file("../include/config.h.in"
-               ${CONFIG_LOCATION})
+configure_file(config.h.in config.h)
 
 target_include_directories(test_gnss_converters PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(test_gnss_converters gnss_converters ${CHECK_LIBRARIES} pthread)
