@@ -50,6 +50,7 @@ extern bool rtcm3_debug;
 #define SEC_IN_WEEK 604800
 #define SEC_IN_HOUR 3600
 #define SEC_IN_MINUTE 60
+#define SEC_IN_15MINUTES 60*15
 
 /** Maximum time difference representable by s32 seconds */
 #define MAX_WEEK_DIFF (INT32_MAX / SEC_IN_WEEK - 1)
@@ -220,6 +221,7 @@ static inline bool gps_time_valid(const gps_time_sec_t *t) {
 
 void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_gps_t *sbp_gps_eph, struct rtcm3_sbp_state *state);
 void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_glo_t *sbp_glo_eph, struct rtcm3_sbp_state *state);
+void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_gal_t *sbp_glo_eph, struct rtcm3_sbp_state *state);
 
 void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock, struct rtcm3_sbp_state *state);
 void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases, struct rtcm3_sbp_state *state);
