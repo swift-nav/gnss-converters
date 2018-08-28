@@ -164,7 +164,7 @@ void sbp_callback_glo_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void
   static bool checked_eph = false;
   /* ignore log messages */
   if (msg_id == SBP_MSG_EPHEMERIS_GLO && !checked_eph) {
-
+  // clang-format off
     /* Truth data from related RINEX file
      R03 2018 08 20 22 45 00  1.410758122802e-04  0.000000000000e+00  8.100000000000e+04
      7.333627929688e+03      -1.816708564758e+00  0.000000000000e+00  0.000000000000e+00
@@ -209,6 +209,7 @@ void sbp_callback_glo_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void
         1.862645149230957e-06
       ]
     }*/
+    // clang-format on
     checked_eph = true;
     msg_ephemeris_glo_t* msg = (msg_ephemeris_glo_t*)buffer;
     ck_assert(msg->common.sid.sat == 3);
@@ -248,8 +249,8 @@ void sbp_callback_gal_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void
   static bool checked_eph = false;
   /* ignore log messages */
   if (msg_id == SBP_MSG_EPHEMERIS_GAL && !checked_eph) {
+// clang-format off
 /*
- *
  E01 2018 08 14 04 00 00  -4.123143153265e-04 -8.284928298963e-12 0.000000000000e+00
      5.600000000000e+01   -7.200000000000e+01 3.055484416047e-09 4.735169303722e-01
     -3.268942236900e-06    2.873298944905e-04 7.478520274162e-06 5.440604309082e+03
@@ -258,16 +259,8 @@ void sbp_callback_gal_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void
     -7.757465986739e-10    5.170000000000e+02 2.014000000000e+03
      3.120000000000e+00    0.000000000000e+00-4.889443516731e-09-5.587935447693e-09
      1.878640000000e+05
-
-  E01 2018 08 14 04 10 00 -4.123190883547e-04 -8.284928298963e-12 0.000000000000e+00
-     5.700000000000e+01   -7.112500000000e+01  3.057270204718e-09 5.474272046433e-01
-    -3.214925527573e-06    2.874416531995e-04  7.541850209236e-06 5.440604661942e+03
-     1.878000000000e+05   8.195638656616e-08 -3.479411732836e-01-1.862645149231e-08
-     9.920457346640e-01   1.903125000000e+02 -2.810770928028e+00-5.640949253893e-09
-    -7.689606017242e-10   2.580000000000e+02  2.014000000000e+03 0.000000000000e+00
-     3.120000000000e+00   0.000000000000e+00 -4.889443516731e-09 0.000000000000e+00
-     9.999000000000e+08
      */
+// clang-format on
     checked_eph = true;
     msg_ephemeris_gal_t* msg = (msg_ephemeris_gal_t*)buffer;
     ck_assert(msg->common.sid.sat == 1);
