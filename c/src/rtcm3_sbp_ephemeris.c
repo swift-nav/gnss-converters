@@ -289,7 +289,7 @@ void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gal_eph->common.ura = convert_sisa_to_meters(msg_eph->ura);
   // Fit interval is hardcoded to 4 hours, as not present in RTCM fields
   sbp_gal_eph->common.fit_interval = 4 * SEC_IN_HOUR;
-  sbp_gal_eph->common.valid = msg_eph->kepler.iodc == msg_eph->kepler.iode;
+  sbp_gal_eph->common.valid = 1;
   sbp_gal_eph->common.health_bits = msg_eph->health_bits;
 
   sbp_gal_eph->bgd_e1e5a = msg_eph->kepler.tgd_gal_s[0] * power2_32;

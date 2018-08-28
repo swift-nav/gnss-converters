@@ -276,7 +276,7 @@ void sbp_callback_gal_eph(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void
     ck_assert(msg->common.toe.tow == 187200);
     ck_assert(fabs(msg->common.ura - 3.12) < FLOAT_EPS);
     ck_assert(msg->common.fit_interval == 14400);
-    ck_assert(msg->common.valid == 0);
+    ck_assert(msg->common.valid == 1);
     ck_assert(msg->common.health_bits == 0);
 
     ck_assert(fabs(msg->bgd_e1e5a - -4.889443516731e-9) < FLOAT_EPS);
