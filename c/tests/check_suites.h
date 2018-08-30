@@ -3,5 +3,6 @@
 
 Suite* rtcm3_suite(void);
 Suite* rtcm3_ssr_suite(void);
+Suite* nmea_suite(void);
 
 #endif /* CHECK_SUITES_H */

@@ -15,6 +15,7 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/libsbp/c)
 endif()
 
 if(EXISTS ${CMAKE_SOURCE_DIR}/libswiftnav)
+  include_directories("${PROJECT_SOURCE_DIR}/libswiftnav/include")
   add_subdirectory(libswiftnav)
 endif()
 

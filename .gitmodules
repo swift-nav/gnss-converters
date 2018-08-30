@@ -6,4 +6,4 @@
 	url = ../libsbp.git
 [submodule "c/libswiftnav"]
 	path = c/libswiftnav
-	url = ../libswiftnav
+	url = ../libswiftnav.git
