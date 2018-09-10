@@ -252,15 +252,15 @@ void sbp_callback_gal_orbit_clock(
     ck_assert(sbp_orbit_clock->sid.code == CODE_GAL_E1B);
     ck_assert(sbp_orbit_clock->update_interval == 2);
     ck_assert(sbp_orbit_clock->iod_ssr == 0);
-    ck_assert(sbp_orbit_clock->iod == 6);
-    ck_assert(sbp_orbit_clock->radial == -1049048);
-    ck_assert(sbp_orbit_clock->along == 262379);
-    ck_assert(sbp_orbit_clock->cross == -262047);
-    ck_assert(sbp_orbit_clock->dot_radial == -524290);
-    ck_assert(sbp_orbit_clock->dot_along == -131078);
-    ck_assert(sbp_orbit_clock->dot_cross == -262143);
-    ck_assert(sbp_orbit_clock->c0 == 178);
-    ck_assert(sbp_orbit_clock->c1 == -1048576);
+    ck_assert(sbp_orbit_clock->iod == 26);
+    ck_assert(sbp_orbit_clock->radial == -1887);
+    ck_assert(sbp_orbit_clock->along == 943);
+    ck_assert(sbp_orbit_clock->cross == 390);
+    ck_assert(sbp_orbit_clock->dot_radial == -6);
+    ck_assert(sbp_orbit_clock->dot_along == -22);
+    ck_assert(sbp_orbit_clock->dot_cross == 4);
+    ck_assert(sbp_orbit_clock->c0 == 714);
+    ck_assert(sbp_orbit_clock->c1 == 0);
     ck_assert(sbp_orbit_clock->c2 == 0);
   }
 }
@@ -369,15 +369,15 @@ void sbp_callback_bds_orbit_clock(
     ck_assert(sbp_orbit_clock->update_interval == 2);
     ck_assert(sbp_orbit_clock->iod_ssr == 0);
     ck_assert(sbp_orbit_clock->iod == 0);
-    ck_assert(sbp_orbit_clock->radial == 821817);
-    ck_assert(sbp_orbit_clock->along == 96);
-    ck_assert(sbp_orbit_clock->cross == -196802);
-    ck_assert(sbp_orbit_clock->dot_radial == 230505);
-    ck_assert(sbp_orbit_clock->dot_along == 212990);
-    ck_assert(sbp_orbit_clock->dot_cross == -155648);
-    ck_assert(sbp_orbit_clock->c0 == 98304);
-    ck_assert(sbp_orbit_clock->c1 == -524782);
-    ck_assert(sbp_orbit_clock->c2 == 33554432);
+    ck_assert(sbp_orbit_clock->radial == 6195);
+    ck_assert(sbp_orbit_clock->along == -12409);
+    ck_assert(sbp_orbit_clock->cross == 36140);
+    ck_assert(sbp_orbit_clock->dot_radial == -166);
+    ck_assert(sbp_orbit_clock->dot_along == 3);
+    ck_assert(sbp_orbit_clock->dot_cross == 11);
+    ck_assert(sbp_orbit_clock->c0 == -15800);
+    ck_assert(sbp_orbit_clock->c1 == 0);
+    ck_assert(sbp_orbit_clock->c2 == 0);
   }
 }
 
