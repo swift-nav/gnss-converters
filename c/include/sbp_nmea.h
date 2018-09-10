@@ -60,7 +60,7 @@ struct sbp_nmea_state {
   int gpzda_rate;
   int gsa_rate;
 
-  int soln_freq;
+  float soln_freq;
 
   void (*cb_sbp_to_nmea)();
 };
@@ -101,7 +101,7 @@ void sbp2nmea_set_gpgll_rate(const int gpgll_rate, struct sbp_nmea_state *state)
 void sbp2nmea_set_gpzda_rate(const int gpzda_rate, struct sbp_nmea_state *state);
 void sbp2nmea_set_gsa_rate(const int gsa_rate, struct sbp_nmea_state *state);
 
-void sbp2nmea_set_soln_freq(const int soln_freq, struct sbp_nmea_state *state);
+void sbp2nmea_set_soln_freq(const float soln_freq, struct sbp_nmea_state *state);
 
 void sbp2nmea_init(struct sbp_nmea_state *state,
                    void (*cb_sbp_to_nmea)(u8 msg_id[]));

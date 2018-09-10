@@ -816,7 +816,7 @@ void send_gpzda(const struct sbp_nmea_state *state) {
 
 } /* send_gpzda() */
 
-bool check_nmea_rate(u32 rate, u32 gps_tow_ms, int32_t soln_freq) {
+bool check_nmea_rate(u32 rate, u32 gps_tow_ms, float soln_freq) {
   if (rate == 0) {
     return false;
   }

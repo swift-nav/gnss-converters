@@ -43,7 +43,7 @@
 #define MS2KMHR(x, y, z) \
   (sqrt((x) * (x) + (y) * (y) + (z) * (z)) * (3600.0 / 1000.0))
 
-bool check_nmea_rate(u32 rate, u32 gps_tow_ms, int32_t soln_freq);
+bool check_nmea_rate(u32 rate, u32 gps_tow_ms, float soln_freq);
 void send_gpgga(const struct sbp_nmea_state *state);
 void send_gprmc(const struct sbp_nmea_state *state);
 void send_gpvtg(const struct sbp_nmea_state *state);
