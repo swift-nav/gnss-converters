@@ -1185,7 +1185,7 @@ void rtcm_log_callback_fn(uint8_t level,
 
 void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state) {
-  constellation_t cons = to_constellation(new_rtcm_obs->header.msg_num);
+  rtcm_constellation_t cons = to_constellation(new_rtcm_obs->header.msg_num);
 
   gps_time_sec_t obs_time;
   if (CONSTELLATION_GLO == cons) {
@@ -1481,7 +1481,7 @@ static code_t get_msm_bds2_code(uint8_t signal_id) {
  * \return code enum (CODE_INVALID for unsupported codes/constellations)
  */
 code_t msm_signal_to_code(const rtcm_msm_header *header, uint8_t signal_index) {
-  constellation_t cons = to_constellation(header->msg_num);
+  rtcm_constellation_t cons = to_constellation(header->msg_num);
   uint8_t code_index =
       find_nth_mask_value(
           MSM_SIGNAL_MASK_SIZE, header->signal_mask, signal_index + 1) +
@@ -1514,7 +1514,7 @@ code_t msm_signal_to_code(const rtcm_msm_header *header, uint8_t signal_index) {
  * \return PRN (or 0 for invalid constellation)
  */
 uint8_t msm_sat_to_prn(const rtcm_msm_header *header, uint8_t satellite_index) {
-  constellation_t cons = to_constellation(header->msg_num);
+  rtcm_constellation_t cons = to_constellation(header->msg_num);
   uint8_t prn_index = find_nth_mask_value(
       MSM_SATELLITE_MASK_SIZE, header->satellite_mask, satellite_index + 1);
 
