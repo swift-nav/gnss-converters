@@ -1,4 +1,14 @@
-
+/*
+ * Copyright (C) 2018 Swift Navigation Inc.
+ * Contact: Swift Navigation <dev@swiftnav.com>
+ *
+ * This source is subject to the license found in the file 'LICENSE' which must
+ * be be distributed together with this source. All other rights reserved.
+ *
+ * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
+ * EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+ */
 
 #include <libsbp/ssr.h>
 #include <math.h>
@@ -9,34 +19,6 @@
 
 #define SSR_MESSAGE_LENGTH 256
 
-static inline code_t constellation_to_l1_code(
-    const enum constellation_e constellation) {
-  switch (constellation) {
-    case CONSTELLATION_GPS:
-      return CODE_GPS_L1CA;
-
-    case CONSTELLATION_SBAS:
-      return CODE_SBAS_L1CA;
-
-    case CONSTELLATION_GLO:
-      return CODE_GLO_L1OF;
-
-    case CONSTELLATION_BDS2:
-      return CODE_BDS2_B1;
-
-    case CONSTELLATION_QZS:
-      return CODE_QZS_L1CA;
-
-    case CONSTELLATION_GAL:
-      return CODE_GAL_E1B;
-
-    case CONSTELLATION_INVALID:
-    case CONSTELLATION_COUNT:
-    default:
-      return CODE_INVALID;
-  }
-}
-
 gps_time_sec_t compute_ssr_message_time(
     const enum constellation_e constellation,
     u32 epoch_time_ms,
@@ -45,7 +27,7 @@ gps_time_sec_t compute_ssr_message_time(
   gps_time_sec_t obs_time;
   if (constellation == CONSTELLATION_GLO) {
     compute_glo_time(epoch_time_ms, &obs_time, rover_time, state);
-  } else if (constellation == CONSTELLATION_BDS2) {
+  } else if (constellation == CONSTELLATION_BDS) {
     beidou_tow_to_gps_tow(&epoch_time_ms);
     compute_gps_message_time(epoch_time_ms, &obs_time, rover_time);
   } else {

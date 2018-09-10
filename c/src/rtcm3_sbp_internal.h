@@ -13,8 +13,11 @@
 #ifndef GNSS_CONVERTERS_RTCM3_SBP_H
 #define GNSS_CONVERTERS_RTCM3_SBP_H
 
-#include <rtcm3_messages.h>
-#include <rtcm3_sbp.h>
+#include <swiftnav/constants.h>
+#include <swiftnav/signal.h>
+#include "rtcm3_messages.h"
+#include "rtcm3_msm_utils.h"
+#include "rtcm3_sbp.h"
 
 #define MSG_OBS_P_MULTIPLIER ((double)5e1)
 #define MSG_OBS_CN0_MULTIPLIER ((float)4)
@@ -50,7 +53,7 @@ extern bool rtcm3_debug;
 #define SEC_IN_WEEK 604800
 #define SEC_IN_HOUR 3600
 #define SEC_IN_MINUTE 60
-#define SEC_IN_15MINUTES 60*15
+#define SEC_IN_15MINUTES (60 * 15)
 
 /** Maximum time difference representable by s32 seconds */
 #define MAX_WEEK_DIFF (INT32_MAX / SEC_IN_WEEK - 1)
@@ -227,4 +230,16 @@ void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock, struct 
 void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases, struct rtcm3_sbp_state *state);
 void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases, struct rtcm3_sbp_state *state);
 
+bool msm_signal_frequency(const rtcm_msm_header *header,
+                          const uint8_t signal_index,
+                          const uint8_t glo_fcn,
+                          const bool glo_fcn_valid,
+                          double *p_freq);
+code_t msm_signal_to_code(const rtcm_msm_header *header, uint8_t signal_index);
+uint8_t msm_sat_to_prn(const rtcm_msm_header *header, uint8_t satellite_index);
+bool msm_get_glo_fcn(const rtcm_msm_header *header,
+                     const uint8_t sat,
+                     const uint8_t fcn_from_sat_info,
+                     const uint8_t glo_sv_id_fcn_map[],
+                     uint8_t *glo_fcn);
 #endif /* GNSS_CONVERTERS_RTCM3_SBP_H */

@@ -847,6 +847,153 @@ START_TEST(test_gps_diff_time_sec) {
 }
 END_TEST
 
+START_TEST(test_msm_sid_conversion) {
+  rtcm_msm_header header;
+  /* GPS message */
+
+  header.msg_num = 1074;
+  /* PRNs 1, 2 and 20 */
+  memset((void *)&header.satellite_mask, 0, sizeof(header.satellite_mask));
+  header.satellite_mask[0] = true;  /* PRN 1 */
+  header.satellite_mask[1] = true;  /* PRN 2 */
+  header.satellite_mask[63] = true; /* invalid PRN 64 */
+  /* signal ids 2 (L1CA) and 15 (L2CM) */
+  memset((void *)&header.signal_mask, 0, sizeof(header.signal_mask));
+  header.signal_mask[1] = true;
+  header.signal_mask[14] = true;
+
+  ck_assert_uint_eq(to_constellation(header.msg_num), CONSTELLATION_GPS);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 0), 1);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 1), 2);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 2), PRN_INVALID);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 0), CODE_GPS_L1CA);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 1), CODE_GPS_L2CM);
+  double freq;
+  ck_assert(msm_signal_frequency(&header, 0, 0, false, &freq) &&
+            freq == GPS_L1_HZ);
+  ck_assert(msm_signal_frequency(&header, 1, 0, false, &freq) &&
+            freq == GPS_L2_HZ);
+
+  /* GLO */
+  header.msg_num = 1084;
+  ck_assert_uint_eq(to_constellation(header.msg_num), CONSTELLATION_GLO);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 0), 1);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 1), 2);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 2), PRN_INVALID);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 0), CODE_GLO_L1OF);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 1), CODE_INVALID);
+  uint8_t fcn = 3;
+  ck_assert(
+      msm_signal_frequency(&header, 0, fcn + MSM_GLO_FCN_OFFSET, true, &freq) &&
+      freq == GLO_L1_HZ + fcn * GLO_L1_DELTA_HZ);
+  ck_assert(
+      !msm_signal_frequency(&header, 1, fcn + MSM_GLO_FCN_OFFSET, true, &freq));
+
+  /* GAL */
+  header.msg_num = 1094;
+  ck_assert_uint_eq(to_constellation(header.msg_num), CONSTELLATION_GAL);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 0), 1);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 1), 2);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 2), PRN_INVALID);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 0), CODE_GAL_E1C);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 1), CODE_GAL_E7Q);
+  ck_assert(msm_signal_frequency(&header, 0, 0, false, &freq) &&
+            freq == GAL_E1_HZ);
+  ck_assert(msm_signal_frequency(&header, 1, 0, false, &freq) &&
+            freq == GAL_E7_HZ);
+
+  /* SBAS */
+  header.msg_num = 1104;
+  ck_assert_uint_eq(to_constellation(header.msg_num), CONSTELLATION_SBAS);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 0), 120);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 1), 121);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 2), PRN_INVALID);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 0), CODE_SBAS_L1CA);
+  ck_assert(msm_signal_frequency(&header, 0, 0, false, &freq) &&
+            freq == SBAS_L1_HZ);
+
+  /* QZS PRNs start from 193 */
+  header.msg_num = 1114;
+  ck_assert_uint_eq(to_constellation(header.msg_num), CONSTELLATION_QZS);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 0), 193);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 1), 194);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 2), PRN_INVALID);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 0), CODE_QZS_L1CA);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 1), CODE_QZS_L2CM);
+  ck_assert(msm_signal_frequency(&header, 0, 0, false, &freq) &&
+            freq == QZS_L1_HZ);
+  ck_assert(msm_signal_frequency(&header, 1, 0, false, &freq) &&
+            freq == QZS_L2_HZ);
+
+  /* BDS */
+  header.msg_num = 1124;
+  header.signal_mask[13] = true;
+  ck_assert_uint_eq(to_constellation(header.msg_num), CONSTELLATION_BDS);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 0), 1);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 1), 2);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 2), PRN_INVALID);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 0), CODE_BDS2_B1);
+  ck_assert_uint_eq(msm_signal_to_code(&header, 1), CODE_BDS2_B2);
+  ck_assert(msm_signal_frequency(&header, 0, 0, false, &freq) &&
+            freq == BDS2_B11_HZ);
+  ck_assert(msm_signal_frequency(&header, 1, 0, false, &freq) &&
+            freq == BDS2_B2_HZ);
+}
+END_TEST
+
+START_TEST(test_msm_glo_fcn) {
+  rtcm_msm_header header;
+
+  header.msg_num = 1084;
+  memset((void *)&header.satellite_mask, 0, sizeof(header.satellite_mask));
+  header.satellite_mask[0] = true;  /* PRN 1 */
+  header.satellite_mask[2] = true;  /* PRN 3 */
+  header.satellite_mask[63] = true; /* invalid PRN 64 */
+  /* signal id 2 (L1CA)) */
+  memset((void *)&header.signal_mask, 0, sizeof(header.signal_mask));
+  header.signal_mask[1] = true;
+
+  uint8_t sat_info[2] = {3 + MSM_GLO_FCN_OFFSET, -6 + MSM_GLO_FCN_OFFSET};
+
+  uint8_t glo_fcn;
+
+  /* FCN for both satellites available in sat_info */
+  ck_assert(msm_get_glo_fcn(&header, 0, sat_info[0], NULL, &glo_fcn));
+  ck_assert_uint_eq(glo_fcn, 3 + MSM_GLO_FCN_OFFSET);
+
+  ck_assert(msm_get_glo_fcn(&header, 1, sat_info[1], NULL, &glo_fcn));
+  ck_assert_uint_eq(glo_fcn, -6 + MSM_GLO_FCN_OFFSET);
+
+  /* sat info invalid for first satellite, FCN not available */
+  sat_info[0] = MSM_GLO_FCN_UNKNOWN;
+  ck_assert(!msm_get_glo_fcn(&header, 0, sat_info[0], NULL, &glo_fcn));
+
+  /* FCN map indexed by PRN */
+  uint8_t fcn_map[RTCM_MAX_SATS];
+  fcn_map[0] = MSM_GLO_FCN_UNKNOWN;
+  fcn_map[1] = 2 + MSM_GLO_FCN_OFFSET; /* PRN 1 */
+  fcn_map[2] = MSM_GLO_FCN_UNKNOWN;
+  fcn_map[3] = MSM_GLO_FCN_UNKNOWN; /* PRN 3 */
+
+  /* FCN for first satellite from FCN MAP */
+  ck_assert(msm_get_glo_fcn(&header, 0, sat_info[0], fcn_map, &glo_fcn));
+  ck_assert_uint_eq(glo_fcn, 2 + MSM_GLO_FCN_OFFSET);
+
+  /* FCN MAP invalid for second satellite, value in sat_info used */
+  ck_assert(msm_get_glo_fcn(&header, 1, sat_info[1], fcn_map, &glo_fcn));
+  ck_assert_uint_eq(glo_fcn, -6 + MSM_GLO_FCN_OFFSET);
+
+  /* both FCN map and sat_info invalid, invalid FCN returned */
+  sat_info[1] = MSM_GLO_FCN_UNKNOWN;
+  ck_assert(!msm_get_glo_fcn(&header, 1, sat_info[1], fcn_map, &glo_fcn));
+
+  /* add valid value in the FCN map */
+  fcn_map[3] = -5 + MSM_GLO_FCN_OFFSET;
+  ck_assert(msm_get_glo_fcn(&header, 1, sat_info[1], fcn_map, &glo_fcn));
+  ck_assert_uint_eq(glo_fcn, -5 + MSM_GLO_FCN_OFFSET);
+}
+END_TEST
+
 START_TEST(tc_rtcm_eph_gps) {
   current_time.wn = 2012;
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/eph.rtcm",
@@ -924,6 +1071,9 @@ Suite *rtcm3_suite(void) {
   tcase_add_checked_fixture(tc_utils, rtcm3_setup_basic, NULL);
   tcase_add_test(tc_utils, test_compute_glo_time);
   tcase_add_test(tc_utils, test_gps_diff_time_sec);
+  tcase_add_test(tc_utils, test_msm_sid_conversion);
+  tcase_add_test(tc_utils, test_msm_glo_fcn);
+
   suite_add_tcase(s, tc_utils);
 
   TCase *tc_eph = tcase_create("ephemeris");
