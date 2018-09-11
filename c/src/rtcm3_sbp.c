@@ -11,17 +11,17 @@
  */
 
 #include <assert.h>
-#include <libsbp/logging.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rtcm3_bits.h"
-#include "rtcm3_decode.h"
-#include "rtcm3_eph_decode.h"
+#include <libsbp/logging.h>
+#include <rtcm3/bits.h>
+#include <rtcm3/decode.h>
+#include <rtcm3/eph_decode.h>
+#include <rtcm3/ssr_decode.h>
+#include <rtcm3/logging.h>
 #include "rtcm3_sbp_internal.h"
-#include "rtcm3_ssr_decode.h"
-#include "rtcm_logging.h"
 
 static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
                                      const gps_time_sec_t *obs_time,

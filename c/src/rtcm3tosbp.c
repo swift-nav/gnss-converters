@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <time.h>
-#include <rtcm3_sbp.h>
+#include <gnss-converters/rtcm3_sbp.h>
 #include <libsbp/edc.h>
 #include <swiftnav/edc.h>
 #include <swiftnav/fifo_byte.h>

@@ -11,12 +11,12 @@
  */
 
 #include <math.h>
-#include <nmea.h>
-#include <sbp_nmea.h>
-#include <sbp_nmea_internal.h>
 #include <stdio.h>
+#include <gnss-converters/nmea.h>
+#include <gnss-converters/sbp_nmea.h>
 #include <swiftnav/constants.h>
 #include <swiftnav/gnss_time.h>
+#include "sbp_nmea_internal.h"
 
 bool gpgga_ready(struct sbp_nmea_state *state) {
   if (state->sbp_gps_time.tow == state->sbp_pos_llh.tow &&
