@@ -1188,7 +1188,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
   rtcm_constellation_t cons = to_constellation(new_rtcm_obs->header.msg_num);
 
   gps_time_sec_t obs_time;
-  if (CONSTELLATION_GLO == cons) {
+  if (RTCM_CONSTELLATION_GLO == cons) {
     compute_glo_time(new_rtcm_obs->header.tow_ms,
                      &obs_time,
                      &state->time_from_rover_obs,
@@ -1202,7 +1202,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
   } else {
     u32 tow_ms = new_rtcm_obs->header.tow_ms;
 
-    if (CONSTELLATION_BDS == cons) {
+    if (RTCM_CONSTELLATION_BDS == cons) {
       beidou_tow_to_gps_tow(&tow_ms);
     }
 
