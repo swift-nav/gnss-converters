@@ -15,7 +15,7 @@
 
 #include <libsbp/navigation.h>
 #include <libsbp/orientation.h>
-#include <sbp_nmea.h>
+#include <gnss-converters/sbp_nmea.h>
 #include <swiftnav/common.h>
 #include <swiftnav/gnss_time.h>
 
