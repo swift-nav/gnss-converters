@@ -11,15 +11,15 @@
  */
 
 #include <check.h>
+#include <libsbp/ssr.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libsbp/ssr.h>
 
-#include "config.h"
 #include "check_rtcm3.h"
 #include "check_suites.h"
+#include "config.h"
 
 static bool gps_orbit_clock_processed = false;
 static bool gps_code_bias_processed = false;

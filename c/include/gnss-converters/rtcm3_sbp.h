@@ -41,9 +41,9 @@ extern "C" {
 #define SBP_GLO_FCN_OFFSET 8
 #define SBP_GLO_FCN_UNKNOWN 0
 
-#define RTCM3_PREAMBLE      0xD3
-#define RTCM3_MSG_OVERHEAD     6
-#define RTCM3_MAX_MSG_LEN  0x3FF
+#define RTCM3_PREAMBLE 0xD3
+#define RTCM3_MSG_OVERHEAD 6
+#define RTCM3_MAX_MSG_LEN 0x3FF
 
 typedef enum {
   UNSUPPORTED_CODE_UNKNOWN = 0u,
@@ -61,7 +61,8 @@ struct rtcm3_sbp_state {
   gps_time_sec_t last_glo_time;
   gps_time_sec_t last_1230_received;
   gps_time_sec_t last_msm_received;
-  void (*cb_rtcm_to_sbp)(u16 msg_id, u8 len, u8 *buff, u16 sender_id, void *context);
+  void (*cb_rtcm_to_sbp)(
+      u16 msg_id, u8 len, u8 *buff, u16 sender_id, void *context);
   void (*cb_base_obs_invalid)(double time_diff, void *context);
   void *context;
   u8 obs_buffer[OBS_BUFFER_SIZE];
@@ -88,11 +89,14 @@ void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
                           u8 fcn,
                           struct rtcm3_sbp_state *state);
 
-void rtcm2sbp_init(
-    struct rtcm3_sbp_state *state,
-    void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context),
-    void (*cb_base_obs_invalid)(double time_diff, void *context),
-    void *context);
+void rtcm2sbp_init(struct rtcm3_sbp_state *state,
+                   void (*cb_rtcm_to_sbp)(u16 msg_id,
+                                          u8 length,
+                                          u8 *buffer,
+                                          u16 sender_id,
+                                          void *context),
+                   void (*cb_base_obs_invalid)(double time_diff, void *context),
+                   void *context);
 
 #ifdef __cplusplus
 }

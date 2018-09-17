@@ -13,9 +13,9 @@
 #ifndef SWIFTNAV_NMEA_H
 #define SWIFTNAV_NMEA_H
 
+#include <gnss-converters/sbp_nmea.h>
 #include <libsbp/navigation.h>
 #include <libsbp/orientation.h>
-#include <gnss-converters/sbp_nmea.h>
 #include <swiftnav/common.h>
 #include <swiftnav/gnss_time.h>
 

@@ -13,11 +13,11 @@
 #ifndef GNSS_CONVERTERS_RTCM3_SBP_H
 #define GNSS_CONVERTERS_RTCM3_SBP_H
 
-#include <swiftnav/constants.h>
-#include <swiftnav/signal.h>
+#include <gnss-converters/rtcm3_sbp.h>
 #include <rtcm3/messages.h>
 #include <rtcm3/msm_utils.h>
-#include <gnss-converters/rtcm3_sbp.h>
+#include <swiftnav/constants.h>
+#include <swiftnav/signal.h>
 
 #define MSG_OBS_P_MULTIPLIER ((double)5e1)
 #define MSG_OBS_CN0_MULTIPLIER ((float)4)
@@ -219,16 +219,25 @@ s32 gps_diff_time_sec(const gps_time_sec_t *end,
                       const gps_time_sec_t *beginning);
 
 static inline bool gps_time_valid(const gps_time_sec_t *t) {
-    return (t->wn != INVALID_TIME) && (t->wn < MAX_WN) && (t->tow < SEC_IN_WEEK);
+  return (t->wn != INVALID_TIME) && (t->wn < MAX_WN) && (t->tow < SEC_IN_WEEK);
 };
 
-void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_gps_t *sbp_gps_eph, struct rtcm3_sbp_state *state);
-void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_glo_t *sbp_glo_eph, struct rtcm3_sbp_state *state);
-void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph, msg_ephemeris_gal_t *sbp_glo_eph, struct rtcm3_sbp_state *state);
+void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
+                          msg_ephemeris_gps_t *sbp_gps_eph,
+                          struct rtcm3_sbp_state *state);
+void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
+                          msg_ephemeris_glo_t *sbp_glo_eph,
+                          struct rtcm3_sbp_state *state);
+void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
+                          msg_ephemeris_gal_t *sbp_glo_eph,
+                          struct rtcm3_sbp_state *state);
 
-void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock, struct rtcm3_sbp_state *state);
-void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases, struct rtcm3_sbp_state *state);
-void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases, struct rtcm3_sbp_state *state);
+void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
+                                  struct rtcm3_sbp_state *state);
+void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases,
+                                struct rtcm3_sbp_state *state);
+void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases,
+                                 struct rtcm3_sbp_state *state);
 
 bool msm_signal_frequency(const rtcm_msm_header *header,
                           const uint8_t signal_index,

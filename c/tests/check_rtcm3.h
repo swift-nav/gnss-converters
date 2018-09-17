@@ -17,9 +17,12 @@ gps_time_sec_t current_time;
 
 void rtcm3_setup_basic(void);
 void update_obs_time(const msg_obs_t *msg);
-void test_RTCM3(
-    const char *filename,
-    void (*cb_rtcm_to_sbp)(u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context),
-    gps_time_sec_t current_time);
+void test_RTCM3(const char *filename,
+                void (*cb_rtcm_to_sbp)(u16 msg_id,
+                                       u8 length,
+                                       u8 *buffer,
+                                       u16 sender_id,
+                                       void *context),
+                gps_time_sec_t current_time);
 
 #endif /* CHECK_RTCM3_H */

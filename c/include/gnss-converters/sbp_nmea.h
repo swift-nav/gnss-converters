@@ -92,16 +92,24 @@ void sbp2nmea_obs(const msg_obs_t *sbp_obs,
                   uint8_t num_obs,
                   struct sbp_nmea_state *state);
 
-void sbp2nmea_set_gpgga_rate(const int gpgga_rate, struct sbp_nmea_state *state);
-void sbp2nmea_set_gpgsv_rate(const int gpgsv_rate, struct sbp_nmea_state *state);
-void sbp2nmea_set_gprmc_rate(const int gprmc_rate, struct sbp_nmea_state *state);
-void sbp2nmea_set_gpvtg_rate(const int gpvtg_rate, struct sbp_nmea_state *state);
-void sbp2nmea_set_gphdt_rate(const int gphdt_rate, struct sbp_nmea_state *state);
-void sbp2nmea_set_gpgll_rate(const int gpgll_rate, struct sbp_nmea_state *state);
-void sbp2nmea_set_gpzda_rate(const int gpzda_rate, struct sbp_nmea_state *state);
+void sbp2nmea_set_gpgga_rate(const int gpgga_rate,
+                             struct sbp_nmea_state *state);
+void sbp2nmea_set_gpgsv_rate(const int gpgsv_rate,
+                             struct sbp_nmea_state *state);
+void sbp2nmea_set_gprmc_rate(const int gprmc_rate,
+                             struct sbp_nmea_state *state);
+void sbp2nmea_set_gpvtg_rate(const int gpvtg_rate,
+                             struct sbp_nmea_state *state);
+void sbp2nmea_set_gphdt_rate(const int gphdt_rate,
+                             struct sbp_nmea_state *state);
+void sbp2nmea_set_gpgll_rate(const int gpgll_rate,
+                             struct sbp_nmea_state *state);
+void sbp2nmea_set_gpzda_rate(const int gpzda_rate,
+                             struct sbp_nmea_state *state);
 void sbp2nmea_set_gsa_rate(const int gsa_rate, struct sbp_nmea_state *state);
 
-void sbp2nmea_set_soln_freq(const float soln_freq, struct sbp_nmea_state *state);
+void sbp2nmea_set_soln_freq(const float soln_freq,
+                            struct sbp_nmea_state *state);
 
 void sbp2nmea_init(struct sbp_nmea_state *state,
                    void (*cb_sbp_to_nmea)(u8 msg_id[]));

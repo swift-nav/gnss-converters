@@ -16,22 +16,22 @@
    vs. pre-recorded data.  Note that by default it sets the time to
    the current system time, which may not be suitable for pre-recorded
    data.  */
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <assert.h>
-#include <time.h>
 #include <gnss-converters/rtcm3_sbp.h>
 #include <libsbp/edc.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <swiftnav/edc.h>
 #include <swiftnav/fifo_byte.h>
 #include <swiftnav/gnss_time.h>
+#include <time.h>
+#include <unistd.h>
 
 /* You may reduce FIFO_SIZE if you need a lower memory footprint. */
-#define FIFO_SIZE         (1 << 14)
-#define BUFFER_SIZE       (FIFO_SIZE - RTCM3_MSG_OVERHEAD - RTCM3_MAX_MSG_LEN)
-#define SBP_PREAMBLE      0x55
+#define FIFO_SIZE (1 << 14)
+#define BUFFER_SIZE (FIFO_SIZE - RTCM3_MSG_OVERHEAD - RTCM3_MAX_MSG_LEN)
+#define SBP_PREAMBLE 0x55
 
 static struct rtcm3_sbp_state state;
 
@@ -44,15 +44,16 @@ static void update_obs_time(const msg_obs_t *msg) {
 
 /* Write the SBP packet to STDOUT. In theory, I could use
    sbp_send_message(). */
-static void cb_rtcm_to_sbp(uint16_t msg_id, uint8_t length, uint8_t *buffer,
-                           uint16_t sender_id, void *context)
-{
-
+static void cb_rtcm_to_sbp(uint16_t msg_id,
+                           uint8_t length,
+                           uint8_t *buffer,
+                           uint16_t sender_id,
+                           void *context) {
   if (msg_id == SBP_MSG_OBS) {
     update_obs_time((msg_obs_t *)buffer);
   }
 
-  (void)(context);              /* squash warning */
+  (void)(context); /* squash warning */
   /* SBP specifies little endian; this code should work on all hosts */
   uint8_t tmpbuf[6];
   tmpbuf[0] = SBP_PREAMBLE;
@@ -74,7 +75,7 @@ static void cb_rtcm_to_sbp(uint16_t msg_id, uint8_t length, uint8_t *buffer,
   }
 
   /* CRC does not cover preamble */
-  u16 crc = crc16_ccitt(tmpbuf + 1 , sizeof(tmpbuf) - 1, 0);
+  u16 crc = crc16_ccitt(tmpbuf + 1, sizeof(tmpbuf) - 1, 0);
   crc = crc16_ccitt(buffer, length, crc);
   uint8_t crcbuf[2];
   crcbuf[0] = (uint8_t)crc;
@@ -86,14 +87,12 @@ static void cb_rtcm_to_sbp(uint16_t msg_id, uint8_t length, uint8_t *buffer,
   }
 }
 
-static void cb_base_obs_invalid(const double timediff, void *context)
-{
-  (void)context;                /* squash warning */
+static void cb_base_obs_invalid(const double timediff, void *context) {
+  (void)context; /* squash warning */
   fprintf(stderr, "Invalid base observation! timediff: %lf\n", timediff);
 }
 
-static uint16_t extract_msg_len(uint8_t *buf)
-{
+static uint16_t extract_msg_len(uint8_t *buf) {
   return (((uint16_t)buf[1] << 8) | buf[2]) & RTCM3_MAX_MSG_LEN;
 }
 
@@ -103,20 +102,20 @@ static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
   uint16_t msg_len = extract_msg_len(buf);
   assert(buf_len >= msg_len + RTCM3_MSG_OVERHEAD);
   uint32_t computed_crc = crc24q(buf, 3 + msg_len, 0);
-  uint32_t frame_crc = (buf[msg_len + 3] << 16) |
-                       (buf[msg_len + 4] << 8) |
+  uint32_t frame_crc = (buf[msg_len + 3] << 16) | (buf[msg_len + 4] << 8) |
                        (buf[msg_len + 5] << 0);
   if (frame_crc != computed_crc) {
-    fprintf(stderr, "CRC failure! frame: %08X computed: %08X\n", frame_crc,
+    fprintf(stderr,
+            "CRC failure! frame: %08X computed: %08X\n",
+            frame_crc,
             computed_crc);
   }
   return (frame_crc == computed_crc);
 }
 
-int main(int argc, char **argv)
-{
-  (void)(argc);                 /* todo: accept arguments */
-  (void)(argv);                 /* todo: accept arguments */
+int main(int argc, char **argv) {
+  (void)(argc); /* todo: accept arguments */
+  (void)(argv); /* todo: accept arguments */
   assert(FIFO_SIZE > RTCM3_MSG_OVERHEAD + RTCM3_MAX_MSG_LEN);
 
   /* set time from systime, account for UTC<->GPS leap second difference */
@@ -172,7 +171,6 @@ int main(int argc, char **argv)
     }
     fifo_size_t numremoved = fifo_remove(&fifo, index);
     assert(numremoved == index);
-
   }
   return 0;
 }

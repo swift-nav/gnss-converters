@@ -11,15 +11,15 @@
  */
 
 #include <check.h>
+#include <gnss-converters/sbp_nmea.h>
+#include <libsbp/sbp.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libsbp/sbp.h>
-#include <gnss-converters/sbp_nmea.h>
 
-#include "config.h"
 #include "check_suites.h"
+#include "config.h"
 #include "nmea_truth.h"
 
 static struct sbp_nmea_state state;

@@ -17,11 +17,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <gnss-converters/nmea.h>
 #include <swiftnav/array_tools.h>
 #include <swiftnav/constants.h>
 #include <swiftnav/pvt_result.h>
 #include <swiftnav/signal.h>
-#include <gnss-converters/nmea.h>
 #include "sbp_nmea_internal.h"
 
 /** \addtogroup io

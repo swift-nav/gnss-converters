@@ -10,11 +10,11 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <libsbp/ssr.h>
 #include <math.h>
+#include <rtcm3/msm_utils.h>
 #include <stdio.h>
 #include <string.h>
-#include <libsbp/ssr.h>
-#include <rtcm3/msm_utils.h>
 #include "rtcm3_sbp_internal.h"
 
 #define SSR_MESSAGE_LENGTH 256

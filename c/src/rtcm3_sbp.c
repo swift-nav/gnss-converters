@@ -11,16 +11,16 @@
  */
 
 #include <assert.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <libsbp/logging.h>
+#include <math.h>
 #include <rtcm3/bits.h>
 #include <rtcm3/decode.h>
 #include <rtcm3/eph_decode.h>
-#include <rtcm3/ssr_decode.h>
 #include <rtcm3/logging.h>
+#include <rtcm3/ssr_decode.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "rtcm3_sbp_internal.h"
 
 static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
