@@ -1488,20 +1488,20 @@ code_t msm_signal_to_code(const rtcm_msm_header *header, uint8_t signal_index) {
       1;
 
   switch (cons) {
-    case CONSTELLATION_GPS:
+    case RTCM_CONSTELLATION_GPS:
       return get_msm_gps_code(code_index);
-    case CONSTELLATION_SBAS:
+    case RTCM_CONSTELLATION_SBAS:
       return get_msm_sbas_code(code_index);
-    case CONSTELLATION_GLO:
+    case RTCM_CONSTELLATION_GLO:
       return get_msm_glo_code(code_index);
-    case CONSTELLATION_BDS:
+    case RTCM_CONSTELLATION_BDS:
       return get_msm_bds2_code(code_index);
-    case CONSTELLATION_QZS:
+    case RTCM_CONSTELLATION_QZS:
       return get_msm_qzs_code(code_index);
-    case CONSTELLATION_GAL:
+    case RTCM_CONSTELLATION_GAL:
       return get_msm_gal_code(code_index);
-    case CONSTELLATION_INVALID:
-    case CONSTELLATION_COUNT:
+    case RTCM_CONSTELLATION_INVALID:
+    case RTCM_CONSTELLATION_COUNT:
     default:
       return CODE_INVALID;
   }
@@ -1519,20 +1519,20 @@ uint8_t msm_sat_to_prn(const rtcm_msm_header *header, uint8_t satellite_index) {
       MSM_SATELLITE_MASK_SIZE, header->satellite_mask, satellite_index + 1);
 
   switch (cons) {
-    case CONSTELLATION_GPS:
+    case RTCM_CONSTELLATION_GPS:
       return get_msm_gps_prn(prn_index);
-    case CONSTELLATION_SBAS:
+    case RTCM_CONSTELLATION_SBAS:
       return get_msm_sbas_prn(prn_index);
-    case CONSTELLATION_GLO:
+    case RTCM_CONSTELLATION_GLO:
       return get_msm_glo_prn(prn_index);
-    case CONSTELLATION_BDS:
+    case RTCM_CONSTELLATION_BDS:
       return get_msm_bds2_prn(prn_index);
-    case CONSTELLATION_QZS:
+    case RTCM_CONSTELLATION_QZS:
       return get_msm_qzs_prn(prn_index);
-    case CONSTELLATION_GAL:
+    case RTCM_CONSTELLATION_GAL:
       return get_msm_gal_prn(prn_index);
-    case CONSTELLATION_INVALID:
-    case CONSTELLATION_COUNT:
+    case RTCM_CONSTELLATION_INVALID:
+    case RTCM_CONSTELLATION_COUNT:
     default:
       return PRN_INVALID;
   }
@@ -1710,16 +1710,49 @@ bool unsupported_signal(sbp_gnss_signal_t *sid) {
     case CODE_GAL_E6B:
     case CODE_GAL_E6C:
     case CODE_GAL_E6X:
+    /* note: the code enums from here on disagree with LNSP in PM v2.1, will
+     * match again with Starling/LSN-OS */
     case CODE_GAL_E8I:
     case CODE_GAL_E8Q:
     case CODE_GAL_E8X:
+    case CODE_GAL_E5I:
+    case CODE_GAL_E5Q:
+    case CODE_GAL_E5X:
+    case CODE_GLO_L1P:
+    case CODE_GLO_L2P:
     case CODE_QZS_L1CA:
+    case CODE_QZS_L1CI:
+    case CODE_QZS_L1CQ:
+    case CODE_QZS_L1CX:
     case CODE_QZS_L2CM:
     case CODE_QZS_L2CL:
     case CODE_QZS_L2CX:
     case CODE_QZS_L5I:
     case CODE_QZS_L5Q:
     case CODE_QZS_L5X:
+    case CODE_SBAS_L5I:
+    case CODE_SBAS_L5Q:
+    case CODE_SBAS_L5X:
+    case CODE_BDS3_B1CI:
+    case CODE_BDS3_B1CQ:
+    case CODE_BDS3_B1CX:
+    case CODE_BDS3_B5I:
+    case CODE_BDS3_B5Q:
+    case CODE_BDS3_B5X:
+    case CODE_BDS3_B7I:
+    case CODE_BDS3_B7Q:
+    case CODE_BDS3_B7X:
+    case CODE_BDS3_B3I:
+    case CODE_BDS3_B3Q:
+    case CODE_BDS3_B3X:
+    case CODE_GPS_L1CI:
+    case CODE_GPS_L1CQ:
+    case CODE_GPS_L1CX:
+    case CODE_AUX_GPS:
+    case CODE_AUX_SBAS:
+    case CODE_AUX_GAL:
+    case CODE_AUX_QZS:
+    case CODE_AUX_BDS:
       return true;
     default:
       return false;

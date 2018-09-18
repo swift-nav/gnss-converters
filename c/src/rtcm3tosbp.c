@@ -100,7 +100,13 @@ static uint16_t extract_msg_len(uint8_t *buf) {
    your actual message */
 static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
   uint16_t msg_len = extract_msg_len(buf);
-  assert(buf_len >= msg_len + RTCM3_MSG_OVERHEAD);
+  if (buf_len < msg_len + RTCM3_MSG_OVERHEAD) {
+    fprintf(stderr,
+            "CRC failure! Buffer %u too short for message length %u\n",
+            buf_len,
+            msg_len);
+    return false;
+  }
   uint32_t computed_crc = crc24q(buf, 3 + msg_len, 0);
   uint32_t frame_crc = (buf[msg_len + 3] << 16) | (buf[msg_len + 4] << 8) |
                        (buf[msg_len + 5] << 0);
@@ -139,6 +145,12 @@ int main(int argc, char **argv) {
   ssize_t numread;
   while ((numread = read(STDIN_FILENO, inbuf, BUFFER_SIZE)) > 0) {
     ssize_t numwritten = fifo_write(&fifo, inbuf, numread);
+    if (numwritten != numread) {
+      fprintf(stderr,
+              "%zd bytes read from stdin but only %zd written to FIFO\n",
+              numread,
+              numwritten);
+    }
     assert(numwritten == numread);
 
     uint8_t buf[FIFO_SIZE] = {0};
@@ -170,6 +182,12 @@ int main(int argc, char **argv) {
       index += msg_len + RTCM3_MSG_OVERHEAD;
     }
     fifo_size_t numremoved = fifo_remove(&fifo, index);
+    if (numremoved != index) {
+      fprintf(stderr,
+              "Tried to remove %u bytes from FIFO, only got %u\n",
+              index,
+              numremoved);
+    }
     assert(numremoved == index);
   }
   return 0;
