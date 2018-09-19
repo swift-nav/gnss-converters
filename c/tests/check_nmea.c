@@ -40,9 +40,9 @@ static bool nmea_gpzda_processed = false;
 /*static bool nmea_gphdt_processed = false;*/
 static bool nmea_gsa_processed = false;
 
-uint32_t read_file(uint8_t *buff, uint32_t n, void *context) {
+int32_t read_file(uint8_t *buff, uint32_t n, void *context) {
   FILE *f = (FILE *)context;
-  return (uint32_t)(fread(buff, 1, n, f));
+  return (int32_t)(fread(buff, 1, n, f));
 }
 
 void nmea_callback_gpgga(u8 msg[]) {
