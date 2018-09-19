@@ -210,6 +210,19 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       }
       break;
     }
+    case 1045: {
+      rtcm_msg_eph msg_eph;
+      if (RC_OK == rtcm3_decode_gal_eph_fnav(&payload[byte], &msg_eph)) {
+        msg_ephemeris_gal_t sbp_gal_eph;
+        rtcm3_gal_eph_to_sbp(&msg_eph, &sbp_gal_eph, state);
+        state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GAL,
+                              (u8)sizeof(sbp_gal_eph),
+                              (u8 *)&sbp_gal_eph,
+                              rtcm_2_sbp_sender_id(0),
+                              state->context);
+      }
+      break;
+    }
     case 1046: {
       rtcm_msg_eph msg_eph;
       if (RC_OK == rtcm3_decode_gal_eph(&payload[byte], &msg_eph)) {
@@ -1707,32 +1720,8 @@ static bool get_sid_from_msm(const rtcm_msm_header *header,
 
 bool unsupported_signal(sbp_gnss_signal_t *sid) {
   switch (sid->code) {
-    case CODE_GAL_E6B:
-    case CODE_GAL_E6C:
-    case CODE_GAL_E6X:
-    /* note: the code enums from here on disagree with LNSP in PM v2.1, will
-     * match again with Starling/LSN-OS */
-    case CODE_GAL_E8I:
-    case CODE_GAL_E8Q:
-    case CODE_GAL_E8X:
-    case CODE_GAL_E5I:
-    case CODE_GAL_E5Q:
-    case CODE_GAL_E5X:
     case CODE_GLO_L1P:
     case CODE_GLO_L2P:
-    case CODE_QZS_L1CA:
-    case CODE_QZS_L1CI:
-    case CODE_QZS_L1CQ:
-    case CODE_QZS_L1CX:
-    case CODE_QZS_L2CM:
-    case CODE_QZS_L2CL:
-    case CODE_QZS_L2CX:
-    case CODE_QZS_L5I:
-    case CODE_QZS_L5Q:
-    case CODE_QZS_L5X:
-    case CODE_SBAS_L5I:
-    case CODE_SBAS_L5Q:
-    case CODE_SBAS_L5X:
     case CODE_BDS3_B1CI:
     case CODE_BDS3_B1CQ:
     case CODE_BDS3_B1CX:
@@ -1745,9 +1734,6 @@ bool unsupported_signal(sbp_gnss_signal_t *sid) {
     case CODE_BDS3_B3I:
     case CODE_BDS3_B3Q:
     case CODE_BDS3_B3X:
-    case CODE_GPS_L1CI:
-    case CODE_GPS_L1CQ:
-    case CODE_GPS_L1CX:
     case CODE_AUX_GPS:
     case CODE_AUX_SBAS:
     case CODE_AUX_GAL:
