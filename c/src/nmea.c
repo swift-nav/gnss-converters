@@ -183,27 +183,13 @@ __attribute__((format(printf, 3, 4))) static void vsnprintf_wrap(
  * \param[in] size utc_str size.
  *
  */
-static void get_utc_time_string(const msg_gps_time_t *sbp_msg_time,
-                                bool time,
+static void get_utc_time_string(bool time,
                                 bool date,
                                 bool trunc_date,
                                 const msg_utc_time_t *sbp_utc_time,
                                 char *utc_str,
                                 u8 size) {
   char *buf_end = utc_str + size;
-
-  if ((sbp_msg_time->flags & TIME_SOURCE_MASK) == NO_TIME) {
-    if (time) {
-      vsnprintf_wrap(&utc_str, buf_end, ","); /* Time (UTC) */
-    }
-
-    if (date) {
-      vsnprintf_wrap(
-          &utc_str, buf_end, trunc_date ? "," : ",,,"); /* Date Stamp */
-    }
-
-    return;
-  }
 
   if (time) {
     /* Time (UTC) */
@@ -267,7 +253,6 @@ void send_gpgga(const struct sbp_nmea_state *state) {
      $GPGGA,hhmmss.ss,1560.000000,...
    */
   const msg_pos_llh_t *sbp_pos_llh = &state->sbp_pos_llh;
-  const msg_gps_time_t *sbp_msg_time = &state->sbp_gps_time;
   const msg_utc_time_t *sbp_utc_time = &state->sbp_utc_time;
   const msg_age_corrections_t *sbp_age = &state->sbp_age_corr;
   const msg_dops_t *sbp_dops = &state->sbp_dops;
@@ -286,7 +271,7 @@ void send_gpgga(const struct sbp_nmea_state *state) {
   double lon_min = (lon - (double)lon_deg) * 60.0;
 
   u8 fix_type = NMEA_GGA_QI_INVALID;
-  if ((sbp_msg_time->flags & POSITION_MODE_MASK) != POSITION_MODE_NONE) {
+  if ((sbp_pos_llh->flags & POSITION_MODE_MASK) != POSITION_MODE_NONE) {
     fix_type = get_nmea_quality_indicator(sbp_pos_llh->flags);
   }
 
@@ -295,7 +280,7 @@ void send_gpgga(const struct sbp_nmea_state *state) {
 
   char utc[NMEA_TS_MAX_LEN];
   get_utc_time_string(
-      sbp_msg_time, true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
+      true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
   NMEA_SENTENCE_PRINTF("%s", utc);
 
   if (fix_type != NMEA_GGA_QI_INVALID) {
@@ -603,7 +588,6 @@ static void calc_cog_sog(const msg_vel_ned_t *sbp_vel_ned,
 void send_gprmc(const struct sbp_nmea_state *state) {
   const msg_pos_llh_t *sbp_pos_llh = &state->sbp_pos_llh;
   const msg_vel_ned_t *sbp_vel_ned = &state->sbp_vel_ned;
-  const msg_gps_time_t *sbp_msg_time = &state->sbp_gps_time;
   const msg_utc_time_t *sbp_utc_time = &state->sbp_utc_time;
   /* See the relevant comment for the similar code in nmea_gpgga() function
      for the reasoning behind (... * 1e8 / 1e8) trick */
@@ -631,7 +615,7 @@ void send_gprmc(const struct sbp_nmea_state *state) {
 
   char utc[NMEA_TS_MAX_LEN];
   get_utc_time_string(
-      sbp_msg_time, true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
+      true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
   NMEA_SENTENCE_PRINTF("%s", utc);
 
   NMEA_SENTENCE_PRINTF("%c,", /* Status */
@@ -662,7 +646,7 @@ void send_gprmc(const struct sbp_nmea_state *state) {
 
   char date[NMEA_TS_MAX_LEN];
   get_utc_time_string(
-      sbp_msg_time, false, true, true, sbp_utc_time, date, NMEA_TS_MAX_LEN);
+      false, true, true, sbp_utc_time, date, NMEA_TS_MAX_LEN);
   NMEA_SENTENCE_PRINTF("%s", date);
 
   NMEA_SENTENCE_PRINTF(
@@ -747,7 +731,6 @@ void send_gphdt(const struct sbp_nmea_state *state) {
  */
 void send_gpgll(const struct sbp_nmea_state *state) {
   const msg_pos_llh_t *sbp_pos_llh = &state->sbp_pos_llh;
-  const msg_gps_time_t *sbp_msg_time = &state->sbp_gps_time;
   const msg_utc_time_t *sbp_utc_time = &state->sbp_utc_time;
   /* See the relevant comment for the similar code in nmea_gpgga() function
      for the reasoning behind (... * 1e8 / 1e8) trick */
@@ -784,7 +767,7 @@ void send_gpgll(const struct sbp_nmea_state *state) {
 
   char utc[NMEA_TS_MAX_LEN];
   get_utc_time_string(
-      sbp_msg_time, true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
+      true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
   NMEA_SENTENCE_PRINTF("%s", utc);
 
   NMEA_SENTENCE_PRINTF("%c,%c", /* Status, Mode */
@@ -796,11 +779,9 @@ void send_gpgll(const struct sbp_nmea_state *state) {
 /** Assemble an NMEA GPZDA message and send it out NMEA USARTs.
  * NMEA ZDA contains UTC Time and Date.
  *
- * \param sbp_msg_time Pointer to the current SBP GPS Time.
  * \param sbp_utc_time Pointer to sbp UTC time
  */
 void send_gpzda(const struct sbp_nmea_state *state) {
-  const msg_gps_time_t *sbp_msg_time = &state->sbp_gps_time;
   const msg_utc_time_t *sbp_utc_time = &state->sbp_utc_time;
 
   NMEA_SENTENCE_START(40);
@@ -808,7 +789,7 @@ void send_gpzda(const struct sbp_nmea_state *state) {
 
   char utc[NMEA_TS_MAX_LEN];
   get_utc_time_string(
-      sbp_msg_time, true, true, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
+      true, true, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
   NMEA_SENTENCE_PRINTF("%s", utc);
 
   NMEA_SENTENCE_PRINTF(","); /* Time zone */
@@ -847,6 +828,8 @@ char get_nmea_status(u8 flags) {
     case POSITION_MODE_FLOAT:
     case POSITION_MODE_FIXED:
       return 'A';
+    case POSITION_MODE_DEAD_RECKONING:
+      return 'E';
     default:
       assert(!"Unsupported position type indicator");
       return 'V';
@@ -869,6 +852,8 @@ char get_nmea_mode_indicator(u8 flags) {
     case POSITION_MODE_FLOAT:
     case POSITION_MODE_FIXED:
       return 'D';
+    case POSITION_MODE_DEAD_RECKONING:
+      return 'E';
     default:
       assert(!"Unsupported position type indicator");
       return 'N';
@@ -893,6 +878,8 @@ u8 get_nmea_quality_indicator(u8 flags) {
       return NMEA_GGA_QI_FLOAT;
     case POSITION_MODE_FIXED:
       return NMEA_GGA_QI_RTK;
+    case POSITION_MODE_DEAD_RECKONING:
+      return NMEA_GGA_QI_DR;
     default:
       assert(!"Unsupported position type indicator");
       return NMEA_GGA_QI_INVALID;
