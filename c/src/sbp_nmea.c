@@ -19,12 +19,11 @@
 #include "sbp_nmea_internal.h"
 
 bool gpgga_ready(struct sbp_nmea_state *state) {
-  if (state->sbp_gps_time.tow == state->sbp_pos_llh.tow &&
-      state->sbp_gps_time.tow == state->sbp_utc_time.tow &&
-      state->sbp_gps_time.tow == state->sbp_dops.tow &&
-      state->sbp_gps_time.tow == state->sbp_age_corr.tow &&
-      state->sbp_gps_time.tow != state->gpgga_last_tow) {
-    state->gpgga_last_tow = state->sbp_gps_time.tow;
+  if (state->sbp_utc_time.tow == state->sbp_pos_llh.tow &&
+      state->sbp_utc_time.tow == state->sbp_dops.tow &&
+      state->sbp_utc_time.tow == state->sbp_age_corr.tow &&
+      state->sbp_utc_time.tow != state->gpgga_last_tow) {
+    state->gpgga_last_tow = state->sbp_utc_time.tow;
     return true;
   }
   return false;
@@ -41,11 +40,10 @@ bool gsa_ready(struct sbp_nmea_state *state) {
 }
 
 bool gprmc_ready(struct sbp_nmea_state *state) {
-  if (state->sbp_gps_time.tow == state->sbp_pos_llh.tow &&
-      state->sbp_gps_time.tow == state->sbp_utc_time.tow &&
-      state->sbp_gps_time.tow == state->sbp_vel_ned.tow &&
-      state->sbp_gps_time.tow != state->gprmc_last_tow) {
-    state->gprmc_last_tow = state->sbp_gps_time.tow;
+  if (state->sbp_utc_time.tow == state->sbp_pos_llh.tow &&
+      state->sbp_utc_time.tow == state->sbp_vel_ned.tow &&
+      state->sbp_utc_time.tow != state->gprmc_last_tow) {
+    state->gprmc_last_tow = state->sbp_utc_time.tow;
     return true;
   }
   return false;
@@ -61,18 +59,16 @@ bool gpvtg_ready(struct sbp_nmea_state *state) {
 }
 
 bool gpgll_ready(struct sbp_nmea_state *state) {
-  if (state->sbp_gps_time.tow == state->sbp_pos_llh.tow &&
-      state->sbp_gps_time.tow == state->sbp_utc_time.tow &&
-      state->sbp_gps_time.tow != state->gpgll_last_tow) {
-    state->gpgll_last_tow = state->sbp_gps_time.tow;
+  if (state->sbp_utc_time.tow == state->sbp_pos_llh.tow &&
+      state->sbp_utc_time.tow != state->gpgll_last_tow) {
+    state->gpgll_last_tow = state->sbp_utc_time.tow;
     return true;
   }
   return false;
 }
 
 bool gpzda_ready(struct sbp_nmea_state *state) {
-  if (state->sbp_gps_time.tow == state->sbp_utc_time.tow &&
-      state->sbp_gps_time.tow != state->gpzda_last_tow) {
+  if (state->sbp_utc_time.tow != state->gpzda_last_tow) {
     state->gpzda_last_tow = state->sbp_gps_time.tow;
     return true;
   }
@@ -121,50 +117,30 @@ void check_nmea_send(struct sbp_nmea_state *state) {
 
 void sbp2nmea_gps_time(const msg_gps_time_t *sbp_gps_time,
                        struct sbp_nmea_state *state) {
-  if ((sbp_gps_time->flags & TIME_SOURCE_MASK) == NO_TIME) {
-    return;
-  }
   state->sbp_gps_time = *sbp_gps_time;
-
   check_nmea_send(state);
 }
 
 void sbp2nmea_utc_time(const msg_utc_time_t *sbp_utc_time,
                        struct sbp_nmea_state *state) {
-  if ((sbp_utc_time->flags & TIME_SOURCE_MASK) == NO_TIME) {
-    return;
-  }
   state->sbp_utc_time = *sbp_utc_time;
-
   check_nmea_send(state);
 }
 
 void sbp2nmea_pos_llh(const msg_pos_llh_t *sbp_pos_llh,
                       struct sbp_nmea_state *state) {
-  if ((sbp_pos_llh->flags & TIME_SOURCE_MASK) == NO_TIME) {
-    return;
-  }
   state->sbp_pos_llh = *sbp_pos_llh;
-
   check_nmea_send(state);
 }
 
 void sbp2nmea_vel_ned(const msg_vel_ned_t *sbp_vel_ned,
                       struct sbp_nmea_state *state) {
-  if ((sbp_vel_ned->flags & TIME_SOURCE_MASK) == NO_TIME) {
-    return;
-  }
   state->sbp_vel_ned = *sbp_vel_ned;
-
   check_nmea_send(state);
 }
 
 void sbp2nmea_dops(const msg_dops_t *sbp_dops, struct sbp_nmea_state *state) {
-  if ((sbp_dops->flags & TIME_SOURCE_MASK) == NO_TIME) {
-    return;
-  }
   state->sbp_dops = *sbp_dops;
-
   check_nmea_send(state);
 }
 
@@ -176,11 +152,7 @@ void sbp2nmea_age_corrections(const msg_age_corrections_t *sbp_age_corr,
 
 void sbp2nmea_baseline_heading(const msg_baseline_heading_t *sbp_heading,
                                struct sbp_nmea_state *state) {
-  if ((sbp_heading->flags & TIME_SOURCE_MASK) == NO_TIME) {
-    return;
-  }
   state->sbp_heading = *sbp_heading;
-
   check_nmea_send(state);
 }
 
