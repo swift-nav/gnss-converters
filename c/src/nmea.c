@@ -822,14 +822,13 @@ char get_nmea_status(u8 flags) {
   switch (flags & POSITION_MODE_MASK) {
     case POSITION_MODE_NONE:
       return 'V';
+    case POSITION_MODE_DEAD_RECKONING:
     case POSITION_MODE_SPP: /* autonomous mode */
     case POSITION_MODE_DGNSS:
     case POSITION_MODE_SBAS:
     case POSITION_MODE_FLOAT:
     case POSITION_MODE_FIXED:
       return 'A';
-    case POSITION_MODE_DEAD_RECKONING:
-      return 'E';
     default:
       assert(!"Unsupported position type indicator");
       return 'V';
@@ -879,7 +878,7 @@ u8 get_nmea_quality_indicator(u8 flags) {
     case POSITION_MODE_FIXED:
       return NMEA_GGA_QI_RTK;
     case POSITION_MODE_DEAD_RECKONING:
-      return NMEA_GGA_QI_DR;
+      return NMEA_GGA_QI_EST;
     default:
       assert(!"Unsupported position type indicator");
       return NMEA_GGA_QI_INVALID;
