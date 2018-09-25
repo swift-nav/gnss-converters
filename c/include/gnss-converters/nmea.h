@@ -30,7 +30,6 @@
 #define NMEA_GGA_QI_EST 6
 #define NMEA_GGA_QI_MANUAL 7
 #define NMEA_GGA_QI_SIM 8
-#define NMEA_GGA_QI_DR 9
 
 #define FULL_CIRCLE_DEG 360.0f
 
