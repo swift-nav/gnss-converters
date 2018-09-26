@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <swiftnav/sid_set.h>
+
 #include "check_rtcm3.h"
 #include "check_suites.h"
 #include "config.h"
@@ -367,6 +369,28 @@ void sbp_callback_bias(
   }
 }
 
+static bool no_duplicate_observations(msg_obs_t *sbp_obs, u8 length) {
+  static sbp_gps_time_t epoch_time;
+  static gnss_sid_set_t sid_set;
+
+  if (epoch_time.wn != sbp_obs->header.t.wn ||
+      epoch_time.tow != sbp_obs->header.t.tow) {
+    epoch_time = sbp_obs->header.t;
+    sid_set_init(&sid_set);
+  }
+
+  u8 num_obs = (length - 11) / 17;
+  for (u8 i = 0; i < num_obs; i++) {
+    gnss_signal_t sid = {.code = sbp_obs->obs[i].sid.code,
+                         .sat = sbp_obs->obs[i].sid.sat};
+    if (sid_set_contains(&sid_set, sid)) {
+      return false;
+    }
+    sid_set_add(&sid_set, sid);
+  }
+  return true;
+}
+
 void sbp_callback_msm_switching(
     u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
@@ -382,6 +406,8 @@ void sbp_callback_msm_switching(
       ck_assert(dt >= 0);
       /* check there aren't too long gaps between observations */
       ck_assert(dt < MAX_OBS_GAP_S);
+      /* check there are no duplicate sids */
+      ck_assert(no_duplicate_observations(sbp_obs, length));
     }
     previous_obs_time = sbp_obs->header.t;
     update_obs_time(sbp_obs);
@@ -403,6 +429,8 @@ void sbp_callback_msm_no_gaps(
       ck_assert(dt >= 0);
       /* check there's an observation for every second */
       ck_assert(dt <= MAX_OBS_GAP_S);
+      /* check there are no duplicate sids */
+      ck_assert(no_duplicate_observations(sbp_obs, length));
 
       u8 n_meas = sbp_obs->header.n_obs;
       u8 seq_counter = n_meas & 0x0F;
@@ -637,7 +665,7 @@ START_TEST(test_msm_switching) {
 END_TEST
 
 /* parse an artificially generated stream with both legacy and MSM observations,
- * verify there's no crash
+ * verify there's no crash or duplicate observations
  */
 START_TEST(test_msm_mixed) {
   current_time.wn = 2002;

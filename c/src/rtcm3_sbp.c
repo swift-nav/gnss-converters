@@ -400,6 +400,14 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
   rtcm2sbp_decode_payload(&frame[byte], message_size, state);
 }
 
+/* check if there was a MSM message decoded within the MSM timeout period */
+static bool is_msm_active(const gps_time_sec_t *current_time,
+                          const struct rtcm3_sbp_state *state) {
+  return gps_time_valid(&state->last_msm_received) &&
+         gps_diff_time_sec(current_time, &state->last_msm_received) <
+             MSM_TIMEOUT_SEC;
+}
+
 void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state) {
   gps_time_sec_t obs_time;
@@ -413,9 +421,7 @@ void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
     return;
   }
 
-  if (gps_time_valid(&state->last_msm_received) &&
-      gps_diff_time_sec(&obs_time, &state->last_msm_received) <
-          MSM_TIMEOUT_SEC) {
+  if (is_msm_active(&obs_time, state)) {
     /* Stream potentially contains also MSM observations, so discard the legacy
      * observation messages */
     return;
@@ -437,9 +443,7 @@ void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                    state);
   assert(gps_time_valid(&obs_time));
 
-  if (gps_time_valid(&state->last_msm_received) &&
-      gps_diff_time_sec(&obs_time, &state->last_msm_received) <
-          MSM_TIMEOUT_SEC) {
+  if (is_msm_active(&obs_time, state)) {
     /* Stream potentially contains also MSM observations, so discard the legacy
      * observation messages */
     return;
@@ -1211,13 +1215,15 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
 
   if (!gps_time_valid(&state->last_gps_time) ||
       gps_diff_time_sec(&obs_time, &state->last_gps_time) >= 0) {
-    if (!gps_time_valid(&state->last_msm_received) &&
-        gps_time_valid(&state->last_gps_time)) {
-      /* First MSM observation but last_gps_time is already set: possibly
-       * switched to MSM from legacy stream, so clear the buffer to avoid
-       * duplicate observations */
+    /* Find the buffer of obs to be sent */
+    msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
+
+    if (!is_msm_active(&obs_time, state) && sbp_obs_buffer->header.n_obs > 0) {
+      /* This is the first MSM observation, so clear the already decoded legacy
+       * messages from the observation buffer to avoid duplicates */
       memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
     }
+
     state->last_gps_time = obs_time;
     state->last_glo_time = obs_time;
     state->last_msm_received = obs_time;
@@ -1226,9 +1232,6 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
     u8 new_obs[OBS_BUFFER_SIZE];
     memset(new_obs, 0, OBS_BUFFER_SIZE);
     msg_obs_t *new_sbp_obs = (msg_obs_t *)(new_obs);
-
-    /* Find the buffer of obs to be sent */
-    msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
 
     /* Build an SBP time stamp */
     new_sbp_obs->header.t.wn = obs_time.wn;
