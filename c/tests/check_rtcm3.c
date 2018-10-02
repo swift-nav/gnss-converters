@@ -16,6 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <libsbp/sbp.h>
+#include <rtcm3/decode.h>
+#include <rtcm3/encode.h>
 #include <swiftnav/sid_set.h>
 
 #include "check_rtcm3.h"
@@ -32,6 +35,7 @@ static u8 previous_n_meas = 0;
 static u8 previous_num_obs = 0;
 
 static struct rtcm3_sbp_state state;
+static struct rtcm3_out_state out_state;
 
 static const uint32_t crc24qtab[256] = {
     0x000000, 0x864CFB, 0x8AD50D, 0x0C99F6, 0x93E6E1, 0x15AA1A, 0x1933EC,
@@ -72,18 +76,10 @@ static const uint32_t crc24qtab[256] = {
     0xF6D10C, 0xFA48FA, 0x7C0401, 0x42FA2F, 0xC4B6D4, 0xC82F22, 0x4E63D9,
     0xD11CCE, 0x575035, 0x5BC9C3, 0xDD8538};
 
-/* difference between two sbp time stamps */
-static double sbp_diff_time(const sbp_gps_time_t *end,
-                            const sbp_gps_time_t *beginning) {
-  s16 week_diff = end->wn - beginning->wn;
-  double dt = (double)end->tow / SECS_MS - (double)beginning->tow / SECS_MS;
-  dt += week_diff * SEC_IN_WEEK;
-  return dt;
-}
-
 static uint32_t crc24q(const uint8_t *buf, uint32_t len, uint32_t crc) {
-  for (uint32_t i = 0; i < len; i++)
+  for (uint32_t i = 0; i < len; i++) {
     crc = ((crc << 8) & 0xFFFFFF) ^ crc24qtab[((crc >> 16) ^ buf[i]) & 0xff];
+  }
   return crc;
 }
 
@@ -100,7 +96,9 @@ void sbp_callback_gps(
   (void)context;
   static uint32_t msg_count = 0;
   /* ignore log messages */
-  if (msg_id == SBP_MSG_LOG) return;
+  if (msg_id == SBP_MSG_LOG) {
+    return;
+  }
   if (msg_count == 3 || msg_count == 20 || msg_count == 42) {
     ck_assert_uint_eq(msg_id, SBP_MSG_BASE_POS_ECEF);
   } else if (msg_count == 4) {
@@ -158,7 +156,6 @@ void sbp_callback_gps_eph(
     ck_assert(msg->iode == 104);
     ck_assert(msg->iodc == 104);
   }
-  return;
 }
 
 void sbp_callback_glo_eph(
@@ -246,7 +243,6 @@ void sbp_callback_glo_eph(
     ck_assert(fabs(msg->d_tau - -2.7939677238464355e-9) < FLOAT_EPS);
     ck_assert(fabs(msg->tau - -0.00014107581228017807) < FLOAT_EPS);
   }
-  return;
 }
 
 void sbp_callback_gal_eph(
@@ -308,7 +304,6 @@ void sbp_callback_gal_eph(
     ck_assert(msg->iode == 56);
     ck_assert(msg->iodc == 56);
   }
-  return;
 }
 
 void sbp_callback_1012_first(
@@ -544,8 +539,90 @@ void test_RTCM3(const char *filename,
     /* skip pointer to the end of this message */
     buffer_index += message_size + 6;
   }
+}
 
-  return;
+static s32 sbp_read_file(u8 *buff, u32 n, void *context) {
+  FILE *f = (FILE *)context;
+  return fread(buff, 1, n, f);
+}
+
+static void ephemeris_glo_callback(u16 sender_id,
+                                   u8 len,
+                                   u8 msg[],
+                                   void *context) {
+  (void)context;
+  (void)sender_id;
+  (void)len;
+  msg_ephemeris_glo_t *e = (msg_ephemeris_glo_t *)msg;
+
+  /* extract just the FCN field */
+  sbp2rtcm_set_glo_fcn(e->common.sid, e->fcn, &out_state);
+}
+
+static void test_SBP(const char *filename,
+                     void (*cb_sbp_to_rtcm)(u8 *buffer,
+                                            u8 length,
+                                            void *context),
+                     gps_time_sec_t current_time_) {
+  (void)current_time_;
+  sbp2rtcm_init(&out_state, cb_sbp_to_rtcm, NULL);
+  sbp2rtcm_set_leap_second(18, &out_state);
+
+  previous_obs_time.wn = INVALID_TIME;
+  previous_n_meas = 0;
+  previous_num_obs = 0;
+
+  FILE *fp = fopen(filename, "rb");
+  if (fp == NULL) {
+    fprintf(stderr, "Can't open input file! %s\n", filename);
+    exit(1);
+  }
+
+  sbp_msg_callbacks_node_t sbp_base_pos_callback_node;
+  sbp_msg_callbacks_node_t sbp_glo_biases_callback_node;
+  sbp_msg_callbacks_node_t sbp_obs_callback_node;
+  sbp_msg_callbacks_node_t sbp_ephemeris_glo_callback_node;
+
+  sbp_state_t s;
+  sbp_state_init(&s);
+
+  sbp_register_callback(&s,
+                        SBP_MSG_BASE_POS_ECEF,
+                        (void *)&sbp2rtcm_base_pos_ecef_cb,
+                        &out_state,
+                        &sbp_base_pos_callback_node);
+  sbp_register_callback(&s,
+                        SBP_MSG_GLO_BIASES,
+                        (void *)&sbp2rtcm_glo_biases_cb,
+                        &out_state,
+                        &sbp_glo_biases_callback_node);
+  sbp_register_callback(&s,
+                        SBP_MSG_OBS,
+                        (void *)&sbp2rtcm_sbp_obs_cb,
+                        &out_state,
+                        &sbp_obs_callback_node);
+  sbp_register_callback(&s,
+                        SBP_MSG_EPHEMERIS_GLO,
+                        (void *)&ephemeris_glo_callback,
+                        &out_state,
+                        &sbp_ephemeris_glo_callback_node);
+
+  sbp_state_set_io_context(&s, fp);
+
+  while (!feof(fp)) {
+    sbp_process(&s, &sbp_read_file);
+  }
+  fclose(fp);
+}
+
+static void rtcm_sanity_check_cb(u8 *buffer, u8 length, void *context) {
+  (void)context;
+
+  u16 byte = 0;
+  ck_assert_uint_eq(buffer[byte], RTCM3_PREAMBLE);
+  byte = 1;
+  u16 message_size = ((buffer[byte] & 0x3) << 8) | buffer[byte + 1];
+  ck_assert_uint_eq(message_size, length - RTCM3_MSG_OVERHEAD);
 }
 
 void set_expected_bias(double L1CA_bias,
@@ -862,6 +939,24 @@ START_TEST(test_compute_glo_time) {
 }
 END_TEST
 
+START_TEST(test_glo_time_conversion) {
+  sbp2rtcm_set_leap_second(state.leap_seconds, &out_state);
+
+  for (u32 tow = 0; tow < SEC_IN_WEEK; tow++) {
+    gps_time_sec_t rover_time = {.tow = tow, .wn = 1945};
+    rtcm2sbp_set_gps_time(&rover_time, &state);
+
+    u32 glo_tod_ms =
+        compute_glo_tod(rover_time.tow * S_TO_MS, &out_state) * S_TO_MS;
+
+    gps_time_sec_t obs_time;
+    compute_glo_time(glo_tod_ms, &obs_time, &rover_time, &state);
+    ck_assert_uint_eq(obs_time.wn, rover_time.wn);
+    ck_assert_uint_eq(obs_time.tow, rover_time.tow);
+  }
+}
+END_TEST
+
 START_TEST(test_gps_diff_time_sec) {
   gps_time_sec_t start = {.wn = 2009, .tow = 1000};
   gps_time_sec_t end = {.wn = 2009, .tow = 1001};
@@ -1050,6 +1145,16 @@ START_TEST(tc_rtcm_eph_gal) {
 }
 END_TEST
 
+START_TEST(test_sbp_to_rtcm_legacy) {
+  current_time.wn = 2020;
+  current_time.tow = 211000;
+
+  test_SBP(RELATIVE_PATH_PREFIX "/data/piksi-gps-glo.sbp",
+           rtcm_sanity_check_cb,
+           current_time);
+}
+END_TEST
+
 Suite *rtcm3_suite(void) {
   Suite *s = suite_create("RTCMv3");
 
@@ -1101,6 +1206,7 @@ Suite *rtcm3_suite(void) {
   tcase_add_checked_fixture(tc_utils, rtcm3_setup_basic, NULL);
   tcase_add_test(tc_utils, test_compute_glo_time);
   tcase_add_test(tc_utils, test_gps_diff_time_sec);
+  tcase_add_test(tc_utils, test_glo_time_conversion);
   tcase_add_test(tc_utils, test_msm_sid_conversion);
   tcase_add_test(tc_utils, test_msm_glo_fcn);
 
@@ -1113,6 +1219,11 @@ Suite *rtcm3_suite(void) {
   tcase_add_test(tc_eph, tc_rtcm_eph_gal);
   // tcase_add_test(tc_eph, tc_rtcm_eph_bds);
   suite_add_tcase(s, tc_eph);
+
+  TCase *tc_sbp_to_rtcm = tcase_create("sbp2rtcm");
+  tcase_add_checked_fixture(tc_sbp_to_rtcm, rtcm3_setup_basic, NULL);
+  tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_legacy);
+  suite_add_tcase(s, tc_sbp_to_rtcm);
 
   return s;
 }

@@ -13,11 +13,11 @@
 #ifndef GNSS_CONVERTERS_RTCM3_SBP_H
 #define GNSS_CONVERTERS_RTCM3_SBP_H
 
-#include <gnss-converters/rtcm3_sbp.h>
 #include <rtcm3/messages.h>
 #include <rtcm3/msm_utils.h>
 #include <swiftnav/constants.h>
 #include <swiftnav/signal.h>
+#include "gnss-converters/rtcm3_sbp.h"
 
 #define MSG_OBS_P_MULTIPLIER ((double)5e1)
 #define MSG_OBS_CN0_MULTIPLIER ((float)4)
@@ -127,21 +127,74 @@ extern bool rtcm3_debug;
 #define GPP_TRM_BIAS_L1CA_M 18.8
 #define GPP_TRM_BIAS_L2P_M 23.2
 
-u8 rtcm3_encode_lock_time(double nm_lock_time);
-double rtcm3_decode_lock_time(u8 sbp_lock_time);
+/** Receiver-dependent flags for the SBP to RTCM conversion */
 
-void sbp_to_rtcm3_obs(const msg_obs_t *sbp_obs,
-                      const u8 msg_size,
-                      rtcm_obs_message *rtcm_obs);
+/* GPS Indicator DF022 */
+#define PIKSI_GPS_SERVICE_SUPPORTED 1
+
+/* GLONASS Indicator DF023 */
+#define PIKSI_GLO_SERVICE_SUPPORTED 1
+
+/* Galileo Indicator DF024 */
+#define PIKSI_GAL_SERVICE_SUPPORTED 0
+
+/* Single Receiver Oscillator Indicator DF142
+ * 0 - All raw data observations in messages 1001-1004 and 1009-1012 may be
+ *     measured at different instants. This indicator should be set to “0”
+ *     unless all the conditions for “1” are clearly met.
+ * 1 - All raw data observations in messages 1001-1004 and 1009-1012
+ *     are measured at the same instant, as described in Section 3.1.4. */
+#define PIKSI_SINGLE_OSCILLATOR_INDICATOR 1
+
+/* Quarter Cycle Indicator DF364
+ * 00 - Correction status unspecified
+ * 01 - PhaseRanges in Message Types 1001, 1002, 1003, 1004, 1009,
+ *      1010, 1011, 1012 are corrected in such a way that whenever
+ *      PhaseRanges for different signals on the same frequency are
+ *      present in these messages, they are guaranteed to be in phase and
+ *      thus shall show no Quarter-Cycle bias between them (see Table
+ *      3.1-5 for details on the adjustments made). Double differences
+ *      of PhaseRanges tracked with different signals shall show no
+ *      Quarter- Cycle differences.
+ * 10 - Phase observations are not corrected. Double differences may
+ *      show Quarter-Cycle differences for PhaseRanges based on
+ *      different signals on the same frequency. Processing will require
+ *      appropriate corrections. */
+#define PIKSI_QUARTER_CYCLE_INDICATOR 0
+
+/* Reference-Station Indicator DF141
+ *   0 - Real, Physical Reference Station
+ *   1 - Non-Physical or Computed Reference Station */
+#define PIKSI_REFERENCE_STATION_INDICATOR 0
+
+/* GLONASS Code-Phase bias indicator DF421
+ * 0 = The GLONASS Pseudorange and Phaserange observations in the
+ *     data stream are not aligned to the same measurement epoch.
+ * 1 = The GLONASS Pseudorange and Phaserange observations in the
+ *     data stream are aligned to the same measurement epoch.
+ * Note: must be 0 when transmitting Legacy observations */
+#define PIKSI_GLO_CODE_PHASE_BIAS_INDICATOR 0
+
+/* Divergence free flag DF007 (GPS) and DF036 (GLO)
+ * 0 - Divergence-free smoothing not used
+ * 1 - Divergence-free smoothing used */
+#define PIKSI_DIVERGENCE_FREE_INDICATOR 0
+
+/* Smoothing Interval DF008 (GPS) and DF037 (GLO)
+ * Integration period over which reference station pseudorange code phase
+ * measurements are averaged using carrier phase information. */
+#define PIKSI_SMOOTHING_INTERVAL 0
 
 void rtcm3_1005_to_sbp(const rtcm_msg_1005 *rtcm_1005,
                        msg_base_pos_ecef_t *sbp_base_pos);
 void sbp_to_rtcm3_1005(const msg_base_pos_ecef_t *sbp_base_pos,
+                       u16 sender_id,
                        rtcm_msg_1005 *rtcm_1005);
 
 void rtcm3_1006_to_sbp(const rtcm_msg_1006 *rtcm_1006,
                        msg_base_pos_ecef_t *sbp_base_pos);
 void sbp_to_rtcm3_1006(const msg_base_pos_ecef_t *sbp_base_pos,
+                       u16 station_id,
                        rtcm_msg_1006 *rtcm_1006);
 
 void rtcm3_1033_to_sbp(const rtcm_msg_1033 *rtcm_1033,
@@ -150,12 +203,13 @@ void rtcm3_1033_to_sbp(const rtcm_msg_1033 *rtcm_1033,
 void rtcm3_1230_to_sbp(const rtcm_msg_1230 *rtcm_1230,
                        msg_glo_biases_t *sbp_glo_bias);
 void sbp_to_rtcm3_1230(const msg_glo_biases_t *sbp_glo_bias,
+                       u16 sender_id,
                        rtcm_msg_1230 *rtcm_1230);
 
 void encode_RTCM_obs(const rtcm_obs_message *rtcm_msg);
 
 void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
-                  msg_obs_t *sbp_obs,
+                  msg_obs_t *new_sbp_obs,
                   struct rtcm3_sbp_state *state);
 
 void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
@@ -165,7 +219,7 @@ void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state);
 
 void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
-                       gps_time_sec_t *new_sbp_obs,
+                       gps_time_sec_t *obs_time,
                        struct rtcm3_sbp_state *state);
 
 void compute_gps_message_time(u32 tow_ms,
@@ -173,7 +227,7 @@ void compute_gps_message_time(u32 tow_ms,
                               const gps_time_sec_t *rover_time);
 
 void compute_gps_time(u32 tow_ms,
-                      gps_time_sec_t *new_sbp_obs,
+                      gps_time_sec_t *obs_time,
                       const gps_time_sec_t *rover_time,
                       struct rtcm3_sbp_state *state);
 
@@ -181,6 +235,9 @@ void compute_glo_time(u32 tod_ms,
                       gps_time_sec_t *obs_time,
                       const gps_time_sec_t *rover_time,
                       struct rtcm3_sbp_state *state);
+
+double compute_glo_tod(uint32_t gps_tow_ms,
+                       const struct rtcm3_out_state *state);
 
 void beidou_tow_to_gps_tow(u32 *tow_ms);
 
@@ -217,6 +274,9 @@ void rtcm_log_callback_fn(uint8_t level,
 
 s32 gps_diff_time_sec(const gps_time_sec_t *end,
                       const gps_time_sec_t *beginning);
+
+double sbp_diff_time(const sbp_gps_time_t *end,
+                     const sbp_gps_time_t *beginning);
 
 static inline bool gps_time_valid(const gps_time_sec_t *t) {
   return (t->wn != INVALID_TIME) && (t->wn < MAX_WN) && (t->tow < SEC_IN_WEEK);

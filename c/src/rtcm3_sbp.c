@@ -10,18 +10,24 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include "gnss-converters/rtcm3_sbp.h"
+#include "rtcm3_sbp_internal.h"
+
 #include <assert.h>
-#include <libsbp/logging.h>
 #include <math.h>
-#include <rtcm3/bits.h>
-#include <rtcm3/decode.h>
-#include <rtcm3/eph_decode.h>
-#include <rtcm3/logging.h>
-#include <rtcm3/ssr_decode.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rtcm3_sbp_internal.h"
+
+#include <libsbp/logging.h>
+#include <rtcm3/bits.h>
+#include <rtcm3/decode.h>
+#include <rtcm3/encode.h>
+#include <rtcm3/eph_decode.h>
+#include <rtcm3/logging.h>
+#include <rtcm3/ssr_decode.h>
+#include <swiftnav/edc.h>
+#include <swiftnav/sid_set.h>
 
 static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
                                      const gps_time_sec_t *obs_time,
@@ -69,6 +75,24 @@ void rtcm2sbp_init(struct rtcm3_sbp_state *state,
   rtcm_init_logging(&rtcm_log_callback_fn, state);
 }
 
+void sbp2rtcm_init(struct rtcm3_out_state *state,
+                   void (*cb_sbp_to_rtcm)(u8 *buffer, u8 length, void *context),
+                   void *context) {
+  state->leap_seconds = 0;
+  state->leap_second_known = false;
+
+  state->cb_sbp_to_rtcm = cb_sbp_to_rtcm;
+  state->context = context;
+
+  state->n_sbp_obs = 0;
+
+  for (u8 i = 0; i < GLO_LAST_PRN + 1; i++) {
+    state->glo_sv_id_fcn_map[i] = MSM_GLO_FCN_UNKNOWN;
+  }
+
+  rtcm_init_logging(&rtcm_log_callback_fn, state);
+}
+
 static void normalize_gps_time(gps_time_sec_t *t) {
   /* note that tow is unsigned so no need to check tow<0 */
 
@@ -98,10 +122,26 @@ s32 gps_diff_time_sec(const gps_time_sec_t *end,
   return dt;
 }
 
+/* Difference between two sbp time stamps in seconds */
+double sbp_diff_time(const sbp_gps_time_t *end,
+                     const sbp_gps_time_t *beginning) {
+  s32 week_diff = end->wn - beginning->wn;
+  double dt = (double)end->tow / SECS_MS - (double)beginning->tow / SECS_MS;
+  dt += week_diff * SEC_IN_WEEK;
+  return dt;
+}
+
 static u16 rtcm_2_sbp_sender_id(u16 rtcm_id) {
   /* To avoid conflicts with reserved low number sender ID's we or
    * on the highest nibble as RTCM sender ID's are 12 bit */
   return rtcm_id | 0xF080;
+}
+
+static u16 sbp_2_rtcm_sender_id(u16 sbp_id) {
+  /* Read the lowest 12 bits of the sender ID.
+   * Note that the conversion betweeen SBP sender ID and RTCM station ID thus is
+   * not reversible */
+  return sbp_id & 0x0FFF;
 }
 
 void rtcm2sbp_decode_payload(const uint8_t *payload,
@@ -421,6 +461,82 @@ static bool is_msm_active(const gps_time_sec_t *current_time,
              MSM_TIMEOUT_SEC;
 }
 
+/* returns number of bytes in the payload */
+u16 encode_rtcm3_payload(const void *rtcm_msg,
+                         u16 message_type,
+                         u8 *buff,
+                         struct rtcm3_out_state *state) {
+  (void)state;
+  switch (message_type) {
+    case 1004: {
+      rtcm_obs_message *msg_1004 = (rtcm_obs_message *)rtcm_msg;
+      return rtcm3_encode_1004(msg_1004, buff);
+    }
+    case 1005: {
+      rtcm_msg_1005 *msg_1005 = (rtcm_msg_1005 *)rtcm_msg;
+      return rtcm3_encode_1005(msg_1005, buff);
+    }
+    case 1012: {
+      rtcm_obs_message *msg_1012 = (rtcm_obs_message *)rtcm_msg;
+      return rtcm3_encode_1012(msg_1012, buff);
+    }
+    case 1033: {
+      rtcm_msg_1033 *msg_1033 = (rtcm_msg_1033 *)rtcm_msg;
+      return rtcm3_encode_1033(msg_1033, buff);
+    }
+    case 1230: {
+      rtcm_msg_1230 *msg_1230 = (rtcm_msg_1230 *)rtcm_msg;
+      return rtcm3_encode_1230(msg_1230, buff);
+    }
+    case 1074:
+    case 1084:
+    case 1094:
+    case 1124: {
+      rtcm_msm_message *msg_msm = (rtcm_msm_message *)rtcm_msg;
+      return rtcm3_encode_msm4(msg_msm, buff);
+    }
+    case 1075:
+    case 1085:
+    case 1095:
+    case 1125: {
+      rtcm_msm_message *msg_msm = (rtcm_msm_message *)rtcm_msg;
+      return rtcm3_encode_msm5(msg_msm, buff);
+    }
+    default:
+      assert(!"Unsupported message type");
+      break;
+  }
+  return 0;
+}
+
+/* Encode RTCM frame into the given buffer, returns frame length */
+u16 encode_rtcm3_frame(const void *rtcm_msg,
+                       u16 message_type,
+                       u8 *frame,
+                       struct rtcm3_out_state *state) {
+  u16 byte = 3;
+  u16 message_size =
+      encode_rtcm3_payload(rtcm_msg, message_type, &frame[byte], state);
+
+  u16 frame_size = message_size + 3;
+
+  /* write the header */
+  u16 bit = 0;
+  rtcm_setbitu(frame, bit, 8, RTCM3_PREAMBLE);
+  bit += 8;
+  /* reserved bits */
+  rtcm_setbitu(frame, bit, 6, 0);
+  bit += 6;
+  assert(message_size <= RTCM3_MAX_MSG_LEN);
+  rtcm_setbitu(frame, bit, 10, message_size);
+  bit += 10;
+  bit += message_size * 8;
+  u32 crc = crc24q(frame, frame_size, 0);
+  rtcm_setbitu(frame, bit, 24, crc);
+
+  return frame_size + 3;
+}
+
 void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state) {
   gps_time_sec_t obs_time;
@@ -566,64 +682,6 @@ void send_observations(struct rtcm3_sbp_state *state) {
   memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
 }
 
-/** Convert navigation_measurement_t.lock_time into SBP lock time.
- *
- * Note: It is encoded according to DF402 from the RTCM 10403.2 Amendment 2
- * specification.  Valid values range from 0 to 15 and the most significant
- * nibble is reserved for future use.
- *
- * \param nm_lock_time Navigation measurement lock time [s]
- * \return SBP lock time
- */
-u8 rtcm3_encode_lock_time(double nm_lock_time) {
-  assert(nm_lock_time >= 0.0);
-
-  /* Convert to milliseconds */
-  u32 ms_lock_time;
-  if (nm_lock_time < UINT32_MAX) {
-    ms_lock_time = (u32)(nm_lock_time * SECS_MS);
-  } else {
-    ms_lock_time = UINT32_MAX;
-  }
-
-  if (ms_lock_time < 32) {
-    return 0;
-  } else {
-    for (u8 i = 0; i < 16; i++) {
-      if (ms_lock_time > (1u << (i + 5))) {
-        continue;
-      } else {
-        return i;
-      }
-    }
-    return 15;
-  }
-}
-
-/** Convert SBP lock time into navigation_measurement_t.lock_time.
- *
- * Note: It is encoded according to DF402 from the RTCM 10403.2 Amendment 2
- * specification.  Valid values range from 0 to 15 and the most significant
- * nibble is reserved for future use.
- *
- * \param sbp_lock_time SBP lock time
- * \return Minimum possible lock time [s]
- */
-double rtcm3_decode_lock_time(u8 sbp_lock_time) {
-  /* MSB nibble is reserved */
-  sbp_lock_time &= 0x0F;
-
-  u32 ms_lock_time;
-  if (sbp_lock_time == 0) {
-    ms_lock_time = 0;
-  } else {
-    ms_lock_time = 1u << (sbp_lock_time + 4);
-  }
-
-  /* Convert to seconds */
-  return (double)ms_lock_time / SECS_MS;
-}
-
 bool gps_obs_message(u16 msg_num) {
   if (msg_num == 1001 || msg_num == 1002 || msg_num == 1003 ||
       msg_num == 1004) {
@@ -639,7 +697,6 @@ bool glo_obs_message(u16 msg_num) {
   }
   return false;
 }
-
 code_t get_gps_sbp_code(u8 freq, u8 rtcm_code) {
   code_t code = CODE_INVALID;
   if (freq == L1_FREQ) {
@@ -741,14 +798,14 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
 
         if (rtcm_freq->flags.valid_pr == 1) {
           sbp_freq->P =
-              (u32)roundl(rtcm_freq->pseudorange * MSG_OBS_P_MULTIPLIER);
+              (u32)round(rtcm_freq->pseudorange * MSG_OBS_P_MULTIPLIER);
           sbp_freq->flags |= MSG_OBS_FLAGS_CODE_VALID;
         }
         if (rtcm_freq->flags.valid_cp == 1) {
           sbp_freq->L.i = (s32)floor(rtcm_freq->carrier_phase);
           u16 frac_part =
-              (u16)roundl((rtcm_freq->carrier_phase - (double)sbp_freq->L.i) *
-                          MSG_OBS_LF_MULTIPLIER);
+              (u16)round((rtcm_freq->carrier_phase - (double)sbp_freq->L.i) *
+                         MSG_OBS_LF_MULTIPLIER);
           if (frac_part == 256) {
             frac_part = 0;
             sbp_freq->L.i += 1;
@@ -759,7 +816,7 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
         }
 
         if (rtcm_freq->flags.valid_cnr == 1) {
-          sbp_freq->cn0 = (u8)roundl(rtcm_freq->cnr * MSG_OBS_CN0_MULTIPLIER);
+          sbp_freq->cn0 = (u8)round(rtcm_freq->cnr * MSG_OBS_CN0_MULTIPLIER);
         } else {
           sbp_freq->cn0 = 0;
         }
@@ -782,9 +839,30 @@ void rtcm3_1005_to_sbp(const rtcm_msg_1005 *rtcm_1005,
 }
 
 void sbp_to_rtcm3_1005(const msg_base_pos_ecef_t *sbp_base_pos,
+                       u16 sender_id,
                        rtcm_msg_1005 *rtcm_1005) {
+  /* Reference Station ID DF003 */
+  rtcm_1005->stn_id = sender_id;
+  /* Reserved for ITRF Realization Year DF021 */
+  rtcm_1005->ITRF = 0;
+  /* GPS Indicator DF022 */
+  rtcm_1005->GPS_ind = PIKSI_GPS_SERVICE_SUPPORTED;
+  /* GLONASS Indicator DF023 */
+  rtcm_1005->GLO_ind = PIKSI_GLO_SERVICE_SUPPORTED;
+  /* Galileo Indicator DF024 */
+  rtcm_1005->GAL_ind = PIKSI_GAL_SERVICE_SUPPORTED;
+  /* Reference-Station Indicator DF141 */
+  rtcm_1005->ref_stn_ind = PIKSI_REFERENCE_STATION_INDICATOR;
+  /* Single Receiver Oscillator Indicator DF142 */
+  rtcm_1005->osc_ind = PIKSI_SINGLE_OSCILLATOR_INDICATOR;
+  /* Quarter Cycle Indicator DF364 */
+  rtcm_1005->quart_cycle_ind = PIKSI_QUARTER_CYCLE_INDICATOR;
+
+  /* Antenna Reference Point ECEF-X DF025 */
   rtcm_1005->arp_x = sbp_base_pos->x;
+  /* Antenna Reference Point ECEF-Y DF026 */
   rtcm_1005->arp_y = sbp_base_pos->y;
+  /* Antenna Reference Point ECEF-Z DF027 */
   rtcm_1005->arp_z = sbp_base_pos->z;
 }
 
@@ -796,10 +874,9 @@ void rtcm3_1006_to_sbp(const rtcm_msg_1006 *rtcm_1006,
 }
 
 void sbp_to_rtcm3_1006(const msg_base_pos_ecef_t *sbp_base_pos,
+                       u16 station_id,
                        rtcm_msg_1006 *rtcm_1006) {
-  rtcm_1006->msg_1005.arp_x = sbp_base_pos->x;
-  rtcm_1006->msg_1005.arp_y = sbp_base_pos->y;
-  rtcm_1006->msg_1005.arp_z = sbp_base_pos->z;
+  sbp_to_rtcm3_1005(sbp_base_pos, station_id, &rtcm_1006->msg_1005);
   rtcm_1006->ant_height = 0.0;
 }
 
@@ -951,13 +1028,37 @@ void rtcm3_1230_to_sbp(const rtcm_msg_1230 *rtcm_1230,
 }
 
 void sbp_to_rtcm3_1230(const msg_glo_biases_t *sbp_glo_bias,
+                       u16 sender_id,
                        rtcm_msg_1230 *rtcm_1230) {
+  /* Reference Station ID DF003 */
+  rtcm_1230->stn_id = sender_id;
+  /* GLONASS Code-Phase bias indicator DF421 */
+  rtcm_1230->bias_indicator = PIKSI_GLO_CODE_PHASE_BIAS_INDICATOR;
+  /* GLONASS FDMA signals mask DF422 */
   rtcm_1230->fdma_signal_mask = sbp_glo_bias->mask;
-  rtcm_1230->bias_indicator = 0;
+
+  /* GLONASS L1 C/A Code-Phase Bias DF423 */
   rtcm_1230->L1_CA_cpb_meter = sbp_glo_bias->l1ca_bias / GLO_BIAS_RESOLUTION;
+  /* GLONASS L1 P Code-Phase Bias DF424 */
   rtcm_1230->L1_P_cpb_meter = sbp_glo_bias->l1p_bias / GLO_BIAS_RESOLUTION;
+  /* GLONASS L2 C/A Code-Phase Bias DF425 */
   rtcm_1230->L2_CA_cpb_meter = sbp_glo_bias->l2ca_bias / GLO_BIAS_RESOLUTION;
+  /* GLONASS L2 P Code-Phase Bias DF426 */
   rtcm_1230->L2_P_cpb_meter = sbp_glo_bias->l2p_bias / GLO_BIAS_RESOLUTION;
+}
+
+/* Convert from SBP FCN (1..14 with unknown marked with 0) to
+ * RTCM FCN (0..13 with unknown marked with 255) */
+static u8 sbp_fcn_to_rtcm(u8 sbp_fcn) {
+  if (SBP_GLO_FCN_UNKNOWN == sbp_fcn) {
+    return MSM_GLO_FCN_UNKNOWN;
+  }
+  s8 rtcm_fcn = sbp_fcn + MSM_GLO_FCN_OFFSET - SBP_GLO_FCN_OFFSET;
+  if (rtcm_fcn < 0 || rtcm_fcn > MSM_GLO_MAX_FCN) {
+    fprintf(stderr, "Ignoring invalid GLO FCN %d\n", sbp_fcn);
+    return MSM_GLO_FCN_UNKNOWN;
+  }
+  return rtcm_fcn;
 }
 
 void rtcm2sbp_set_gps_time(const gps_time_sec_t *current_time,
@@ -978,16 +1079,27 @@ void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
   /* convert FCN from SBP representation to RTCM representation */
   if (sid.sat < GLO_FIRST_PRN || sid.sat > GLO_LAST_PRN) {
     /* invalid PRN */
+    fprintf(stderr, "Ignoring invalid GLO PRN %u\n", sid.sat);
     return;
   }
-  if (SBP_GLO_FCN_UNKNOWN == sbp_fcn) {
-    state->glo_sv_id_fcn_map[sid.sat] = MSM_GLO_FCN_UNKNOWN;
-  } else {
-    /* in SBP, FCN is 1..14, with the unknown value 0 already checked above */
-    s8 fcn = sbp_fcn - SBP_GLO_FCN_OFFSET;
-    /* in RTCM, FCN is in 0..13 */
-    state->glo_sv_id_fcn_map[sid.sat] = fcn + MSM_GLO_FCN_OFFSET;
+  state->glo_sv_id_fcn_map[sid.sat] = sbp_fcn_to_rtcm(sbp_fcn);
+}
+
+void sbp2rtcm_set_leap_second(s8 leap_seconds, struct rtcm3_out_state *state) {
+  state->leap_seconds = leap_seconds;
+  state->leap_second_known = true;
+}
+
+void sbp2rtcm_set_glo_fcn(sbp_gnss_signal_t sid,
+                          u8 sbp_fcn,
+                          struct rtcm3_out_state *state) {
+  /* convert FCN from SBP representation to RTCM representation */
+  if (sid.sat < GLO_FIRST_PRN || sid.sat > GLO_LAST_PRN) {
+    /* invalid PRN */
+    fprintf(stderr, "Ignoring invalid GLO PRN %u\n", sid.sat);
+    return;
   }
+  state->glo_sv_id_fcn_map[sid.sat] = sbp_fcn_to_rtcm(sbp_fcn);
 }
 
 void compute_gps_message_time(u32 tow_ms,
@@ -1104,7 +1216,7 @@ void send_1029(rtcm_msg_1029 *msg_1029, struct rtcm3_sbp_state *state) {
    * patterns (2,3 and 4 byte code units) */
   if (message_size == max_message_size) {
     if ((message[message_size] & 0xF0) == 0xF0 ||
-        (message[message_size] & 0xE0) == 0xF0 ||
+        (message[message_size] & 0xE0) == 0xF0 || /*TODO this is always false*/
         (message[message_size] & 0xF0) == 0xC0) {
       /* We've truncated a 2, 3 or 4 byte code unit */
       message_size--;
@@ -1798,15 +1910,15 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
 
           if (data->flags.valid_pr) {
             double pseudorange_m = data->pseudorange_ms * GPS_C / 1000;
-            sbp_freq->P = (u32)roundl(pseudorange_m * MSG_OBS_P_MULTIPLIER);
+            sbp_freq->P = (u32)round(pseudorange_m * MSG_OBS_P_MULTIPLIER);
             sbp_freq->flags |= MSG_OBS_FLAGS_CODE_VALID;
           }
           if (data->flags.valid_cp && freq_valid) {
             double carrier_phase_cyc = data->carrier_phase_ms * freq / 1000;
             sbp_freq->L.i = (s32)floor(carrier_phase_cyc);
             u16 frac_part =
-                (u16)roundl((carrier_phase_cyc - (double)sbp_freq->L.i) *
-                            MSG_OBS_LF_MULTIPLIER);
+                (u16)round((carrier_phase_cyc - (double)sbp_freq->L.i) *
+                           MSG_OBS_LF_MULTIPLIER);
             if (256 == frac_part) {
               frac_part = 0;
               sbp_freq->L.i += 1;
@@ -1819,7 +1931,7 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
           }
 
           if (data->flags.valid_cnr) {
-            sbp_freq->cn0 = (u8)roundl(data->cnr * MSG_OBS_CN0_MULTIPLIER);
+            sbp_freq->cn0 = (u8)round(data->cnr * MSG_OBS_CN0_MULTIPLIER);
           } else {
             sbp_freq->cn0 = 0;
           }
@@ -1832,8 +1944,8 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
             /* flip Doppler sign to Piksi sign convention */
             double doppler_Hz = -data->range_rate_m_s * freq / GPS_C;
             sbp_freq->D.i = (s16)floor(doppler_Hz);
-            u16 frac_part = (u16)roundl((doppler_Hz - (double)sbp_freq->D.i) *
-                                        MSG_OBS_DF_MULTIPLIER);
+            u16 frac_part = (u16)round((doppler_Hz - (double)sbp_freq->D.i) *
+                                       MSG_OBS_DF_MULTIPLIER);
             if (256 == frac_part) {
               frac_part = 0;
               sbp_freq->D.i += 1;
@@ -1847,5 +1959,314 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
         cell_index++;
       }
     }
+  }
+}
+
+void sbp2rtcm_base_pos_ecef_cb(const u16 sender_id,
+                               const u8 len,
+                               const u8 msg[],
+                               struct rtcm3_out_state *state) {
+  (void)len;
+  rtcm_msg_1005 msg_1005;
+  sbp_to_rtcm3_1005((const msg_base_pos_ecef_t *)msg, sender_id, &msg_1005);
+
+  u8 frame[RTCM3_MAX_MSG_LEN];
+  u16 frame_size = encode_rtcm3_frame(&msg_1005, 1005, frame, state);
+  state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+}
+
+void sbp2rtcm_glo_biases_cb(const u16 sender_id,
+                            const u8 len,
+                            const u8 msg[],
+                            struct rtcm3_out_state *state) {
+  (void)len;
+  rtcm_msg_1230 msg_1230;
+  sbp_to_rtcm3_1230((const msg_glo_biases_t *)msg, sender_id, &msg_1230);
+
+  u8 frame[RTCM3_MAX_MSG_LEN];
+  u16 frame_size = encode_rtcm3_frame(&msg_1230, 1230, frame, state);
+  state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+}
+
+static void sbp_obs_to_freq_data(const packed_obs_content_t *sbp_freq,
+                                 rtcm_freq_data *rtcm_freq,
+                                 u8 code_indicator) {
+  /* 0=C/A code, 1=P code */
+  rtcm_freq->code = code_indicator;
+
+  rtcm_freq->pseudorange = sbp_freq->P / MSG_OBS_P_MULTIPLIER;
+  rtcm_freq->flags.valid_pr =
+      (0 != (sbp_freq->flags & MSG_OBS_FLAGS_CODE_VALID)) ? 1 : 0;
+
+  rtcm_freq->flags.valid_cp =
+      (0 != (sbp_freq->flags & MSG_OBS_FLAGS_PHASE_VALID) &&
+       0 != (sbp_freq->flags & MSG_OBS_FLAGS_HALF_CYCLE_KNOWN))
+          ? 1
+          : 0;
+  rtcm_freq->carrier_phase =
+      (double)sbp_freq->L.i + (double)sbp_freq->L.f / MSG_OBS_LF_MULTIPLIER;
+
+  rtcm_freq->flags.valid_cnr = (sbp_freq->cn0 > 0) ? 1 : 0;
+  rtcm_freq->cnr = sbp_freq->cn0 / MSG_OBS_CN0_MULTIPLIER;
+
+  /* SBP lock indicator is in DF402 4-bit format */
+  rtcm_freq->lock = rtcm3_decode_lock_time(sbp_freq->lock);
+  rtcm_freq->flags.valid_lock = 1;
+
+  /* no Doppler obs */
+  rtcm_freq->flags.valid_dop = 0;
+}
+
+double compute_glo_tod(uint32_t gps_tow_ms,
+                       const struct rtcm3_out_state *state) {
+  if (!state->leap_second_known) {
+    return -1;
+  }
+
+  double gps_tod_s = gps_tow_ms * MS_TO_S;
+  gps_tod_s -= floor(gps_tod_s / SEC_IN_DAY) * SEC_IN_DAY;
+
+  double glo_tod_s =
+      gps_tod_s + UTC_SU_OFFSET * SEC_IN_HOUR - state->leap_seconds;
+
+  if (glo_tod_s < 0) {
+    glo_tod_s += SEC_IN_DAY;
+  }
+  /* TODO: this fails during the leap second event */
+  if (glo_tod_s >= SEC_IN_DAY) {
+    glo_tod_s -= SEC_IN_DAY;
+  }
+
+  assert(glo_tod_s >= 0 && glo_tod_s < (SEC_IN_DAY + 1));
+  return glo_tod_s;
+}
+
+static void rtcm_init_obs_message(rtcm_obs_message *msg,
+                                  u16 station_id,
+                                  struct rtcm3_out_state *state,
+                                  rtcm_constellation_t cons) {
+  memset(&*msg, 0, sizeof(*msg));
+
+  if (RTCM_CONSTELLATION_GPS == cons) {
+    /* Msg Num DF002 uint16 12*/
+    msg->header.msg_num = 1004;
+    /* GPS time of week DF004 uint32 30 */
+    msg->header.tow_ms = state->sbp_header.t.tow;
+  } else {
+    /* Msg Num DF002 uint16 12*/
+    msg->header.msg_num = 1012;
+    /* GLO epoch time DF034 uint32 27 */
+    msg->header.tow_ms =
+        (u32)(compute_glo_tod(state->sbp_header.t.tow, state) * S_TO_MS);
+  }
+  /* Station Id DF003 uint16 12*/
+  msg->header.stn_id = station_id;
+  /* Divergence free flag DF007 bit(1) 1 */
+  msg->header.div_free = PIKSI_DIVERGENCE_FREE_INDICATOR;
+  /* GPS Smoothing Interval DF008 bit(3) 3 */
+  msg->header.smooth = PIKSI_SMOOTHING_INTERVAL;
+}
+
+/* Find the matching svId from sat data array
+ * Return the found index, or n_sats if not found */
+static u8 sat_index_from_obs(rtcm_sat_data sats[], u8 n_sats, u8 svId) {
+  for (u8 sat_i = 0; sat_i < n_sats; sat_i++) {
+    if (sats[sat_i].svId == svId) {
+      return sat_i;
+    }
+  }
+  return n_sats;
+}
+
+static void sbp_buffer_to_rtcm3(struct rtcm3_out_state *state) {
+  u16 station_id = sbp_2_rtcm_sender_id(state->sender_id);
+
+  rtcm_obs_message gps_obs;
+  rtcm_init_obs_message(&gps_obs, station_id, state, RTCM_CONSTELLATION_GPS);
+
+  rtcm_obs_message glo_obs;
+  rtcm_init_obs_message(&glo_obs, station_id, state, RTCM_CONSTELLATION_GLO);
+
+  u8 n_gps = 0;
+  u8 n_glo = 0;
+
+  /* Loop through the observation buffer once and add the observations into
+   * gps_obs and glo_obs structures.
+   *
+   * The observations are stored by satellite. New satellite is created into the
+   * struct for each L1 observation. Note that L2 observations are added only if
+   * the satellite exists already, that is it has already an L1 observation.
+   * This requires that observations come in sorted with L1 first.
+   */
+
+  for (u8 i = 0; i < state->n_sbp_obs; i++) {
+    packed_obs_content_t *sbp_obs = &(state->sbp_obs_buffer[i]);
+    switch (sbp_obs->sid.code) {
+      case CODE_GPS_L1CA:
+      case CODE_GPS_L1P: {
+        /* add a new sat */
+        gps_obs.sats[n_gps].fcn = 0;
+        gps_obs.sats[n_gps].svId = sbp_obs->sid.sat;
+        sbp_obs_to_freq_data(sbp_obs,
+                             &(gps_obs.sats[n_gps].obs[L1_FREQ]),
+                             (sbp_obs->sid.code == CODE_GPS_L1P) ? 1 : 0);
+        n_gps++;
+        break;
+      }
+      case CODE_GPS_L2CM:
+      case CODE_GPS_L2P: {
+        /* find the sat with L1 observations already added */
+        u8 sat_i = sat_index_from_obs(gps_obs.sats, n_gps, sbp_obs->sid.sat);
+        if (sat_i < n_gps) {
+          sbp_obs_to_freq_data(sbp_obs,
+                               &(gps_obs.sats[sat_i].obs[L2_FREQ]),
+                               (sbp_obs->sid.code == CODE_GPS_L2P) ? 1 : 0);
+        }
+        break;
+      }
+      case CODE_GLO_L1OF:
+      case CODE_GLO_L1P: {
+        u8 fcn = state->glo_sv_id_fcn_map[sbp_obs->sid.sat];
+        if (MSM_GLO_FCN_UNKNOWN != fcn) {
+          /* add a new sat */
+          glo_obs.sats[n_glo].fcn = fcn;
+          glo_obs.sats[n_glo].svId = sbp_obs->sid.sat;
+          sbp_obs_to_freq_data(sbp_obs,
+                               &(glo_obs.sats[n_glo].obs[L1_FREQ]),
+                               (sbp_obs->sid.code == CODE_GLO_L1P) ? 1 : 0);
+          n_glo++;
+        }
+        break;
+      }
+      case CODE_GLO_L2OF:
+      case CODE_GLO_L2P: {
+        /* find the sat with L1 observations already added */
+        u8 sat_i = sat_index_from_obs(glo_obs.sats, n_glo, sbp_obs->sid.sat);
+        if (sat_i < n_glo) {
+          sbp_obs_to_freq_data(sbp_obs,
+                               &(glo_obs.sats[sat_i].obs[L2_FREQ]),
+                               (sbp_obs->sid.code == CODE_GLO_L2P) ? 1 : 0);
+        }
+        break;
+      }
+      default:
+        fprintf(stderr,
+                "Tried to encode obs from invalid code %d\n",
+                sbp_obs->sid.code);
+    }
+  }
+
+  /* Number of satellites DF006 uint8 5 */
+  gps_obs.header.n_sat = n_gps;
+  glo_obs.header.n_sat = n_glo;
+
+  /* Syncronous flag DF005 bit(1) 1 */
+  gps_obs.header.sync = (n_glo > 0) ? 1 : 0; /* if GLO message will follow */
+  glo_obs.header.sync = 0; /* no further messages for this epoch */
+
+  u8 frame[RTCM3_MAX_MSG_LEN];
+  u16 frame_size = 0;
+
+  if (n_gps > 0) {
+    frame_size =
+        encode_rtcm3_frame(&gps_obs, gps_obs.header.msg_num, frame, state);
+    state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+  }
+
+  if (n_glo > 0) {
+    frame_size =
+        encode_rtcm3_frame(&glo_obs, glo_obs.header.msg_num, frame, state);
+    state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+  }
+  /* clear the sent messages from the buffer */
+  state->n_sbp_obs = 0;
+}
+
+void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
+                         const u8 len,
+                         const u8 msg[],
+                         struct rtcm3_out_state *state) {
+  msg_obs_t *sbp_obs = (msg_obs_t *)msg;
+
+  if (state->sender_id != sender_id) {
+    /* sender changed, send existing buffer and reset */
+    sbp_buffer_to_rtcm3(state);
+    state->sender_id = sender_id;
+  }
+
+  u8 seq_counter = (sbp_obs->header.n_obs & 0x0F) + 1;
+  u8 seq_size = sbp_obs->header.n_obs >> 4;
+
+  /* if sbp buffer is not empty, check that this observations belongs to the
+     * sequence */
+  if (state->n_sbp_obs > 0) {
+    double dt = sbp_diff_time(&sbp_obs->header.t, &state->sbp_header.t);
+
+    if (dt < 0) {
+      fprintf(stderr,
+              "Discarding SBP obs with timestamp %.1f seconds in the past\n",
+              dt);
+      return;
+    }
+    if (dt > 0) {
+      /* observations belong to the next epoch, send out the current buffer
+       * before processing this message */
+      fprintf(
+          stderr,
+          "SBP obs sequence ended prematurely, starting new one at dt=%.1f\n",
+          dt);
+
+      sbp_buffer_to_rtcm3(state);
+    } else {
+      u8 current_seq_counter = (state->sbp_header.n_obs & 0x0F) + 1;
+      u8 current_seq_size = state->sbp_header.n_obs >> 4;
+
+      if (seq_size != current_seq_size || seq_counter <= current_seq_counter) {
+        /* sequence broken, send out current buffer and ignore this message */
+        fprintf(stderr,
+                "Ignoring SBP obs with invalid obs sequence: expected %d/%d "
+                "but got %d/%d\n",
+                current_seq_counter + 1,
+                current_seq_size,
+                seq_counter,
+                seq_size);
+        sbp_buffer_to_rtcm3(state);
+        return;
+      }
+      if (seq_counter != current_seq_counter + 1) {
+        /* missed a packet, emit warning but still process this message */
+        fprintf(stderr,
+                "Missed an SBP obs packet, expected seq %d/%d but got %d/%d\n",
+                current_seq_counter + 1,
+                current_seq_size,
+                seq_counter,
+                seq_size);
+      }
+    }
+  }
+
+  /* number of observations in the incoming message */
+  u8 n_meas =
+      (len - sizeof(observation_header_t)) / sizeof(packed_obs_content_t);
+
+  for (u8 i = 0; i < n_meas; i++) {
+    /* add incoming sbp observation into sbp buffer */
+    state->sbp_obs_buffer[state->n_sbp_obs] = sbp_obs->obs[i];
+    state->n_sbp_obs++;
+    if (state->n_sbp_obs == MAX_OBS_PER_EPOCH) {
+      fprintf(
+          stderr,
+          "Reached max observations per epoch %u, ignoring the remaining %u "
+          "obs\n",
+          (u16)MAX_OBS_PER_EPOCH,
+          n_meas - i - 1);
+      break;
+    }
+  }
+  state->sbp_header = sbp_obs->header;
+
+  /* if sequence is complete, convert into RTCM */
+  if (seq_counter == seq_size) {
+    sbp_buffer_to_rtcm3(state);
   }
 }

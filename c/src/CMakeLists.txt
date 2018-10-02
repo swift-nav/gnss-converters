@@ -13,6 +13,10 @@ target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/src)
 add_executable(rtcm3tosbp rtcm3tosbp.c)
 target_link_libraries(rtcm3tosbp gnss_converters)
 
+add_executable(sbp2rtcm sbp2rtcm.c)
+target_link_libraries(sbp2rtcm gnss_converters)
+
 install(TARGETS gnss_converters DESTINATION lib${LIB_SUFFIX})
 install(TARGETS rtcm3tosbp DESTINATION bin)
+install(TARGETS sbp2rtcm DESTINATION bin)
 install(FILES ${gnss_converters_HEADERS} DESTINATION include/gnss-converters)

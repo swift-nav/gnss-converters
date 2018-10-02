@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
 
   rtcm2sbp_init(&state, cb_rtcm_to_sbp, cb_base_obs_invalid, NULL);
   rtcm2sbp_set_gps_time(&current_time, &state);
-  // rtcm2sbp_set_leap_second(18, &state); /* todo: worry about GLONASS later */
+  rtcm2sbp_set_leap_second(18, &state); /* todo: worry about GLONASS later */
 
   uint8_t fifo_buf[FIFO_SIZE] = {0};
   fifo_t fifo;
