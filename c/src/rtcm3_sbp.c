@@ -1015,16 +1015,28 @@ void rtcm3_1033_to_sbp(const rtcm_msg_1033 *rtcm_1033,
 void rtcm3_1230_to_sbp(const rtcm_msg_1230 *rtcm_1230,
                        msg_glo_biases_t *sbp_glo_bias) {
   sbp_glo_bias->mask = rtcm_1230->fdma_signal_mask;
-  /* Resolution 2cm */
-  s8 sign_indicator = rtcm_1230->bias_indicator == 0 ? 1 : -1;
-  sbp_glo_bias->l1ca_bias =
-      round(sign_indicator * rtcm_1230->L1_CA_cpb_meter * GLO_BIAS_RESOLUTION);
-  sbp_glo_bias->l1p_bias =
-      round(sign_indicator * rtcm_1230->L1_P_cpb_meter * GLO_BIAS_RESOLUTION);
-  sbp_glo_bias->l2ca_bias =
-      round(sign_indicator * rtcm_1230->L2_CA_cpb_meter * GLO_BIAS_RESOLUTION);
-  sbp_glo_bias->l2p_bias =
-      round(sign_indicator * rtcm_1230->L2_P_cpb_meter * GLO_BIAS_RESOLUTION);
+  /* GLONASS Code-Phase Bias Indicator DF421 */
+  /* 0 - Pseudorange and Phaserange are not aligned, send out the correction
+   *     message for the receiver to align the measurements
+   * 1 - Pseudorange and Phaserange are aligned, send out zero corrections
+   */
+  if (0 == rtcm_1230->bias_indicator) {
+    /* Biases with resolution of 2cm */
+    sbp_glo_bias->l1ca_bias =
+        round(rtcm_1230->L1_CA_cpb_meter * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias =
+        round(rtcm_1230->L1_P_cpb_meter * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2ca_bias =
+        round(rtcm_1230->L2_CA_cpb_meter * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        round(rtcm_1230->L2_P_cpb_meter * GLO_BIAS_RESOLUTION);
+  } else {
+    /* send zero biases */
+    sbp_glo_bias->l1ca_bias = 0;
+    sbp_glo_bias->l1p_bias = 0;
+    sbp_glo_bias->l2ca_bias = 0;
+    sbp_glo_bias->l2p_bias = 0;
+  }
 }
 
 void sbp_to_rtcm3_1230(const msg_glo_biases_t *sbp_glo_bias,
