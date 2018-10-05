@@ -31,7 +31,7 @@ gps_time_sec_t compute_ssr_message_time(
     beidou_tow_to_gps_tow(&epoch_time_ms);
     compute_gps_message_time(epoch_time_ms, &obs_time, rover_time);
   } else {
-    // GAL / QZSS / SBAS are aligned to GPS time
+    /* GAL / QZSS / SBAS are aligned to GPS time */
     compute_gps_message_time(epoch_time_ms, &obs_time, rover_time);
   }
   return obs_time;
@@ -71,7 +71,14 @@ void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
     sbp_orbit_clock->iod_ssr = msg_orbit_clock->header.iod_ssr;
     length += sizeof(sbp_orbit_clock->iod_ssr);
 
-    sbp_orbit_clock->iod = msg_orbit_clock->orbit[sat_count].iode;
+    /* For Beidou, AODE is not unique so orbit/clock providers (CNES,..) use an
+     * IOD based on the CRC to discriminate between consecutive broadcast
+     * ephemeris. We dont use both so we only turn into SBP one or the other */
+    if (msg_orbit_clock->header.constellation == CONSTELLATION_BDS) {
+      sbp_orbit_clock->iod = msg_orbit_clock->orbit[sat_count].iodcrc;
+    } else {
+      sbp_orbit_clock->iod = msg_orbit_clock->orbit[sat_count].iode;
+    }
     length += sizeof(sbp_orbit_clock->iod);
 
     sbp_orbit_clock->radial = msg_orbit_clock->orbit[sat_count].radial;

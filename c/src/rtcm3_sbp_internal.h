@@ -291,6 +291,9 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
 void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_gal_t *sbp_glo_eph,
                           struct rtcm3_sbp_state *state);
+void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
+                          msg_ephemeris_bds_t *sbp_glo_eph,
+                          struct rtcm3_sbp_state *state);
 
 void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
                                   struct rtcm3_sbp_state *state);

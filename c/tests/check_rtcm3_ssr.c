@@ -368,7 +368,7 @@ void sbp_callback_bds_orbit_clock(
     ck_assert(sbp_orbit_clock->sid.code == CODE_BDS2_B1);
     ck_assert(sbp_orbit_clock->update_interval == 2);
     ck_assert(sbp_orbit_clock->iod_ssr == 0);
-    ck_assert(sbp_orbit_clock->iod == 0);
+    ck_assert(sbp_orbit_clock->iod == 13149072);
     ck_assert(sbp_orbit_clock->radial == 6195);
     ck_assert(sbp_orbit_clock->along == -12409);
     ck_assert(sbp_orbit_clock->cross == 36140);

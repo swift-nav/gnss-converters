@@ -306,6 +306,69 @@ void sbp_callback_gal_eph(
   }
 }
 
+void sbp_callback_bds_eph(
+    u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
+  (void)length;
+  (void)sender_id;
+  (void)context;
+  static bool checked_eph = false;
+  /* ignore log messages */
+  if (msg_id == SBP_MSG_EPHEMERIS_BDS && !checked_eph) {
+    // clang-format off
+/*
+C06 2018 08 14 04 00 00 2.242858754471e-04 2.508659946443e-11 1.924458856162e-18
+     6.000000000000e+00-4.404687500000e+01 6.643133856047e-10 1.319269256677e+00
+    -5.727633833885e-07 7.140220026486e-03 3.428151831031e-05 6.492804334641e+03
+     1.872000000000e+05 1.392327249050e-07-2.286649500564e+00 2.207234501839e-07
+     9.452314900799e-01-8.311562500000e+02-2.220683918913e+00-1.816147078387e-09
+     7.307447241652e-10 0.000000000000e+00 0.000000000000e+00 0.000000000000e+00
+     2.000000000000e+00 0.000000000000e+00 8.100000000000e-09-1.800000000000e-09
+     0.000000000000e+00 5.000000000000e+00
+     */
+    // clang-format on
+    checked_eph = true;
+    msg_ephemeris_bds_t *msg = (msg_ephemeris_bds_t *)buffer;
+    ck_assert(msg->common.sid.sat == 6);
+    ck_assert(msg->common.sid.code == CODE_BDS2_B1);
+
+    ck_assert(msg->common.toe.wn == 2014);
+    ck_assert(msg->common.toe.tow == 187214);
+    ck_assert(fabs(msg->common.ura - 2.0) < FLOAT_EPS);
+    ck_assert(msg->common.fit_interval == 10800);
+    ck_assert(msg->common.valid == 1);
+    ck_assert(msg->common.health_bits == 0);
+
+    ck_assert(fabs(msg->tgd1 - 8.100000000000e-9) * 1e9 < FLOAT_EPS);
+    ck_assert(fabs(msg->tgd2 - -1.800000000000e-9) * 1e9 < FLOAT_EPS);
+    ck_assert(fabs(msg->c_rs - -4.40468750000e1) < FLOAT_EPS);
+    ck_assert(fabs(msg->c_rc - -8.31156250000000e2) < FLOAT_EPS);
+    ck_assert(fabs(msg->c_uc - -5.7276338338850e-7) < FLOAT_EPS);
+    ck_assert(fabs(msg->c_us - 3.428151831031e-5) < FLOAT_EPS);
+    ck_assert(fabs(msg->c_ic - 1.392327249050e-7) * 1e9 < FLOAT_EPS);
+    ck_assert(fabs(msg->c_is - 2.207234501839e-7) * 1e9 < FLOAT_EPS);
+
+    ck_assert(fabs(msg->dn - 6.643133856047e-10) * 1e9 < FLOAT_EPS);
+    ck_assert(fabs(msg->m0 - 1.319269256677) < FLOAT_EPS);
+    ck_assert(fabs(msg->ecc - 7.140220026486e-3) < FLOAT_EPS);
+    ck_assert(fabs(msg->sqrta - 6.492804334641e3) < FLOAT_EPS);
+    ck_assert(fabs(msg->omega0 - -2.286649500564) < FLOAT_EPS);
+    ck_assert(fabs(msg->omegadot - -1.816147078387e-9) * 1e9 < FLOAT_EPS);
+    ck_assert(fabs(msg->w - -2.220683918913) < FLOAT_EPS);
+    ck_assert(fabs(msg->inc - 9.452314900799e-1) < FLOAT_EPS);
+    ck_assert(fabs(msg->inc_dot - 7.307447241652e-10) * 1e9 < FLOAT_EPS);
+
+    ck_assert(fabs(msg->af0 - 2.242858754471e-4) < FLOAT_EPS);
+    ck_assert(fabs(msg->af1 - 2.508659946443e-11) * 1e9 < FLOAT_EPS);
+    ck_assert(fabs(msg->af2 - 1.924458856162e-18) * 1e9 < FLOAT_EPS);
+
+    ck_assert(msg->toc.wn == 2014);
+    ck_assert(msg->toc.tow == 187214);
+    ck_assert(msg->iode == 6);
+    ck_assert(msg->iodc == 5);
+  }
+  return;
+}
+
 void sbp_callback_1012_first(
     u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
@@ -1154,6 +1217,14 @@ START_TEST(test_sbp_to_rtcm_legacy) {
            current_time);
 }
 END_TEST
+START_TEST(tc_rtcm_eph_bds) {
+  current_time.wn = 2014;
+  current_time.tow = 187816;
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/test_bds_eph.rtcm",
+             sbp_callback_bds_eph,
+             current_time);
+}
+END_TEST
 
 Suite *rtcm3_suite(void) {
   Suite *s = suite_create("RTCMv3");
@@ -1217,7 +1288,7 @@ Suite *rtcm3_suite(void) {
   tcase_add_test(tc_eph, tc_rtcm_eph_gps);
   tcase_add_test(tc_eph, tc_rtcm_eph_glo);
   tcase_add_test(tc_eph, tc_rtcm_eph_gal);
-  // tcase_add_test(tc_eph, tc_rtcm_eph_bds);
+  tcase_add_test(tc_eph, tc_rtcm_eph_bds);
   suite_add_tcase(s, tc_eph);
 
   TCase *tc_sbp_to_rtcm = tcase_create("sbp2rtcm");

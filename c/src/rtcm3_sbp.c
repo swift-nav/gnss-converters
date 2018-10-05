@@ -263,6 +263,19 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       }
       break;
     }
+    case 1042: {
+      rtcm_msg_eph msg_eph;
+      if (RC_OK == rtcm3_decode_bds_eph(&payload[byte], &msg_eph)) {
+        msg_ephemeris_bds_t sbp_bds_eph;
+        rtcm3_bds_eph_to_sbp(&msg_eph, &sbp_bds_eph, state);
+        state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_BDS,
+                              (u8)sizeof(sbp_bds_eph),
+                              (u8 *)&sbp_bds_eph,
+                              rtcm_2_sbp_sender_id(0),
+                              state->context);
+      }
+      break;
+    }
     case 1046: {
       rtcm_msg_eph msg_eph;
       if (RC_OK == rtcm3_decode_gal_eph(&payload[byte], &msg_eph)) {
