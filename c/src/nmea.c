@@ -20,6 +20,7 @@
 #include <gnss-converters/nmea.h>
 #include <swiftnav/array_tools.h>
 #include <swiftnav/constants.h>
+#include <swiftnav/gnss_time.h>
 #include <swiftnav/pvt_result.h>
 #include <swiftnav/signal.h>
 #include "sbp_nmea_internal.h"
@@ -172,6 +173,43 @@ __attribute__((format(printf, 3, 4))) static void vsnprintf_wrap(
   }
 }
 
+/* Round the nanosecond part to NMEA_UTC_S_DECIMALS and roll the other fields
+ * over if necessary. */
+static void round_utc_time(msg_utc_time_t *utc_time) {
+  utc_time->ns = (u16)round(NMEA_UTC_S_FRAC_DIVISOR * utc_time->ns * 1e-9);
+
+  if (utc_time->ns >= NMEA_UTC_S_FRAC_DIVISOR) {
+    utc_time->seconds++;
+    utc_time->ns = 0;
+    if (utc_time->seconds >= MINUTE_SECS) {
+      /* TODO: Leap second event not handled correctly, i.e. will this will roll
+       * over to "000000.00" when "235960.00" is correct during the leap second
+       * event. Correct implementation would first convert the stamp to GPS time
+       * (or deduce GPS week from the UTC time stamp and use the utc_time->tow field),
+       * and then use is_leap_second_event() to check if this minute has 60 or
+       * 61 seconds. */
+      utc_time->minutes++;
+      utc_time->seconds = 0;
+      if (utc_time->minutes >= HOUR_MINUTES) {
+        utc_time->hours++;
+        utc_time->minutes = 0;
+        if (utc_time->hours >= DAY_HOURS) {
+          utc_time->day++;
+          utc_time->hours = 0;
+          if (utc_time->day > days_in_month(utc_time->year, utc_time->month)) {
+            utc_time->month++;
+            utc_time->day = 1;
+            if (utc_time->month > YEAR_MONTHS) {
+              utc_time->year++;
+              utc_time->month = 1;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 /** Generate UTC date time string. Time field is before date field.
  *
  * \param[in] sbp_msg_time Time and date to create the str from.
@@ -183,25 +221,27 @@ __attribute__((format(printf, 3, 4))) static void vsnprintf_wrap(
  * \param[in] size utc_str size.
  *
  */
-static void get_utc_time_string(bool time,
-                                bool date,
-                                bool trunc_date,
-                                const msg_utc_time_t *sbp_utc_time,
-                                char *utc_str,
-                                u8 size) {
+void get_utc_time_string(bool time,
+                         bool date,
+                         bool trunc_date,
+                         const msg_utc_time_t *sbp_utc_time,
+                         char *utc_str,
+                         u8 size) {
   char *buf_end = utc_str + size;
+
+  msg_utc_time_t rounded_utc_time = *sbp_utc_time;
+  round_utc_time(&rounded_utc_time);
 
   if (time) {
     /* Time (UTC) */
-    vsnprintf_wrap(
-        &utc_str,
-        buf_end,
-        "%02u%02u%02u.%0*u,",
-        sbp_utc_time->hours,
-        sbp_utc_time->minutes,
-        sbp_utc_time->seconds,
-        NMEA_UTC_S_DECIMALS,
-        (u16)roundf(NMEA_UTC_S_FRAC_DIVISOR * sbp_utc_time->ns * 1e-9));
+    vsnprintf_wrap(&utc_str,
+                   buf_end,
+                   "%02u%02u%02u.%0*u,",
+                   rounded_utc_time.hours,
+                   rounded_utc_time.minutes,
+                   rounded_utc_time.seconds,
+                   NMEA_UTC_S_DECIMALS,
+                   rounded_utc_time.ns);
   }
 
   if (date) {
@@ -210,16 +250,16 @@ static void get_utc_time_string(bool time,
       vsnprintf_wrap(&utc_str,
                      buf_end,
                      "%02u%02u%02u,",
-                     sbp_utc_time->day,
-                     sbp_utc_time->month,
-                     (u8)(sbp_utc_time->year % 100));
+                     rounded_utc_time.day,
+                     rounded_utc_time.month,
+                     (u8)(rounded_utc_time.year % 100));
     } else {
       vsnprintf_wrap(&utc_str,
                      buf_end,
-                     "%02u,%02u,%" PRIu32 ",",
-                     sbp_utc_time->day,
-                     sbp_utc_time->month,
-                     sbp_utc_time->year);
+                     "%02u,%02u,%" PRIu16 ",",
+                     rounded_utc_time.day,
+                     rounded_utc_time.month,
+                     rounded_utc_time.year);
     }
   }
 }
@@ -279,8 +319,7 @@ void send_gpgga(const struct sbp_nmea_state *state) {
   NMEA_SENTENCE_PRINTF("$GPGGA,");
 
   char utc[NMEA_TS_MAX_LEN];
-  get_utc_time_string(
-      true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
+  get_utc_time_string(true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
   NMEA_SENTENCE_PRINTF("%s", utc);
 
   if (fix_type != NMEA_GGA_QI_INVALID) {
@@ -614,8 +653,7 @@ void send_gprmc(const struct sbp_nmea_state *state) {
   NMEA_SENTENCE_PRINTF("$GPRMC,"); /* Command */
 
   char utc[NMEA_TS_MAX_LEN];
-  get_utc_time_string(
-      true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
+  get_utc_time_string(true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
   NMEA_SENTENCE_PRINTF("%s", utc);
 
   NMEA_SENTENCE_PRINTF("%c,", /* Status */
@@ -645,8 +683,7 @@ void send_gprmc(const struct sbp_nmea_state *state) {
   }
 
   char date[NMEA_TS_MAX_LEN];
-  get_utc_time_string(
-      false, true, true, sbp_utc_time, date, NMEA_TS_MAX_LEN);
+  get_utc_time_string(false, true, true, sbp_utc_time, date, NMEA_TS_MAX_LEN);
   NMEA_SENTENCE_PRINTF("%s", date);
 
   NMEA_SENTENCE_PRINTF(
@@ -766,8 +803,7 @@ void send_gpgll(const struct sbp_nmea_state *state) {
   }
 
   char utc[NMEA_TS_MAX_LEN];
-  get_utc_time_string(
-      true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
+  get_utc_time_string(true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
   NMEA_SENTENCE_PRINTF("%s", utc);
 
   NMEA_SENTENCE_PRINTF("%c,%c", /* Status, Mode */
@@ -788,8 +824,7 @@ void send_gpzda(const struct sbp_nmea_state *state) {
   NMEA_SENTENCE_PRINTF("$GPZDA,"); /* Command */
 
   char utc[NMEA_TS_MAX_LEN];
-  get_utc_time_string(
-      true, true, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
+  get_utc_time_string(true, true, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
   NMEA_SENTENCE_PRINTF("%s", utc);
 
   NMEA_SENTENCE_PRINTF(","); /* Time zone */

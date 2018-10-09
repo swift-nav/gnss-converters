@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../src/sbp_nmea_internal.h"
 
 #include "check_suites.h"
 #include "config.h"
@@ -332,6 +333,98 @@ START_TEST(test_nmea_gsa) {
 }
 END_TEST
 
+static bool check_utc_time_string(const msg_utc_time_t *msg_time,
+                                  const char utc_time[],
+                                  const char utc_timedate_trunc[],
+                                  const char utc_timedate[]) {
+  char utc_str[23];
+  get_utc_time_string(true, false, false, msg_time, utc_str, sizeof(utc_str));
+  if (strncmp(utc_str, utc_time, 9)) {
+    fprintf(stderr, "expected %s, got %s\n", utc_time, utc_str);
+    return false;
+  }
+  if (utc_timedate_trunc) {
+    get_utc_time_string(true, true, true, msg_time, utc_str, sizeof(utc_str));
+    if (strncmp(utc_str, utc_timedate_trunc, 16)) {
+      fprintf(stderr, "expected %s, got %s\n", utc_timedate_trunc, utc_str);
+      return false;
+    }
+  }
+  if (utc_timedate) {
+    get_utc_time_string(true, true, false, msg_time, utc_str, sizeof(utc_str));
+    if (strncmp(utc_str, utc_timedate, 20)) {
+      fprintf(stderr, "expected %s, got %s\n", utc_timedate, utc_str);
+      return false;
+    }
+  }
+  return true;
+}
+
+START_TEST(test_nmea_time_string) {
+  msg_utc_time_t msg_time;
+  msg_time.flags = 1;
+  msg_time.tow = 0;
+  msg_time.year = 2018;
+  msg_time.month = 1;
+  msg_time.day = 1;
+  msg_time.hours = 17;
+  msg_time.minutes = 9;
+  msg_time.seconds = 31;
+  msg_time.ns = 0;
+
+  ck_assert(check_utc_time_string(
+      &msg_time, "170931.00", "170931.00,010118", "170931.00,01,01,2018"));
+
+  msg_time.ns = 4000000;
+  ck_assert(check_utc_time_string(
+      &msg_time, "170931.00", "170931.00,010118", "170931.00,01,01,2018"));
+
+  msg_time.ns = 5000000;
+  ck_assert(check_utc_time_string(
+      &msg_time, "170931.01", "170931.01,010118", "170931.01,01,01,2018"));
+
+  msg_time.ns = 994999999;
+  ck_assert(check_utc_time_string(
+      &msg_time, "170931.99", "170931.99,010118", "170931.99,01,01,2018"));
+
+  msg_time.ns = 999999999;
+  ck_assert(check_utc_time_string(
+      &msg_time, "170932.00", "170932.00,010118", "170932.00,01,01,2018"));
+
+  msg_time.seconds = 59;
+  ck_assert(check_utc_time_string(
+      &msg_time, "171000.00", "171000.00,010118", "171000.00,01,01,2018"));
+
+  msg_time.minutes = 59;
+  ck_assert(check_utc_time_string(
+      &msg_time, "180000.00", "180000.00,010118", "180000.00,01,01,2018"));
+
+  msg_time.hours = 23;
+  ck_assert(check_utc_time_string(
+      &msg_time, "000000.00", "000000.00,020118", "000000.00,02,01,2018"));
+
+  msg_time.day = 31;
+  ck_assert(check_utc_time_string(
+      &msg_time, "000000.00", "000000.00,010218", "000000.00,01,02,2018"));
+
+  msg_time.month = 12;
+  ck_assert(check_utc_time_string(
+      &msg_time, "000000.00", "000000.00,010119", "000000.00,01,01,2019"));
+
+  /* leap second */
+  msg_time.year = 2016;
+  /* TODO: this fails, see the note in nmea.c/get_utc_time_string */
+  check_utc_time_string(
+      &msg_time, "235960.00", "235960.00,311216", "235960.00,31,12,2016");
+
+  /* leap day */
+  msg_time.month = 2;
+  msg_time.day = 28;
+  ck_assert(check_utc_time_string(
+      &msg_time, "000000.00", "000000.00,290216", "000000.00,29,02,2016"));
+}
+END_TEST
+
 Suite *nmea_suite(void) {
   Suite *s = suite_create("NMEA");
 
@@ -344,6 +437,7 @@ Suite *nmea_suite(void) {
   tcase_add_test(tc_nmea, test_nmea_gpgll);
   tcase_add_test(tc_nmea, test_nmea_gpzda);
   tcase_add_test(tc_nmea, test_nmea_gsa);
+  tcase_add_test(tc_nmea, test_nmea_time_string);
   suite_add_tcase(s, tc_nmea);
 
   return s;
