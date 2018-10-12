@@ -75,6 +75,14 @@ bool gpzda_ready(struct sbp_nmea_state *state) {
   return false;
 }
 
+bool gphdt_ready(struct sbp_nmea_state *state) {
+  if (state->sbp_heading.tow != state->gphdt_last_tow) {
+    state->gphdt_last_tow = state->sbp_heading.tow;
+    return true;
+  }
+  return false;
+}
+
 void check_nmea_send(struct sbp_nmea_state *state) {
   /* Check collaborative time stamps for all messages */
   if (gpgga_ready(state)) {
@@ -111,6 +119,12 @@ void check_nmea_send(struct sbp_nmea_state *state) {
     if (check_nmea_rate(
             state->gpzda_rate, state->sbp_gps_time.tow, state->soln_freq)) {
       send_gpzda(state);
+    }
+  }
+  if (gphdt_ready(state)) {
+    if (check_nmea_rate(
+            state->gphdt_rate, state->sbp_heading.tow, state->soln_freq)) {
+      send_gphdt(state);
     }
   }
 }
