@@ -49,6 +49,7 @@ void send_gprmc(const struct sbp_nmea_state *state);
 void send_gpvtg(const struct sbp_nmea_state *state);
 void send_gpgll(const struct sbp_nmea_state *state);
 void send_gpzda(const struct sbp_nmea_state *state);
+void send_gphdt(const struct sbp_nmea_state *state);
 void send_gsa(const struct sbp_nmea_state *state);
 char get_nmea_status(u8 flags);
 char get_nmea_mode_indicator(u8 flags);
