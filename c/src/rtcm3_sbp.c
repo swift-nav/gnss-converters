@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <libsbp/gnss.h>
 #include <libsbp/logging.h>
 #include <rtcm3/bits.h>
 #include <rtcm3/decode.h>
@@ -27,12 +28,14 @@
 #include <rtcm3/logging.h>
 #include <rtcm3/ssr_decode.h>
 #include <swiftnav/edc.h>
-#include <swiftnav/sid_set.h>
 #include <swiftnav/gnss_time.h>
+#include <swiftnav/sid_set.h>
 
 static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
                                      const gps_time_t *obs_time,
                                      const gps_time_t *rover_time);
+static void rtcm2sbp_set_leap_second_from_wn(u16 wn_ref,
+                                             struct rtcm3_sbp_state *state);
 
 void rtcm2sbp_init(struct rtcm3_sbp_state *state,
                    void (*cb_rtcm_to_sbp)(u16 msg_id,
@@ -206,6 +209,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
                               (u8 *)&sbp_gps_eph,
                               rtcm_2_sbp_sender_id(0),
                               state->context);
+        rtcm2sbp_set_leap_second_from_wn(sbp_gps_eph.common.toe.wn, state);
       }
       break;
     }
@@ -232,6 +236,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
                               (u8 *)&sbp_gal_eph,
                               rtcm_2_sbp_sender_id(0),
                               state->context);
+        rtcm2sbp_set_leap_second_from_wn(sbp_gal_eph.common.toe.wn, state);
       }
       break;
     }
@@ -258,6 +263,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
                               (u8 *)&sbp_gal_eph,
                               rtcm_2_sbp_sender_id(0),
                               state->context);
+        rtcm2sbp_set_leap_second_from_wn(sbp_gal_eph.common.toe.wn, state);
       }
       break;
     }
@@ -442,8 +448,7 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
 static bool is_msm_active(const gps_time_t *current_time,
                           const struct rtcm3_sbp_state *state) {
   return gps_time_valid(&state->last_msm_received) &&
-         gpsdifftime(current_time, &state->last_msm_received) <
-             MSM_TIMEOUT_SEC;
+         gpsdifftime(current_time, &state->last_msm_received) < MSM_TIMEOUT_SEC;
 }
 
 /* returns number of bytes in the payload */
@@ -1070,6 +1075,18 @@ void rtcm2sbp_set_leap_second(s8 leap_seconds, struct rtcm3_sbp_state *state) {
   state->leap_second_known = true;
 }
 
+static void rtcm2sbp_set_leap_second_from_wn(u16 wn_ref,
+                                             struct rtcm3_sbp_state *state) {
+  gps_time_t gpst_sec = state->time_from_rover_obs;
+  if (abs(gpst_sec.wn - wn_ref) > 1) {
+    /* this only corrects big discrepancies */
+    gpst_sec.wn = wn_ref;
+  }
+  gps_time_t gt = {.wn = gpst_sec.wn, .tow = gpst_sec.tow};
+  s8 gps_utc_offset = rint(get_gps_utc_offset(&gt, NULL));
+  rtcm2sbp_set_leap_second(gps_utc_offset, state);
+}
+
 void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
                           u8 sbp_fcn,
                           struct rtcm3_sbp_state *state) {
@@ -1189,8 +1206,8 @@ static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
 
 bool no_1230_received(struct rtcm3_sbp_state *state) {
   if (!gps_time_valid(&state->last_1230_received) ||
-      gpsdifftime(&state->time_from_rover_obs,
-                        &state->last_1230_received) > MSG_1230_TIMEOUT_SEC) {
+      gpsdifftime(&state->time_from_rover_obs, &state->last_1230_received) >
+          MSG_1230_TIMEOUT_SEC) {
     return true;
   }
   return false;

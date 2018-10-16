@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <gnss-converters/rtcm3_sbp.h>
 #include <libsbp/edc.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -127,7 +128,8 @@ int main(int argc, char **argv) {
   /* set time from systime, account for UTC<->GPS leap second difference */
   time_t ct_utc_unix = time(NULL);
   gps_time_t noleapsec = time2gps_t(ct_utc_unix);
-  ct_utc_unix += get_gps_utc_offset(&noleapsec, NULL);
+  double gps_utc_offset = get_gps_utc_offset(&noleapsec, NULL);
+  ct_utc_unix += gps_utc_offset;
   gps_time_t withleapsec = time2gps_t(ct_utc_unix);
   gps_time_t current_time;
   current_time.tow = withleapsec.tow;
@@ -135,7 +137,7 @@ int main(int argc, char **argv) {
 
   rtcm2sbp_init(&state, cb_rtcm_to_sbp, cb_base_obs_invalid, NULL);
   rtcm2sbp_set_gps_time(&current_time, &state);
-  rtcm2sbp_set_leap_second(18, &state); /* todo: worry about GLONASS later */
+  rtcm2sbp_set_leap_second(rint(gps_utc_offset), &state);
 
   uint8_t fifo_buf[FIFO_SIZE] = {0};
   fifo_t fifo;

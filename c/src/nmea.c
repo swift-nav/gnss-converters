@@ -185,7 +185,8 @@ static void round_utc_time(msg_utc_time_t *utc_time) {
       /* TODO: Leap second event not handled correctly, i.e. will this will roll
        * over to "000000.00" when "235960.00" is correct during the leap second
        * event. Correct implementation would first convert the stamp to GPS time
-       * (or deduce GPS week from the UTC time stamp and use the utc_time->tow field),
+       * (or deduce GPS week from the UTC time stamp and use the utc_time->tow
+       * field),
        * and then use is_leap_second_event() to check if this minute has 60 or
        * 61 seconds. */
       utc_time->minutes++;

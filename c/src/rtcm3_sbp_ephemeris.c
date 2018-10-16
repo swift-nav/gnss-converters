@@ -11,8 +11,8 @@
  */
 
 #include <math.h>
-#include "rtcm3_sbp_internal.h"
 #include <swiftnav/constants.h>
+#include "rtcm3_sbp_internal.h"
 
 #define FIRST_SISA_STEP 50
 #define SECOND_SISA_STEP 75
@@ -376,10 +376,7 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
   u32 tow_ms = msg_eph->toe * BEIDOU_TOC_RESOLUTION * SECS_MS;
   beidou_tow_to_gps_tow(&tow_ms);
   gps_time_t toe;
-  compute_gps_message_time(
-      tow_ms,
-      &toe,
-      &state->time_from_rover_obs);
+  compute_gps_message_time(tow_ms, &toe, &state->time_from_rover_obs);
   sbp_bds_eph->common.toe.wn = toe.wn;
   sbp_bds_eph->common.toe.tow = rint(toe.tow);
 
@@ -423,8 +420,7 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
   tow_ms = msg_eph->kepler.toc * BEIDOU_TOC_RESOLUTION * SECS_MS;
   beidou_tow_to_gps_tow(&tow_ms);
   gps_time_t toc;
-  compute_gps_message_time(
-      tow_ms, &toc, &state->time_from_rover_obs);
+  compute_gps_message_time(tow_ms, &toc, &state->time_from_rover_obs);
   sbp_bds_eph->toc.wn = toc.wn;
   sbp_bds_eph->toc.tow = rint(toc.tow);
 }

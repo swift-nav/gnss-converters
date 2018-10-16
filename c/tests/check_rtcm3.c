@@ -19,8 +19,8 @@
 #include <libsbp/sbp.h>
 #include <rtcm3/decode.h>
 #include <rtcm3/encode.h>
-#include <swiftnav/sid_set.h>
 #include <swiftnav/gnss_time.h>
+#include <swiftnav/sid_set.h>
 
 #include "check_rtcm3.h"
 #include "check_suites.h"
@@ -88,7 +88,7 @@ static uint32_t crc24q(const uint8_t *buf, uint32_t len, uint32_t crc) {
 
 void update_obs_time(const msg_obs_t *msg) {
   gps_time_t obs_time = {.tow = msg[0].header.t.tow * MS_TO_S,
-                          .wn = msg[0].header.t.wn};
+                         .wn = msg[0].header.t.wn};
   rtcm2sbp_set_gps_time(&obs_time, &state);
 }
 
@@ -980,8 +980,7 @@ START_TEST(test_compute_glo_time) {
       for (u8 min = 0; min < 60; min++) {
         for (u8 sec = 0; sec < 60; sec++) {
           u32 tod = hour * SEC_IN_HOUR + min * SEC_IN_MINUTE + sec;
-          gps_time_t rover_time = {.tow = day * SEC_IN_DAY + tod,
-                                       .wn = 1945};
+          gps_time_t rover_time = {.tow = day * SEC_IN_DAY + tod, .wn = 1945};
           rtcm2sbp_set_gps_time(&rover_time, &state);
           u32 glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
           if (glo_tod_ms > SEC_IN_DAY * S_TO_MS) {
