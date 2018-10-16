@@ -19,6 +19,7 @@ extern "C" {
 
 #include <libsbp/observation.h>
 #include <rtcm3/messages.h>
+#include <swiftnav/gnss_time.h>
 
 /* This is the maximum number of SBP observations possible per epoch:
    - Max number of observation messages comes from the 4 bits assigned to the
@@ -53,14 +54,14 @@ typedef enum {
 } unsupported_code_t;
 
 struct rtcm3_sbp_state {
-  gps_time_sec_t time_from_rover_obs;
+  gps_time_t time_from_rover_obs;
   s8 leap_seconds;
   bool leap_second_known;
   u16 sender_id;
-  gps_time_sec_t last_gps_time;
-  gps_time_sec_t last_glo_time;
-  gps_time_sec_t last_1230_received;
-  gps_time_sec_t last_msm_received;
+  gps_time_t last_gps_time;
+  gps_time_t last_glo_time;
+  gps_time_t last_1230_received;
+  gps_time_t last_msm_received;
   void (*cb_rtcm_to_sbp)(
       u16 msg_id, u8 len, u8 *buff, u16 sender_id, void *context);
   void (*cb_base_obs_invalid)(double time_diff, void *context);
@@ -103,7 +104,7 @@ u16 encode_rtcm3_frame(const void *rtcm_msg,
                        u8 *frame,
                        struct rtcm3_out_state *state);
 
-void rtcm2sbp_set_gps_time(const gps_time_sec_t *current_time,
+void rtcm2sbp_set_gps_time(const gps_time_t *current_time,
                            struct rtcm3_sbp_state *state);
 
 void rtcm2sbp_set_leap_second(s8 leap_seconds, struct rtcm3_sbp_state *state);

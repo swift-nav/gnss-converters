@@ -13,7 +13,7 @@
 #define GLO_SATELLITE_POSITION_EPS_METERS 1e-3
 
 /* fixture globals and functions */
-gps_time_sec_t current_time;
+extern gps_time_t current_time;
 
 void rtcm3_setup_basic(void);
 void update_obs_time(const msg_obs_t *msg);
@@ -23,6 +23,6 @@ void test_RTCM3(const char *filename,
                                        u8 *buffer,
                                        u16 sender_id,
                                        void *context),
-                gps_time_sec_t current_time);
+                gps_time_t current_time);
 
 #endif /* CHECK_RTCM3_H */

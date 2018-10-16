@@ -36,7 +36,7 @@
 static struct rtcm3_sbp_state state;
 
 static void update_obs_time(const msg_obs_t *msg) {
-  gps_time_sec_t obs_time;
+  gps_time_t obs_time;
   obs_time.tow = msg[0].header.t.tow / 1000.0; /* ms to sec */
   obs_time.wn = msg[0].header.t.wn;
   rtcm2sbp_set_gps_time(&obs_time, &state);
@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
   gps_time_t noleapsec = time2gps_t(ct_utc_unix);
   ct_utc_unix += get_gps_utc_offset(&noleapsec, NULL);
   gps_time_t withleapsec = time2gps_t(ct_utc_unix);
-  gps_time_sec_t current_time;
+  gps_time_t current_time;
   current_time.tow = withleapsec.tow;
   current_time.wn = withleapsec.wn;
 

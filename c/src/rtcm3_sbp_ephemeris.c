@@ -284,10 +284,13 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
 void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_glo_t *sbp_glo_eph,
                           struct rtcm3_sbp_state *state) {
+  gps_time_t toe;
   compute_glo_time(msg_eph->glo.t_b * SEC_IN_15MINUTES * S_TO_MS,
-                   &sbp_glo_eph->common.toe,
+                   &toe,
                    &state->time_from_rover_obs,
                    state);
+  sbp_glo_eph->common.toe.wn = toe.wn;
+  sbp_glo_eph->common.toe.tow = rint(toe.tow);
   sbp_glo_eph->common.sid.sat = msg_eph->sat_id;
   sbp_glo_eph->common.sid.code = CODE_GLO_L1OF;
   sbp_glo_eph->common.ura = convert_glo_ft_to_meters(msg_eph->ura);
@@ -372,8 +375,14 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
       rtcm3_gps_adjust_week_cycle(state->time_from_rover_obs.wn, msg_eph->wn);
   u32 tow_ms = msg_eph->toe * BEIDOU_TOC_RESOLUTION * SECS_MS;
   beidou_tow_to_gps_tow(&tow_ms);
+  gps_time_t toe;
   compute_gps_message_time(
-      tow_ms, &sbp_bds_eph->common.toe, &state->time_from_rover_obs);
+      tow_ms,
+      &toe,
+      &state->time_from_rover_obs);
+  sbp_bds_eph->common.toe.wn = toe.wn;
+  sbp_bds_eph->common.toe.tow = rint(toe.tow);
+
   sbp_bds_eph->common.sid.sat = msg_eph->sat_id;
   sbp_bds_eph->common.sid.code = CODE_BDS2_B1;
   sbp_bds_eph->common.ura = convert_bds_ura_to_meters(msg_eph->ura);
@@ -413,6 +422,9 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
       rtcm3_gps_adjust_week_cycle(state->time_from_rover_obs.wn, msg_eph->wn);
   tow_ms = msg_eph->kepler.toc * BEIDOU_TOC_RESOLUTION * SECS_MS;
   beidou_tow_to_gps_tow(&tow_ms);
+  gps_time_t toc;
   compute_gps_message_time(
-      tow_ms, &sbp_bds_eph->toc, &state->time_from_rover_obs);
+      tow_ms, &toc, &state->time_from_rover_obs);
+  sbp_bds_eph->toc.wn = toc.wn;
+  sbp_bds_eph->toc.tow = rint(toc.tow);
 }

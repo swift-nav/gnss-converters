@@ -219,21 +219,21 @@ void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state);
 
 void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
-                       gps_time_sec_t *obs_time,
+                       gps_time_t *obs_time,
                        struct rtcm3_sbp_state *state);
 
 void compute_gps_message_time(u32 tow_ms,
-                              gps_time_sec_t *obs_time,
-                              const gps_time_sec_t *rover_time);
+                              gps_time_t *obs_time,
+                              const gps_time_t *rover_time);
 
 void compute_gps_time(u32 tow_ms,
-                      gps_time_sec_t *obs_time,
-                      const gps_time_sec_t *rover_time,
+                      gps_time_t *obs_time,
+                      const gps_time_t *rover_time,
                       struct rtcm3_sbp_state *state);
 
 void compute_glo_time(u32 tod_ms,
-                      gps_time_sec_t *obs_time,
-                      const gps_time_sec_t *rover_time,
+                      gps_time_t *obs_time,
+                      const gps_time_t *rover_time,
                       struct rtcm3_sbp_state *state);
 
 double compute_glo_tod(uint32_t gps_tow_ms,
@@ -272,13 +272,10 @@ void rtcm_log_callback_fn(uint8_t level,
                           uint16_t length,
                           void *context);
 
-s32 gps_diff_time_sec(const gps_time_sec_t *end,
-                      const gps_time_sec_t *beginning);
-
 double sbp_diff_time(const sbp_gps_time_t *end,
                      const sbp_gps_time_t *beginning);
 
-static inline bool gps_time_valid(const gps_time_sec_t *t) {
+static inline bool gps_time_sec_valid(const gps_time_sec_t *t) {
   return (t->wn != INVALID_TIME) && (t->wn < MAX_WN) && (t->tow < SEC_IN_WEEK);
 };
 

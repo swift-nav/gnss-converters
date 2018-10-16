@@ -20,10 +20,13 @@
 #include <rtcm3/decode.h>
 #include <rtcm3/encode.h>
 #include <swiftnav/sid_set.h>
+#include <swiftnav/gnss_time.h>
 
 #include "check_rtcm3.h"
 #include "check_suites.h"
 #include "config.h"
+
+gps_time_t current_time;
 
 static double expected_L1CA_bias = 0.0;
 static double expected_L1P_bias = 0.0;
@@ -84,8 +87,8 @@ static uint32_t crc24q(const uint8_t *buf, uint32_t len, uint32_t crc) {
 }
 
 void update_obs_time(const msg_obs_t *msg) {
-  gps_time_sec_t obs_time = {.tow = msg[0].header.t.tow * MS_TO_S,
-                             .wn = msg[0].header.t.wn};
+  gps_time_t obs_time = {.tow = msg[0].header.t.tow * MS_TO_S,
+                          .wn = msg[0].header.t.wn};
   rtcm2sbp_set_gps_time(&obs_time, &state);
 }
 
@@ -553,7 +556,7 @@ void test_RTCM3(const char *filename,
                                        u8 *buffer,
                                        u16 sender_id,
                                        void *context),
-                gps_time_sec_t current_time_) {
+                gps_time_t current_time_) {
   rtcm2sbp_init(&state, cb_rtcm_to_sbp, NULL, NULL);
   rtcm2sbp_set_gps_time(&current_time_, &state);
   rtcm2sbp_set_leap_second(18, &state);
@@ -626,7 +629,7 @@ static void test_SBP(const char *filename,
                      void (*cb_sbp_to_rtcm)(u8 *buffer,
                                             u8 length,
                                             void *context),
-                     gps_time_sec_t current_time_) {
+                     gps_time_t current_time_) {
   (void)current_time_;
   sbp2rtcm_init(&out_state, cb_sbp_to_rtcm, NULL);
   sbp2rtcm_set_leap_second(18, &out_state);
@@ -977,21 +980,21 @@ START_TEST(test_compute_glo_time) {
       for (u8 min = 0; min < 60; min++) {
         for (u8 sec = 0; sec < 60; sec++) {
           u32 tod = hour * SEC_IN_HOUR + min * SEC_IN_MINUTE + sec;
-          gps_time_sec_t rover_time = {.tow = day * SEC_IN_DAY + tod,
+          gps_time_t rover_time = {.tow = day * SEC_IN_DAY + tod,
                                        .wn = 1945};
           rtcm2sbp_set_gps_time(&rover_time, &state);
           u32 glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
           if (glo_tod_ms > SEC_IN_DAY * S_TO_MS) {
             glo_tod_ms -= SEC_IN_DAY * S_TO_MS;
           }
-          gps_time_sec_t expected_time = rover_time;
+          gps_time_t expected_time = rover_time;
           expected_time.tow += state.leap_seconds;
           if (expected_time.tow >= SEC_IN_WEEK) {
             expected_time.tow -= SEC_IN_WEEK;
             expected_time.wn++;
           }
 
-          gps_time_sec_t obs_time;
+          gps_time_t obs_time;
           compute_glo_time(glo_tod_ms, &obs_time, &rover_time, &state);
           ck_assert_uint_eq(obs_time.wn, expected_time.wn);
           ck_assert_uint_eq(obs_time.tow, expected_time.tow);
@@ -1006,32 +1009,17 @@ START_TEST(test_glo_time_conversion) {
   sbp2rtcm_set_leap_second(state.leap_seconds, &out_state);
 
   for (u32 tow = 0; tow < SEC_IN_WEEK; tow++) {
-    gps_time_sec_t rover_time = {.tow = tow, .wn = 1945};
+    gps_time_t rover_time = {.tow = tow, .wn = 1945};
     rtcm2sbp_set_gps_time(&rover_time, &state);
 
     u32 glo_tod_ms =
         compute_glo_tod(rover_time.tow * S_TO_MS, &out_state) * S_TO_MS;
 
-    gps_time_sec_t obs_time;
+    gps_time_t obs_time;
     compute_glo_time(glo_tod_ms, &obs_time, &rover_time, &state);
     ck_assert_uint_eq(obs_time.wn, rover_time.wn);
     ck_assert_uint_eq(obs_time.tow, rover_time.tow);
   }
-}
-END_TEST
-
-START_TEST(test_gps_diff_time_sec) {
-  gps_time_sec_t start = {.wn = 2009, .tow = 1000};
-  gps_time_sec_t end = {.wn = 2009, .tow = 1001};
-
-  ck_assert_int_eq(gps_diff_time_sec(&end, &start), 1);
-  ck_assert_int_eq(gps_diff_time_sec(&start, &end),
-                   -gps_diff_time_sec(&end, &start));
-
-  gps_time_sec_t t0 = {.wn = 0, .tow = 0};
-  ck_assert_int_eq(gps_diff_time_sec(&end, &t0),
-                   end.wn * SEC_IN_WEEK + end.tow);
-  ck_assert_int_eq(gps_diff_time_sec(&t0, &end), -gps_diff_time_sec(&end, &t0));
 }
 END_TEST
 
@@ -1276,7 +1264,6 @@ Suite *rtcm3_suite(void) {
   TCase *tc_utils = tcase_create("Utilities");
   tcase_add_checked_fixture(tc_utils, rtcm3_setup_basic, NULL);
   tcase_add_test(tc_utils, test_compute_glo_time);
-  tcase_add_test(tc_utils, test_gps_diff_time_sec);
   tcase_add_test(tc_utils, test_glo_time_conversion);
   tcase_add_test(tc_utils, test_msm_sid_conversion);
   tcase_add_test(tc_utils, test_msm_glo_fcn);

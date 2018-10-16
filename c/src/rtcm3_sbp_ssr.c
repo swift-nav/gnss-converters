@@ -22,9 +22,10 @@
 gps_time_sec_t compute_ssr_message_time(
     const enum constellation_e constellation,
     u32 epoch_time_ms,
-    const gps_time_sec_t *rover_time,
+    const gps_time_t *rover_time,
     struct rtcm3_sbp_state *state) {
-  gps_time_sec_t obs_time;
+  gps_time_sec_t obs_time_sec;
+  gps_time_t obs_time;
   if (constellation == CONSTELLATION_GLO) {
     compute_glo_time(epoch_time_ms, &obs_time, rover_time, state);
   } else if (constellation == CONSTELLATION_BDS) {
@@ -34,7 +35,9 @@ gps_time_sec_t compute_ssr_message_time(
     /* GAL / QZSS / SBAS are aligned to GPS time */
     compute_gps_message_time(epoch_time_ms, &obs_time, rover_time);
   }
-  return obs_time;
+  obs_time_sec.wn = obs_time.wn;
+  obs_time_sec.tow = rint(obs_time.tow);
+  return obs_time_sec;
 }
 
 void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
@@ -53,7 +56,7 @@ void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
                                  &state->time_from_rover_obs,
                                  state);
 
-    if (!gps_time_valid(&sbp_orbit_clock->time)) {
+    if (!gps_time_sec_valid(&sbp_orbit_clock->time)) {
       /* Invalid time */
       return;
     }
@@ -133,7 +136,7 @@ void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases,
                                  &state->time_from_rover_obs,
                                  state);
 
-    if (!gps_time_valid(&sbp_code_bias->time)) {
+    if (!gps_time_sec_valid(&sbp_code_bias->time)) {
       /* Invalid time */
       return;
     }
@@ -184,7 +187,7 @@ void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases,
                                  &state->time_from_rover_obs,
                                  state);
 
-    if (!gps_time_valid(&sbp_phase_bias->time)) {
+    if (!gps_time_sec_valid(&sbp_phase_bias->time)) {
       /* Invalid time */
       return;
     }

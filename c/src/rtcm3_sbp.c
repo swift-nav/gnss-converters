@@ -28,10 +28,11 @@
 #include <rtcm3/ssr_decode.h>
 #include <swiftnav/edc.h>
 #include <swiftnav/sid_set.h>
+#include <swiftnav/gnss_time.h>
 
 static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
-                                     const gps_time_sec_t *obs_time,
-                                     const gps_time_sec_t *rover_time);
+                                     const gps_time_t *obs_time,
+                                     const gps_time_t *rover_time);
 
 void rtcm2sbp_init(struct rtcm3_sbp_state *state,
                    void (*cb_rtcm_to_sbp)(u16 msg_id,
@@ -91,35 +92,6 @@ void sbp2rtcm_init(struct rtcm3_out_state *state,
   }
 
   rtcm_init_logging(&rtcm_log_callback_fn, state);
-}
-
-static void normalize_gps_time(gps_time_sec_t *t) {
-  /* note that tow is unsigned so no need to check tow<0 */
-
-  while (t->tow >= SEC_IN_WEEK) {
-    t->tow -= SEC_IN_WEEK;
-    t->wn += 1;
-  }
-}
-
-s32 gps_diff_time_sec(const gps_time_sec_t *end,
-                      const gps_time_sec_t *beginning) {
-  assert(gps_time_valid(beginning));
-  assert(gps_time_valid(end));
-
-  s16 week_diff = end->wn - beginning->wn;
-  /* if the total difference in seconds is not represantable by s32 (works out
-   * to 3549 weeks), saturate to the difference */
-  if (week_diff <= -MAX_WEEK_DIFF) {
-    return INT32_MIN;
-  }
-  if (week_diff >= MAX_WEEK_DIFF) {
-    return INT32_MAX;
-  }
-
-  s32 dt = (s32)end->tow - (s32)beginning->tow;
-  dt += week_diff * SEC_IN_WEEK;
-  return dt;
 }
 
 /* Difference between two sbp time stamps in seconds */
@@ -467,10 +439,10 @@ void rtcm2sbp_decode_frame(const uint8_t *frame,
 }
 
 /* check if there was a MSM message decoded within the MSM timeout period */
-static bool is_msm_active(const gps_time_sec_t *current_time,
+static bool is_msm_active(const gps_time_t *current_time,
                           const struct rtcm3_sbp_state *state) {
   return gps_time_valid(&state->last_msm_received) &&
-         gps_diff_time_sec(current_time, &state->last_msm_received) <
+         gpsdifftime(current_time, &state->last_msm_received) <
              MSM_TIMEOUT_SEC;
 }
 
@@ -552,7 +524,7 @@ u16 encode_rtcm3_frame(const void *rtcm_msg,
 
 void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state) {
-  gps_time_sec_t obs_time;
+  gps_time_t obs_time;
   compute_glo_time(new_rtcm_obs->header.tow_ms,
                    &obs_time,
                    &state->time_from_rover_obs,
@@ -570,7 +542,7 @@ void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
   }
 
   if (!gps_time_valid(&state->last_glo_time) ||
-      gps_diff_time_sec(&obs_time, &state->last_glo_time) > 0) {
+      gpsdifftime(&obs_time, &state->last_glo_time) > 0) {
     state->last_glo_time = obs_time;
     add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
   }
@@ -578,7 +550,7 @@ void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
 
 void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state) {
-  gps_time_sec_t obs_time;
+  gps_time_t obs_time;
   compute_gps_time(new_rtcm_obs->header.tow_ms,
                    &obs_time,
                    &state->time_from_rover_obs,
@@ -592,14 +564,14 @@ void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
   }
 
   if (!gps_time_valid(&state->last_gps_time) ||
-      gps_diff_time_sec(&obs_time, &state->last_gps_time) > 0) {
+      gpsdifftime(&obs_time, &state->last_gps_time) > 0) {
     state->last_gps_time = obs_time;
     add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
   }
 }
 
 void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
-                       gps_time_sec_t *obs_time,
+                       gps_time_t *obs_time,
                        struct rtcm3_sbp_state *state) {
   /* Transform the newly received obs to sbp */
   u8 new_obs[OBS_BUFFER_SIZE];
@@ -1086,7 +1058,7 @@ static u8 sbp_fcn_to_rtcm(u8 sbp_fcn) {
   return rtcm_fcn;
 }
 
-void rtcm2sbp_set_gps_time(const gps_time_sec_t *current_time,
+void rtcm2sbp_set_gps_time(const gps_time_t *current_time,
                            struct rtcm3_sbp_state *state) {
   if (gps_time_valid(current_time)) {
     state->time_from_rover_obs = *current_time;
@@ -1128,12 +1100,12 @@ void sbp2rtcm_set_glo_fcn(sbp_gnss_signal_t sid,
 }
 
 void compute_gps_message_time(u32 tow_ms,
-                              gps_time_sec_t *obs_time,
-                              const gps_time_sec_t *rover_time) {
+                              gps_time_t *obs_time,
+                              const gps_time_t *rover_time) {
   assert(gps_time_valid(rover_time));
-  obs_time->tow = (u32)(tow_ms * MS_TO_S);
+  obs_time->tow = tow_ms * MS_TO_S;
   obs_time->wn = rover_time->wn;
-  s32 timediff = gps_diff_time_sec(obs_time, rover_time);
+  s32 timediff = gpsdifftime(obs_time, rover_time);
   if (timediff < -SEC_IN_WEEK / 2) {
     obs_time->wn = rover_time->wn + 1;
   } else if (timediff > SEC_IN_WEEK / 2) {
@@ -1151,8 +1123,8 @@ void beidou_tow_to_gps_tow(u32 *tow_ms) {
 }
 
 void compute_gps_time(u32 tow_ms,
-                      gps_time_sec_t *obs_time,
-                      const gps_time_sec_t *rover_time,
+                      gps_time_t *obs_time,
+                      const gps_time_t *rover_time,
                       struct rtcm3_sbp_state *state) {
   compute_gps_message_time(tow_ms, obs_time, rover_time);
   validate_base_obs_sanity(state, obs_time, rover_time);
@@ -1163,8 +1135,8 @@ void compute_gps_time(u32 tow_ms,
  * TODO: correct functionality during/around leap second event to be
  *       tested and implemented */
 void compute_glo_time(u32 tod_ms,
-                      gps_time_sec_t *obs_time,
-                      const gps_time_sec_t *rover_time,
+                      gps_time_t *obs_time,
+                      const gps_time_t *rover_time,
                       struct rtcm3_sbp_state *state) {
   if (!state->leap_second_known) {
     obs_time->wn = INVALID_TIME;
@@ -1188,11 +1160,11 @@ void compute_glo_time(u32 tod_ms,
   normalize_gps_time(obs_time);
 
   /* check for day rollover against reference time */
-  s32 timediff = gps_diff_time_sec(obs_time, rover_time);
+  s32 timediff = gpsdifftime(obs_time, rover_time);
   if (abs(timediff) > SEC_IN_DAY / 2) {
     obs_time->tow += (timediff < 0 ? 1 : -1) * SEC_IN_DAY;
     normalize_gps_time(obs_time);
-    timediff = gps_diff_time_sec(obs_time, rover_time);
+    timediff = gpsdifftime(obs_time, rover_time);
   }
 
   if (abs(timediff - state->leap_seconds) > GLO_SANITY_THRESHOLD_S) {
@@ -1202,11 +1174,11 @@ void compute_glo_time(u32 tod_ms,
 }
 
 static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
-                                     const gps_time_sec_t *obs_time,
-                                     const gps_time_sec_t *rover_time) {
+                                     const gps_time_t *obs_time,
+                                     const gps_time_t *rover_time) {
   assert(gps_time_valid(obs_time));
   assert(gps_time_valid(rover_time));
-  s32 timediff = gps_diff_time_sec(rover_time, obs_time);
+  s32 timediff = gpsdifftime(rover_time, obs_time);
 
   /* exclude base measurements with time stamp too far in the future */
   if (timediff >= BASE_FUTURE_THRESHOLD_S &&
@@ -1217,7 +1189,7 @@ static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
 
 bool no_1230_received(struct rtcm3_sbp_state *state) {
   if (!gps_time_valid(&state->last_1230_received) ||
-      gps_diff_time_sec(&state->time_from_rover_obs,
+      gpsdifftime(&state->time_from_rover_obs,
                         &state->last_1230_received) > MSG_1230_TIMEOUT_SEC) {
     return true;
   }
@@ -1341,7 +1313,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state) {
   rtcm_constellation_t cons = to_constellation(new_rtcm_obs->header.msg_num);
 
-  gps_time_sec_t obs_time;
+  gps_time_t obs_time;
   if (RTCM_CONSTELLATION_GLO == cons) {
     compute_glo_time(new_rtcm_obs->header.tow_ms,
                      &obs_time,
@@ -1364,7 +1336,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
   }
 
   if (!gps_time_valid(&state->last_gps_time) ||
-      gps_diff_time_sec(&obs_time, &state->last_gps_time) >= 0) {
+      gpsdifftime(&obs_time, &state->last_gps_time) >= 0) {
     /* Find the buffer of obs to be sent */
     msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
 
