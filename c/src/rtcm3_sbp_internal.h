@@ -27,6 +27,7 @@
 #define MSG_OBS_FLAGS_PHASE_VALID ((u8)(1 << 1))
 #define MSG_OBS_FLAGS_HALF_CYCLE_KNOWN ((u8)(1 << 2))
 #define MSG_OBS_FLAGS_DOPPLER_VALID ((u8)(1 << 3))
+#define MSG_OBS_FLAGS_RAIM_EXCLUSION ((u8)(1 << 7))
 
 /* message type range reserved for MSM */
 #define MSM_MSG_TYPE_MIN 1070
@@ -136,7 +137,7 @@ extern bool rtcm3_debug;
 #define PIKSI_GLO_SERVICE_SUPPORTED 1
 
 /* Galileo Indicator DF024 */
-#define PIKSI_GAL_SERVICE_SUPPORTED 0
+#define PIKSI_GAL_SERVICE_SUPPORTED 1
 
 /* Single Receiver Oscillator Indicator DF142
  * 0 - All raw data observations in messages 1001-1004 and 1009-1012 may be
@@ -185,6 +186,26 @@ extern bool rtcm3_debug;
  * measurements are averaged using carrier phase information. */
 #define PIKSI_SMOOTHING_INTERVAL 0
 
+/* Clock Steering Indicator DF411
+ * 0 – clock steering is not applied
+ *     In this case receiver clock must be kept in the range of ±1 ms
+ *     (approximately ±300 km)
+ * 1 – clock steering has been applied
+ *     In this case receiver clock must be kept in the range of ±1 microsecond
+ *     (approximately ±300 meters).
+ * 2 – unknown clock steering status
+ * 3 – reserved */
+#define PIKSI_CLOCK_STEERING_INDICATOR 1
+
+/* External Clock Indicator DF412
+ * 0 – internal clock is used
+ * 1 – external clock is used, clock status is “locked”
+ * 2 – external clock is used, clock status is “not locked”, which may
+ *     indicate external clock failure and that the transmitted data may not be
+ *     reliable.
+ * 3 – unknown clock is used */
+#define PIKSI_EXT_CLOCK_INDICATOR 0
+
 void rtcm3_1005_to_sbp(const rtcm_msg_1005 *rtcm_1005,
                        msg_base_pos_ecef_t *sbp_base_pos);
 void sbp_to_rtcm3_1005(const msg_base_pos_ecef_t *sbp_base_pos,
@@ -206,11 +227,11 @@ void sbp_to_rtcm3_1230(const msg_glo_biases_t *sbp_glo_bias,
                        u16 sender_id,
                        rtcm_msg_1230 *rtcm_1230);
 
-void encode_RTCM_obs(const rtcm_obs_message *rtcm_msg);
-
 void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
                   msg_obs_t *new_sbp_obs,
                   struct rtcm3_sbp_state *state);
+
+u16 encode_rtcm3_frame(const void *rtcm_msg, u16 message_type, u8 *frame);
 
 void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
                            struct rtcm3_sbp_state *state);
@@ -239,7 +260,11 @@ void compute_glo_time(u32 tod_ms,
 double compute_glo_tod(uint32_t gps_tow_ms,
                        const struct rtcm3_out_state *state);
 
+void sbp_buffer_to_msm(const struct rtcm3_out_state *state);
+
 void beidou_tow_to_gps_tow(u32 *tow_ms);
+
+void gps_tow_to_beidou_tow(u32 *tow_ms);
 
 void send_observations(struct rtcm3_sbp_state *state);
 
@@ -299,16 +324,4 @@ void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases,
 void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases,
                                  struct rtcm3_sbp_state *state);
 
-bool msm_signal_frequency(const rtcm_msm_header *header,
-                          const uint8_t signal_index,
-                          const uint8_t glo_fcn,
-                          const bool glo_fcn_valid,
-                          double *p_freq);
-code_t msm_signal_to_code(const rtcm_msm_header *header, uint8_t signal_index);
-uint8_t msm_sat_to_prn(const rtcm_msm_header *header, uint8_t satellite_index);
-bool msm_get_glo_fcn(const rtcm_msm_header *header,
-                     const uint8_t sat,
-                     const uint8_t fcn_from_sat_info,
-                     const uint8_t glo_sv_id_fcn_map[],
-                     uint8_t *glo_fcn);
 #endif /* GNSS_CONVERTERS_RTCM3_SBP_H */

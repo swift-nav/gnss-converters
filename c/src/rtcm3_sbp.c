@@ -30,6 +30,9 @@
 #include <swiftnav/edc.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/sid_set.h>
+#include <swiftnav/signal.h>
+
+#include "rtcm3_msm_utils.h"
 
 static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
                                      const gps_time_t *obs_time,
@@ -70,7 +73,7 @@ void rtcm2sbp_init(struct rtcm3_sbp_state *state,
     state->sent_code_warning[i] = false;
   }
 
-  for (u8 i = 0; i < GLO_LAST_PRN + 1; i++) {
+  for (u8 i = 0; i < sizeof(state->glo_sv_id_fcn_map); i++) {
     state->glo_sv_id_fcn_map[i] = MSM_GLO_FCN_UNKNOWN;
   }
 
@@ -80,7 +83,9 @@ void rtcm2sbp_init(struct rtcm3_sbp_state *state,
 }
 
 void sbp2rtcm_init(struct rtcm3_out_state *state,
-                   void (*cb_sbp_to_rtcm)(u8 *buffer, u8 length, void *context),
+                   void (*cb_sbp_to_rtcm)(u8 *buffer,
+                                          u16 length,
+                                          void *context),
                    void *context) {
   state->leap_seconds = 0;
   state->leap_second_known = false;
@@ -90,9 +95,13 @@ void sbp2rtcm_init(struct rtcm3_out_state *state,
 
   state->n_sbp_obs = 0;
 
-  for (u8 i = 0; i < GLO_LAST_PRN + 1; i++) {
+  for (u8 i = 0; i < sizeof(state->glo_sv_id_fcn_map); i++) {
     state->glo_sv_id_fcn_map[i] = MSM_GLO_FCN_UNKNOWN;
   }
+
+  state->send_legacy_obs = false;
+  state->send_msm_obs = true;
+  state->msm_type = MSM5;
 
   rtcm_init_logging(&rtcm_log_callback_fn, state);
 }
@@ -119,9 +128,9 @@ static u16 sbp_2_rtcm_sender_id(u16 sbp_id) {
   return sbp_id & 0x0FFF;
 }
 
-void rtcm2sbp_decode_payload(const uint8_t *payload,
-                             uint32_t payload_length,
-                             struct rtcm3_sbp_state *state) {
+static void rtcm2sbp_decode_payload(const uint8_t *payload,
+                                    uint32_t payload_length,
+                                    struct rtcm3_sbp_state *state) {
   (void)payload_length;
 
   if (!gps_time_valid(&state->time_from_rover_obs)) {
@@ -452,11 +461,9 @@ static bool is_msm_active(const gps_time_t *current_time,
 }
 
 /* returns number of bytes in the payload */
-u16 encode_rtcm3_payload(const void *rtcm_msg,
-                         u16 message_type,
-                         u8 *buff,
-                         struct rtcm3_out_state *state) {
-  (void)state;
+static u16 encode_rtcm3_payload(const void *rtcm_msg,
+                                u16 message_type,
+                                u8 *buff) {
   switch (message_type) {
     case 1004: {
       rtcm_obs_message *msg_1004 = (rtcm_obs_message *)rtcm_msg;
@@ -500,13 +507,14 @@ u16 encode_rtcm3_payload(const void *rtcm_msg,
 }
 
 /* Encode RTCM frame into the given buffer, returns frame length */
-u16 encode_rtcm3_frame(const void *rtcm_msg,
-                       u16 message_type,
-                       u8 *frame,
-                       struct rtcm3_out_state *state) {
+u16 encode_rtcm3_frame(const void *rtcm_msg, u16 message_type, u8 *frame) {
   u16 byte = 3;
-  u16 message_size =
-      encode_rtcm3_payload(rtcm_msg, message_type, &frame[byte], state);
+  u16 message_size = encode_rtcm3_payload(rtcm_msg, message_type, &frame[byte]);
+
+  if (0 == message_size) {
+    fprintf(stderr, "Error encoding RTCM message %u\n", message_type);
+    return 0;
+  }
 
   u16 frame_size = message_size + 3;
 
@@ -1091,7 +1099,7 @@ void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
                           u8 sbp_fcn,
                           struct rtcm3_sbp_state *state) {
   /* convert FCN from SBP representation to RTCM representation */
-  if (sid.sat < GLO_FIRST_PRN || sid.sat > GLO_LAST_PRN) {
+  if (sid.sat < GLO_FIRST_PRN || sid.sat >= GLO_FIRST_PRN + NUM_SATS_GLO) {
     /* invalid PRN */
     fprintf(stderr, "Ignoring invalid GLO PRN %u\n", sid.sat);
     return;
@@ -1104,11 +1112,30 @@ void sbp2rtcm_set_leap_second(s8 leap_seconds, struct rtcm3_out_state *state) {
   state->leap_second_known = true;
 }
 
+/* Set RTCM output mode
+ * \param value msm_enum value, valid values
+ *        MSM_UNKNOWN - no MSM output, send legacy 1004/1012 messages
+ *        MSM4, MSM5  - MSM output
+ * \param state RTCM output state struct
+ */
+void sbp2rtcm_set_rtcm_out_mode(msm_enum value, struct rtcm3_out_state *state) {
+  if (MSM4 == value || MSM5 == value) {
+    /* enable MSM output if valid MSM type given */
+    state->send_msm_obs = true;
+    state->msm_type = value;
+    state->send_legacy_obs = false;
+  } else {
+    /* otherwise send legacy obs */
+    state->send_legacy_obs = true;
+    state->send_msm_obs = false;
+  }
+}
+
 void sbp2rtcm_set_glo_fcn(sbp_gnss_signal_t sid,
                           u8 sbp_fcn,
                           struct rtcm3_out_state *state) {
   /* convert FCN from SBP representation to RTCM representation */
-  if (sid.sat < GLO_FIRST_PRN || sid.sat > GLO_LAST_PRN) {
+  if (sid.sat < GLO_FIRST_PRN || sid.sat >= GLO_FIRST_PRN + NUM_SATS_GLO) {
     /* invalid PRN */
     fprintf(stderr, "Ignoring invalid GLO PRN %u\n", sid.sat);
     return;
@@ -1137,6 +1164,14 @@ void beidou_tow_to_gps_tow(u32 *tow_ms) {
   if (*tow_ms >= SEC_IN_WEEK * S_TO_MS) {
     *tow_ms -= SEC_IN_WEEK * S_TO_MS;
   }
+}
+
+void gps_tow_to_beidou_tow(u32 *tow_ms) {
+  /* BDS system time has a constant offset */
+  if (*tow_ms < BDS_SECOND_TO_GPS_SECOND * S_TO_MS) {
+    *tow_ms += SEC_IN_WEEK * S_TO_MS;
+  }
+  *tow_ms -= BDS_SECOND_TO_GPS_SECOND * S_TO_MS;
 }
 
 void compute_gps_time(u32 tow_ms,
@@ -1410,444 +1445,28 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
   }
 }
 
-static uint8_t get_msm_gps_prn(uint8_t sat_id) {
-  /*RTCM 10403.3 Table 3.5-90 */
-  uint8_t prn = sat_id + GPS_FIRST_PRN;
-  return (prn <= GPS_LAST_PRN) ? prn : PRN_INVALID;
-}
-
-static code_t get_msm_gps_code(uint8_t signal_id) {
-  /* RTCM 10403.3 Table 3.5-91 */
-  switch (signal_id) {
-    case 2: /* 1C */
-      return CODE_GPS_L1CA;
-    case 3: /* 1P */
-      return CODE_GPS_L1P;
-    case 4: /* 1W */
-      return CODE_GPS_L1P;
-    /* case 8: 2C */
-    case 9: /* 2P */
-      return CODE_GPS_L2P;
-    case 10: /* 2W */
-      return CODE_GPS_L2P;
-    case 15: /* 2S */
-      return CODE_GPS_L2CM;
-    case 16: /* 2L */
-      return CODE_GPS_L2CL;
-    case 17: /* 2X */
-      return CODE_GPS_L2CX;
-    case 22: /* 5I */
-      return CODE_GPS_L5I;
-    case 23: /* 5Q */
-      return CODE_GPS_L5Q;
-    case 24: /* 5X */
-      return CODE_GPS_L5X;
-    case 30: /* 1S */
-      return CODE_GPS_L1CI;
-    case 31: /* 1L */
-      return CODE_GPS_L1CQ;
-    case 32: /* 1X */
-      return CODE_GPS_L1CX;
-    default:
-      return CODE_INVALID;
-  }
-}
-
-static uint8_t get_msm_glo_prn(uint8_t sat_id) {
-  /*RTCM 10403.3 Table 3.5-95 */
-  uint8_t prn = sat_id + GLO_FIRST_PRN;
-  return (prn <= GLO_LAST_PRN) ? prn : PRN_INVALID;
-}
-
-#define MSM_L1P_WARN_MSG "Received GLO L1P MSM Message from base station"
-#define MSM_L2P_WARN_MSG "Received GLO L2P MSM Message from base station"
-
-static code_t get_msm_glo_code(uint8_t signal_id) {
-  /* RTCM 10403.3 Table 3.5-96 */
-  switch (signal_id) {
-    case 3: /* 1P */
-      return CODE_GLO_L1P;
-    case 2: /* 1C */
-      return CODE_GLO_L1OF;
-    case 9: /* 2P */
-      return CODE_GLO_L2P;
-    case 8: /* 2C */
-      return CODE_GLO_L2OF;
-    default:
-      return CODE_INVALID;
-  }
-}
-
-static uint8_t get_msm_gal_prn(uint8_t sat_id) {
-  /*RTCM 10403.3 Table 3.5-98 */
-
-  /* Note: need to check how these are encoded in SBP:
-   *  51 - GIOVE-A
-   *  52 - GIOVE-B
-   */
-
-  uint8_t prn = sat_id + GAL_FIRST_PRN;
-  return (prn <= GAL_LAST_PRN) ? prn : PRN_INVALID;
-}
-
-static code_t get_msm_gal_code(uint8_t signal_id) {
-  /* RTCM 10403.3 Table 3.5-99 */
-  switch (signal_id) {
-    case 2: /* 1C */
-      return CODE_GAL_E1C;
-    /* case 3: 1A */
-    case 4: /* 1B */
-      return CODE_GAL_E1B;
-    case 5: /* 1X */
-      return CODE_GAL_E1X;
-    /* case 6: 1Z */
-    case 8: /* 6C */
-      return CODE_GAL_E6C;
-    /* case 9: 6A */
-    case 10: /* 6B */
-      return CODE_GAL_E6B;
-    case 11: /* 6X */
-      return CODE_GAL_E6X;
-    /* case 12: 6Z */
-    case 14: /* 7I */
-      return CODE_GAL_E7I;
-    case 15: /* 7Q */
-      return CODE_GAL_E7Q;
-    case 16: /* 7X */
-      return CODE_GAL_E7X;
-    case 18: /* 8I */
-      return CODE_GAL_E8I;
-    case 19: /* 8Q */
-      return CODE_GAL_E8Q;
-    case 20: /* 8X */
-      return CODE_GAL_E8X;
-    case 22: /* 5I */
-      return CODE_GAL_E5I;
-    case 23: /* 5Q */
-      return CODE_GAL_E5Q;
-    case 24: /* 5X */
-      return CODE_GAL_E5X;
-    default:
-      return CODE_INVALID;
-  }
-}
-
-static uint8_t get_msm_sbas_prn(uint8_t sat_id) {
-  /*RTCM 10403.3 Table 3.5-101 */
-  uint8_t prn = sat_id + SBAS_FIRST_PRN;
-  return (prn <= SBAS_LAST_PRN) ? prn : PRN_INVALID;
-}
-
-static code_t get_msm_sbas_code(uint8_t signal_id) {
-  /* RTCM 10403.3 Table 3.5-102 */
-  switch (signal_id) {
-    case 2: /* 1C */
-      return CODE_SBAS_L1CA;
-    case 22: /* 5I */
-      return CODE_SBAS_L5I;
-    case 23: /* 5Q */
-      return CODE_SBAS_L5Q;
-    case 24: /* 5X */
-      return CODE_SBAS_L5X;
-    default:
-      return CODE_INVALID;
-  }
-}
-
-static uint8_t get_msm_qzs_prn(uint8_t sat_id) {
-  /*RTCM 10403.3 Table 3.5-104 */
-  uint8_t prn = sat_id + QZS_FIRST_PRN;
-  return (prn <= QZS_LAST_PRN) ? prn : PRN_INVALID;
-}
-
-static code_t get_msm_qzs_code(uint8_t signal_id) {
-  /* RTCM 10403.3 Table 3.5-105 */
-  switch (signal_id) {
-    case 2: /* 1C */
-      return CODE_QZS_L1CA;
-    /* case 9:  6S */
-    /* case 10: 6L */
-    /* case 11: 6X */
-    case 15: /* 2S */
-      return CODE_QZS_L2CM;
-    case 16: /* 2L */
-      return CODE_QZS_L2CL;
-    case 17: /* 2X */
-      return CODE_QZS_L2CX;
-    case 22: /* 5I */
-      return CODE_QZS_L5I;
-    case 23: /* 5Q */
-      return CODE_QZS_L5Q;
-    case 24: /* 5X */
-      return CODE_QZS_L5X;
-    case 30: /* 1S */
-      return CODE_QZS_L1CI;
-    case 31: /* 1L */
-      return CODE_QZS_L1CQ;
-    case 32: /* 1X */
-      return CODE_QZS_L1CX;
-    default:
-      return CODE_INVALID;
-  }
-}
-
-static uint8_t get_msm_bds2_prn(uint8_t sat_id) {
-  /*RTCM 10403.3 Table 3.5-107 */
-  uint8_t prn = sat_id + BDS2_FIRST_PRN;
-  return (prn <= BDS2_LAST_PRN) ? prn : PRN_INVALID;
-}
-
-static code_t get_msm_bds2_code(uint8_t signal_id) {
-  /* RTCM 10403.3 Table 3.5-108 */
-  switch (signal_id) {
-    case 2: /* 2I */
-      return CODE_BDS2_B1;
-    /* case 3:  2Q */
-    /* case 4:  2X */
-    /* case 8:  6I */
-    /* case 9:  6Q */
-    /* case 10:  6X */
-    case 14: /* 7I */
-      return CODE_BDS2_B2;
-    /* case 15:  7Q */
-    /* case 16:  7X */
-    default:
-      return CODE_INVALID;
-  }
-}
-
-/** Get the code enum of an MSM signal
- *
- * \param header Pointer to message header
- * \param signal_index 0-based index into the signal mask
- * \return code enum (CODE_INVALID for unsupported codes/constellations)
- */
-code_t msm_signal_to_code(const rtcm_msm_header *header, uint8_t signal_index) {
-  rtcm_constellation_t cons = to_constellation(header->msg_num);
-  uint8_t code_index =
-      find_nth_mask_value(
-          MSM_SIGNAL_MASK_SIZE, header->signal_mask, signal_index + 1) +
-      1;
-
-  switch (cons) {
-    case RTCM_CONSTELLATION_GPS:
-      return get_msm_gps_code(code_index);
-    case RTCM_CONSTELLATION_SBAS:
-      return get_msm_sbas_code(code_index);
-    case RTCM_CONSTELLATION_GLO:
-      return get_msm_glo_code(code_index);
-    case RTCM_CONSTELLATION_BDS:
-      return get_msm_bds2_code(code_index);
-    case RTCM_CONSTELLATION_QZS:
-      return get_msm_qzs_code(code_index);
-    case RTCM_CONSTELLATION_GAL:
-      return get_msm_gal_code(code_index);
-    case RTCM_CONSTELLATION_INVALID:
-    case RTCM_CONSTELLATION_COUNT:
-    default:
-      return CODE_INVALID;
-  }
-}
-
-/** Get the PRN from an MSM satellite index
- *
- * \param header Pointer to message header
- * \param satellite_index 0-based index into the satellite mask
- * \return PRN (or 0 for invalid constellation)
- */
-uint8_t msm_sat_to_prn(const rtcm_msm_header *header, uint8_t satellite_index) {
-  rtcm_constellation_t cons = to_constellation(header->msg_num);
-  uint8_t prn_index = find_nth_mask_value(
-      MSM_SATELLITE_MASK_SIZE, header->satellite_mask, satellite_index + 1);
-
-  switch (cons) {
-    case RTCM_CONSTELLATION_GPS:
-      return get_msm_gps_prn(prn_index);
-    case RTCM_CONSTELLATION_SBAS:
-      return get_msm_sbas_prn(prn_index);
-    case RTCM_CONSTELLATION_GLO:
-      return get_msm_glo_prn(prn_index);
-    case RTCM_CONSTELLATION_BDS:
-      return get_msm_bds2_prn(prn_index);
-    case RTCM_CONSTELLATION_QZS:
-      return get_msm_qzs_prn(prn_index);
-    case RTCM_CONSTELLATION_GAL:
-      return get_msm_gal_prn(prn_index);
-    case RTCM_CONSTELLATION_INVALID:
-    case RTCM_CONSTELLATION_COUNT:
-    default:
-      return PRN_INVALID;
-  }
-}
-
-/** Find the frequency of an MSM signal
- *
- * \param header Pointer to message header
- * \param signal_index 0-based index into the signal mask
- * \param glo_fcn The FCN value for GLO satellites
- * \param glo_fcn_valid Validity flag for glo_fcn
- * \param p_freq Pointer to write the frequency output to
- * \return true if a valid frequency was returned
- */
-bool msm_signal_frequency(const rtcm_msm_header *header,
-                          const uint8_t signal_index,
-                          const uint8_t glo_fcn,
-                          const bool glo_fcn_valid,
-                          double *p_freq) {
-  code_t code = msm_signal_to_code(header, signal_index);
-
-  /* TODO: use sid_to_carr_freq from LNSP */
-
-  switch ((int8_t)code) {
-    case CODE_GPS_L1CA:
-    case CODE_GPS_L1P:
-    case CODE_GPS_L1CI:
-    case CODE_GPS_L1CQ:
-    case CODE_GPS_L1CX:
-      *p_freq = GPS_L1_HZ;
-      return true;
-    case CODE_GPS_L2CM:
-    case CODE_GPS_L2CL:
-    case CODE_GPS_L2CX:
-    case CODE_GPS_L2P:
-      *p_freq = GPS_L2_HZ;
-      return true;
-    case CODE_GPS_L5I:
-    case CODE_GPS_L5Q:
-    case CODE_GPS_L5X:
-      *p_freq = GPS_L5_HZ;
-      return true;
-    case CODE_GLO_L1OF:
-    case CODE_GLO_L1P:
-      /* GLO FCN given in the sat info field, see Table 3.4-6 */
-      if (glo_fcn_valid) {
-        *p_freq = GLO_L1_HZ + (glo_fcn - MSM_GLO_FCN_OFFSET) * GLO_L1_DELTA_HZ;
-        return true;
-      } else {
-        return false;
-      }
-    case CODE_GLO_L2OF:
-    case CODE_GLO_L2P:
-      if (glo_fcn_valid) {
-        *p_freq = GLO_L2_HZ + (glo_fcn - MSM_GLO_FCN_OFFSET) * GLO_L2_DELTA_HZ;
-        return true;
-      } else {
-        return false;
-      }
-    case CODE_BDS2_B1:
-      *p_freq = BDS2_B11_HZ;
-      return true;
-    case CODE_BDS2_B2:
-      *p_freq = BDS2_B2_HZ;
-      return true;
-    case CODE_SBAS_L1CA:
-      *p_freq = SBAS_L1_HZ;
-      return true;
-    case CODE_SBAS_L5I:
-    case CODE_SBAS_L5Q:
-    case CODE_SBAS_L5X:
-      *p_freq = SBAS_L5_HZ;
-      return true;
-    case CODE_GAL_E1B:
-    case CODE_GAL_E1C:
-    case CODE_GAL_E1X:
-      *p_freq = GAL_E1_HZ;
-      return true;
-    case CODE_GAL_E7I:
-    case CODE_GAL_E7Q:
-    case CODE_GAL_E7X:
-      *p_freq = GAL_E7_HZ;
-      return true;
-    case CODE_GAL_E5I:
-    case CODE_GAL_E5Q:
-    case CODE_GAL_E5X:
-      *p_freq = GAL_E5_HZ;
-      return true;
-    case CODE_GAL_E6B:
-    case CODE_GAL_E6C:
-    case CODE_GAL_E6X:
-      *p_freq = GAL_E6_HZ;
-      return true;
-    case CODE_GAL_E8I:
-    case CODE_GAL_E8Q:
-    case CODE_GAL_E8X:
-      *p_freq = GAL_E8_HZ;
-      return true;
-    case CODE_QZS_L1CA:
-    case CODE_QZS_L1CI:
-    case CODE_QZS_L1CQ:
-    case CODE_QZS_L1CX:
-      *p_freq = QZS_L1_HZ;
-      return true;
-    case CODE_QZS_L2CM:
-    case CODE_QZS_L2CL:
-    case CODE_QZS_L2CX:
-      *p_freq = QZS_L2_HZ;
-      return true;
-    case CODE_QZS_L5I:
-    case CODE_QZS_L5Q:
-    case CODE_QZS_L5X:
-      *p_freq = QZS_L5_HZ;
-      return true;
-    case CODE_INVALID:
-    case CODE_COUNT:
-    default:
-      return false;
-  }
-}
-
-/** Find the frequency channel number (FCN) of a GLO signal
- *
- * \param header Pointer to message header
- * \param sat_index 0-based index into the satellite mask
- * \param fcn_from_satinfo FCN (or MSM_GLO_FCN_UNKNOWN)
- * \param glo_sv_id_fcn_map Optional GLO FCN table (size MAX_GLO_PRN + 1)
- * \param glo_fcn Output pointer for the FCN value
- * \return true if a valid FCN was returned
- */
-bool msm_get_glo_fcn(const rtcm_msm_header *header,
-                     const uint8_t sat,
-                     const uint8_t fcn_from_sat_info,
-                     const uint8_t glo_sv_id_fcn_map[],
-                     uint8_t *glo_fcn) {
-  if (RTCM_CONSTELLATION_GLO != to_constellation(header->msg_num)) {
-    return false;
-  }
-
-  /* get FCN from sat_info if valid */
-  *glo_fcn = fcn_from_sat_info;
-  if (MSM_GLO_FCN_UNKNOWN == *glo_fcn && NULL != glo_sv_id_fcn_map) {
-    /* use the lookup table if given */
-    uint8_t sat_id = msm_sat_to_prn(header, sat);
-    *glo_fcn = glo_sv_id_fcn_map[sat_id];
-  }
-  /* valid values are from 0 to MSM_GLO_MAX_FCN */
-  return (*glo_fcn <= MSM_GLO_MAX_FCN);
-}
-
 /* return true if conversion to SID succeeded, and the SID as a pointer */
 static bool get_sid_from_msm(const rtcm_msm_header *header,
                              u8 satellite_index,
                              u8 signal_index,
                              sbp_gnss_signal_t *sid,
                              struct rtcm3_sbp_state *state) {
+  assert(signal_index <= MSM_SIGNAL_MASK_SIZE);
   code_t code = msm_signal_to_code(header, signal_index);
   u8 sat = msm_sat_to_prn(header, satellite_index);
   if (CODE_INVALID != code && PRN_INVALID != sat) {
     sid->code = code;
     sid->sat = sat;
     return true;
-  } else {
-    if (CODE_INVALID == code) {
-      /* should have specific code warning but this requires modifiying librtcm
-       */
-      send_unsupported_code_warning(UNSUPPORTED_CODE_UNKNOWN, state);
-    }
-    return false;
   }
+  if (CODE_INVALID == code) {
+    /* should have specific code warning but this requires modifying librtcm */
+    send_unsupported_code_warning(UNSUPPORTED_CODE_UNKNOWN, state);
+  }
+  return false;
 }
 
-bool unsupported_signal(sbp_gnss_signal_t *sid) {
+static bool unsupported_signal(sbp_gnss_signal_t *sid) {
   switch (sid->code) {
     case CODE_GLO_L1P:
     case CODE_GLO_L2P:
@@ -1877,10 +1496,8 @@ bool unsupported_signal(sbp_gnss_signal_t *sid) {
 void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
                       msg_obs_t *new_sbp_obs,
                       struct rtcm3_sbp_state *state) {
-  uint8_t num_sats =
-      count_mask_values(MSM_SATELLITE_MASK_SIZE, msg->header.satellite_mask);
-  uint8_t num_sigs =
-      count_mask_values(MSM_SIGNAL_MASK_SIZE, msg->header.signal_mask);
+  uint8_t num_sats = msm_get_num_satellites(&msg->header);
+  uint8_t num_sigs = msm_get_num_signals(&msg->header);
 
   u8 cell_index = 0;
   for (u8 sat = 0; sat < num_sats; sat++) {
@@ -1985,7 +1602,7 @@ void sbp2rtcm_base_pos_ecef_cb(const u16 sender_id,
   sbp_to_rtcm3_1005((const msg_base_pos_ecef_t *)msg, sender_id, &msg_1005);
 
   u8 frame[RTCM3_MAX_MSG_LEN];
-  u16 frame_size = encode_rtcm3_frame(&msg_1005, 1005, frame, state);
+  u16 frame_size = encode_rtcm3_frame(&msg_1005, 1005, frame);
   state->cb_sbp_to_rtcm(frame, frame_size, state->context);
 }
 
@@ -1998,7 +1615,7 @@ void sbp2rtcm_glo_biases_cb(const u16 sender_id,
   sbp_to_rtcm3_1230((const msg_glo_biases_t *)msg, sender_id, &msg_1230);
 
   u8 frame[RTCM3_MAX_MSG_LEN];
-  u16 frame_size = encode_rtcm3_frame(&msg_1230, 1230, frame, state);
+  u16 frame_size = encode_rtcm3_frame(&msg_1230, 1230, frame);
   state->cb_sbp_to_rtcm(frame, frame_size, state->context);
 }
 
@@ -2029,6 +1646,133 @@ static void sbp_obs_to_freq_data(const packed_obs_content_t *sbp_freq,
 
   /* no Doppler obs */
   rtcm_freq->flags.valid_dop = 0;
+}
+
+/* initialize the MSM structure */
+static void msm_init_obs_message(rtcm_msm_message *msg,
+                                 const u16 station_id,
+                                 const struct rtcm3_out_state *state,
+                                 const rtcm_constellation_t cons) {
+  memset(msg, 0, sizeof(*msg));
+
+  /* Msg Num DF002 uint16 12*/
+  msg->header.msg_num = to_msm_msg_num(cons, state->msm_type);
+
+  /* GPS time of week DF004 uint32 30 */
+  msg->header.tow_ms = state->sbp_header.t.tow;
+  if (RTCM_CONSTELLATION_GLO == cons) {
+    /* GLO epoch time DF034 uint32 27 */
+    msg->header.tow_ms =
+        (u32)(compute_glo_tod(state->sbp_header.t.tow, state) * S_TO_MS);
+  } else if (RTCM_CONSTELLATION_BDS == cons) {
+    gps_tow_to_beidou_tow(&msg->header.tow_ms);
+  }
+
+  /* Station Id DF003 uint16 12*/
+  msg->header.stn_id = station_id;
+
+  /* Issue of Data Station DF409 uint8 3 */
+  /* A value of "0" indicates that this field is not utilized. */
+  msg->header.iods = 0;
+
+  /* Clock Steering Indicator DF411 uint2 2 */
+  msg->header.steering = PIKSI_CLOCK_STEERING_INDICATOR;
+
+  /* External Clock Indicator DF412 uint2 2 */
+  msg->header.ext_clock = PIKSI_EXT_CLOCK_INDICATOR;
+
+  /* Divergence free flag DF417 bit(1) 1 */
+  msg->header.div_free = PIKSI_DIVERGENCE_FREE_INDICATOR;
+
+  /* GPS Smoothing Interval DF418 bit(3) 3 */
+  msg->header.smooth = PIKSI_SMOOTHING_INTERVAL;
+
+  /* MSM Multiple Message bit DF393 bit(1) 1
+   * 0 this is the last message
+   * 1 more messages to follow */
+  /* initialize messages to 1, reset the flag of the last message later */
+  msg->header.multiple = 1;
+}
+
+/* convert the SBP observation into MSM message structure */
+static void sbp_obs_to_msm_signal_data(const packed_obs_content_t *sbp_obs,
+                                       rtcm_msm_message *msg,
+                                       const struct rtcm3_out_state *state) {
+  rtcm_constellation_t cons = to_constellation(msg->header.msg_num);
+  uint8_t num_sigs = msm_get_num_signals(&msg->header);
+
+  u8 sat_index = prn_to_msm_sat_index(&msg->header, sbp_obs->sid.sat);
+  u8 signal_index = code_to_msm_signal_index(&msg->header, sbp_obs->sid.code);
+  u8 cell_id = sat_index * num_sigs + signal_index;
+
+  if (!msg->header.cell_mask[cell_id]) {
+    fprintf(stderr,
+            "Cell mask not set for sat %u signal %u\n",
+            sat_index,
+            signal_index);
+    return;
+  }
+
+  u8 cell_index = count_mask_values(cell_id, msg->header.cell_mask);
+
+  /* convenience pointers */
+
+  rtcm_msm_sat_data *sat_data = &(msg->sats[sat_index]);
+  rtcm_msm_signal_data *signal_data = &msg->signals[cell_index];
+  flag_bf *msm_flags = &signal_data->flags;
+  const u8 sbp_flags = sbp_obs->flags;
+
+  /* fill in the signal data */
+
+  if (0 != (sbp_flags & MSG_OBS_FLAGS_CODE_VALID)) {
+    double pseudorange_m = sbp_obs->P / MSG_OBS_P_MULTIPLIER;
+    signal_data->pseudorange_ms = pseudorange_m * 1000 / GPS_C;
+    sat_data->rough_range_ms = round(signal_data->pseudorange_ms * 1024) / 1024;
+    msm_flags->valid_pr = true;
+  } else {
+    msm_flags->valid_pr = false;
+  }
+
+  if (RTCM_CONSTELLATION_GLO == cons) {
+    sat_data->glo_fcn = state->glo_sv_id_fcn_map[sbp_obs->sid.sat];
+  } else {
+    sat_data->glo_fcn = MSM_GLO_FCN_UNKNOWN;
+  }
+
+  double freq;
+  bool freq_valid =
+      msm_signal_frequency(&msg->header,
+                           signal_index,
+                           sat_data->glo_fcn,
+                           (MSM_GLO_FCN_UNKNOWN != sat_data->glo_fcn),
+                           &freq);
+
+  if (freq_valid && (0 != (sbp_flags & MSG_OBS_FLAGS_PHASE_VALID))) {
+    double carrier_cyc = sbp_obs->L.i + sbp_obs->L.f / MSG_OBS_LF_MULTIPLIER;
+    signal_data->carrier_phase_ms = carrier_cyc * 1000 / freq;
+    /* DF420 Half-cycle ambiguity indicator
+     * 0 = no ambiguity
+     * 1 = ambiguity */
+    signal_data->hca_indicator = (0 == (sbp_flags & MSG_OBS_FLAGS_CODE_VALID));
+    msm_flags->valid_cp = true;
+  } else {
+    msm_flags->valid_cp = false;
+  }
+
+  if (freq_valid && (0 != (sbp_flags & MSG_OBS_FLAGS_DOPPLER_VALID))) {
+    double doppler_Hz = sbp_obs->D.i + sbp_obs->D.f / MSG_OBS_DF_MULTIPLIER;
+    signal_data->range_rate_m_s = -doppler_Hz * GPS_C / freq;
+    sat_data->rough_range_rate_m_s = round(signal_data->range_rate_m_s);
+    msm_flags->valid_dop = true;
+  } else {
+    msm_flags->valid_dop = false;
+  }
+
+  signal_data->lock_time_s = rtcm3_decode_lock_time(sbp_obs->lock);
+  msm_flags->valid_lock = true;
+
+  signal_data->cnr = sbp_obs->cn0 / MSG_OBS_CN0_MULTIPLIER;
+  msm_flags->valid_cnr = true;
 }
 
 double compute_glo_tod(uint32_t gps_tow_ms,
@@ -2092,7 +1836,65 @@ static u8 sat_index_from_obs(rtcm_sat_data sats[], u8 n_sats, u8 svId) {
   return n_sats;
 }
 
-static void sbp_buffer_to_rtcm3(struct rtcm3_out_state *state) {
+void sbp_buffer_to_msm(const struct rtcm3_out_state *state) {
+  u16 station_id = sbp_2_rtcm_sender_id(state->sender_id);
+
+  /* message for each constellation */
+  rtcm_msm_message obs[RTCM_CONSTELLATION_COUNT];
+  for (u8 cons = 0; cons < RTCM_CONSTELLATION_COUNT; cons++) {
+    msm_init_obs_message(&obs[cons], station_id, state, cons);
+  }
+
+  /* loop through observations once to generate satellite and signal masks */
+  for (u8 i = 0; i < state->n_sbp_obs; i++) {
+    const packed_obs_content_t *sbp_obs = &(state->sbp_obs_buffer[i]);
+    rtcm_constellation_t cons =
+        (rtcm_constellation_t)code_to_constellation(sbp_obs->sid.code);
+    msm_add_to_header(&obs[cons].header, sbp_obs->sid.code, sbp_obs->sid.sat);
+  }
+
+  /* using the complete satellite and signal masks, loop through observations
+   * again to generate the cell mask */
+  for (u8 i = 0; i < state->n_sbp_obs; i++) {
+    const packed_obs_content_t *sbp_obs = &(state->sbp_obs_buffer[i]);
+    rtcm_constellation_t cons =
+        (rtcm_constellation_t)code_to_constellation(sbp_obs->sid.code);
+    msm_add_to_cell_mask(
+        &obs[cons].header, sbp_obs->sid.code, sbp_obs->sid.sat);
+  }
+
+  /* loop through observations once more to generate the actual signal data */
+  for (u8 i = 0; i < state->n_sbp_obs; i++) {
+    const packed_obs_content_t *sbp_obs = &(state->sbp_obs_buffer[i]);
+    rtcm_constellation_t cons =
+        (rtcm_constellation_t)code_to_constellation(sbp_obs->sid.code);
+    sbp_obs_to_msm_signal_data(sbp_obs, &obs[cons], state);
+  }
+
+  /* Fill in the MSM Multiple Message bit DF393 bit(1) 1
+   * 0 this is the last message
+   * 1 more messages to follow */
+  for (s8 cons = RTCM_CONSTELLATION_COUNT - 1; cons >= 0; cons--) {
+    if (msm_get_num_satellites(&obs[cons].header) > 0) {
+      /* reset the multiple message bit of the last constellation that has
+       * measurements, others have already been initialized to one */
+      obs[cons].header.multiple = 0;
+      break;
+    }
+  }
+
+  /* send out all the messages that have measurements */
+  static u8 frame[RTCM3_MAX_MSG_LEN];
+  for (u8 cons = 0; cons < RTCM_CONSTELLATION_COUNT; cons++) {
+    if (msm_get_num_satellites(&obs[cons].header) > 0) {
+      u16 frame_size =
+          encode_rtcm3_frame(&obs[cons], obs[cons].header.msg_num, frame);
+      state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+    }
+  }
+}
+
+static void sbp_buffer_to_legacy_rtcm3(struct rtcm3_out_state *state) {
   u16 station_id = sbp_2_rtcm_sender_id(state->sender_id);
 
   rtcm_obs_message gps_obs;
@@ -2164,9 +1966,7 @@ static void sbp_buffer_to_rtcm3(struct rtcm3_out_state *state) {
         break;
       }
       default:
-        fprintf(stderr,
-                "Tried to encode obs from invalid code %d\n",
-                sbp_obs->sid.code);
+        break;
     }
   }
 
@@ -2178,19 +1978,26 @@ static void sbp_buffer_to_rtcm3(struct rtcm3_out_state *state) {
   gps_obs.header.sync = (n_glo > 0) ? 1 : 0; /* if GLO message will follow */
   glo_obs.header.sync = 0; /* no further messages for this epoch */
 
-  u8 frame[RTCM3_MAX_MSG_LEN];
-  u16 frame_size = 0;
-
+  static u8 frame[RTCM3_MAX_MSG_LEN];
   if (n_gps > 0) {
-    frame_size =
-        encode_rtcm3_frame(&gps_obs, gps_obs.header.msg_num, frame, state);
+    u16 frame_size =
+        encode_rtcm3_frame(&gps_obs, gps_obs.header.msg_num, frame);
     state->cb_sbp_to_rtcm(frame, frame_size, state->context);
   }
 
   if (n_glo > 0) {
-    frame_size =
-        encode_rtcm3_frame(&glo_obs, glo_obs.header.msg_num, frame, state);
+    u16 frame_size =
+        encode_rtcm3_frame(&glo_obs, glo_obs.header.msg_num, frame);
     state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+  }
+}
+
+static void sbp_buffer_to_rtcm3(struct rtcm3_out_state *state) {
+  if (state->send_legacy_obs) {
+    sbp_buffer_to_legacy_rtcm3(state);
+  }
+  if (state->send_msm_obs) {
+    sbp_buffer_to_msm(state);
   }
   /* clear the sent messages from the buffer */
   state->n_sbp_obs = 0;
@@ -2264,6 +2071,12 @@ void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
       (len - sizeof(observation_header_t)) / sizeof(packed_obs_content_t);
 
   for (u8 i = 0; i < n_meas; i++) {
+    if ((0 == (sbp_obs->obs[i].flags & MSG_OBS_FLAGS_CODE_VALID)) ||
+        (0 != (sbp_obs->obs[i].flags & MSG_OBS_FLAGS_RAIM_EXCLUSION))) {
+      /* skip observations that do not have valid code measurement or that are
+       * flagged by RAIM */
+      continue;
+    }
     /* add incoming sbp observation into sbp buffer */
     state->sbp_obs_buffer[state->n_sbp_obs] = sbp_obs->obs[i];
     state->n_sbp_obs++;

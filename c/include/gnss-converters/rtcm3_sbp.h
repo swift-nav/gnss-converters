@@ -20,6 +20,7 @@ extern "C" {
 #include <libsbp/observation.h>
 #include <rtcm3/messages.h>
 #include <swiftnav/gnss_time.h>
+#include <swiftnav/signal.h>
 
 /* This is the maximum number of SBP observations possible per epoch:
    - Max number of observation messages comes from the 4 bits assigned to the
@@ -70,39 +71,33 @@ struct rtcm3_sbp_state {
   bool sent_msm_warning;
   bool sent_code_warning[UNSUPPORTED_CODE_MAX];
   /* GLO FCN map, indexed by 1-based PRN */
-  u8 glo_sv_id_fcn_map[GLO_LAST_PRN + 1];
+  u8 glo_sv_id_fcn_map[NUM_SATS_GLO + 1];
 };
 
 struct rtcm3_out_state {
   s8 leap_seconds;
   bool leap_second_known;
-  void (*cb_sbp_to_rtcm)(u8 *buffer, u8 length, void *context);
+  void (*cb_sbp_to_rtcm)(u8 *buffer, u16 length, void *context);
   u16 sender_id;
   observation_header_t sbp_header;
   packed_obs_content_t sbp_obs_buffer[MAX_OBS_PER_EPOCH];
   u16 n_sbp_obs;
   void *context;
   /* GLO FCN map, indexed by 1-based PRN */
-  u8 glo_sv_id_fcn_map[GLO_LAST_PRN + 1];
-};
+  u8 glo_sv_id_fcn_map[NUM_SATS_GLO + 1];
 
-void rtcm2sbp_decode_payload(const uint8_t *payload,
-                             uint32_t payload_length,
-                             struct rtcm3_sbp_state *state);
+  /** RTCM OUT format options. */
+
+  /* Note that while the specification does not forbid sending both the legacy
+   * and MSM observations, it does not recommend it. */
+  bool send_legacy_obs;
+  bool send_msm_obs;
+  msm_enum msm_type;
+};
 
 void rtcm2sbp_decode_frame(const uint8_t *frame,
                            uint32_t frame_length,
                            struct rtcm3_sbp_state *state);
-
-u16 encode_rtcm3_payload(const void *rtcm_msg,
-                         u16 message_type,
-                         u8 *buff,
-                         struct rtcm3_out_state *state);
-
-u16 encode_rtcm3_frame(const void *rtcm_msg,
-                       u16 message_type,
-                       u8 *frame,
-                       struct rtcm3_out_state *state);
 
 void rtcm2sbp_set_gps_time(const gps_time_t *current_time,
                            struct rtcm3_sbp_state *state);
@@ -123,10 +118,14 @@ void rtcm2sbp_init(struct rtcm3_sbp_state *state,
                    void *context);
 
 void sbp2rtcm_init(struct rtcm3_out_state *state,
-                   void (*cb_sbp_to_rtcm)(u8 *buffer, u8 length, void *context),
+                   void (*cb_sbp_to_rtcm)(u8 *buffer,
+                                          u16 length,
+                                          void *context),
                    void *context);
 
 void sbp2rtcm_set_leap_second(s8 leap_seconds, struct rtcm3_out_state *state);
+
+void sbp2rtcm_set_rtcm_out_mode(msm_enum value, struct rtcm3_out_state *state);
 
 void sbp2rtcm_set_glo_fcn(sbp_gnss_signal_t sid,
                           u8 sbp_fcn,

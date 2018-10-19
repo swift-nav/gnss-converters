@@ -23,7 +23,7 @@
 #include <libsbp/sbp.h>
 
 /* Write the RTCM frame to STDOUT. */
-static void cb_sbp_to_rtcm(u8 *buffer, u8 n, void *context) {
+static void cb_sbp_to_rtcm(u8 *buffer, u16 n, void *context) {
   (void)(context);
 
   ssize_t numwritten = write(STDOUT_FILENO, buffer, n);
