@@ -283,7 +283,6 @@ void sbp2nmea_init(struct sbp_nmea_state *state,
   state->base_sender_id = 0;
 
   state->gpgga_last_tow = TOW_INVALID;
-  state->gpgsv_last_tow = TOW_INVALID;
   state->gprmc_last_tow = TOW_INVALID;
   state->gpvtg_last_tow = TOW_INVALID;
   state->gphdt_last_tow = TOW_INVALID;
@@ -298,7 +297,6 @@ void sbp2nmea_init(struct sbp_nmea_state *state,
   state->obs_time.tow = 0;
 
   state->gpgga_rate = 0;
-  state->gpgsv_rate = 0;
   state->gprmc_rate = 0;
   state->gpvtg_rate = 0;
   state->gphdt_rate = 0;

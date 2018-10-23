@@ -230,6 +230,21 @@ void get_utc_time_string(bool time,
                          u8 size) {
   char *buf_end = utc_str + size;
 
+  if (sbp_utc_time->flags == 0) {
+    /* print empty fields */
+    if (time) {
+      vsnprintf_wrap(&utc_str, buf_end, ",");
+    }
+    if (date) {
+      if (trunc_date) {
+        vsnprintf_wrap(&utc_str, buf_end, ",");
+      } else {
+        vsnprintf_wrap(&utc_str, buf_end, ",,,");
+      }
+    }
+    return;
+  }
+
   msg_utc_time_t rounded_utc_time = *sbp_utc_time;
   round_utc_time(&rounded_utc_time);
 
