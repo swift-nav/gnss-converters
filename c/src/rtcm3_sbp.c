@@ -128,7 +128,7 @@ static u16 sbp_2_rtcm_sender_id(u16 sbp_id) {
   return sbp_id & 0x0FFF;
 }
 
-static void rtcm2sbp_decode_payload(const uint8_t *payload,
+void rtcm2sbp_decode_payload(const uint8_t *payload,
                                     uint32_t payload_length,
                                     struct rtcm3_sbp_state *state) {
   (void)payload_length;
