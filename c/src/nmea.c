@@ -360,8 +360,9 @@ void send_gpgga(const struct sbp_nmea_state *state) {
     NMEA_SENTENCE_PRINTF(",,,M,,M,");
   }
 
-  if ((fix_type == NMEA_GGA_QI_DGPS) || (fix_type == NMEA_GGA_QI_FLOAT) ||
-      (fix_type == NMEA_GGA_QI_RTK)) {
+  if ((fix_type == NMEA_GGA_QI_DGPS &&
+       ((sbp_pos_llh->flags & POSITION_MODE_MASK) != POSITION_MODE_SBAS)) ||
+      (fix_type == NMEA_GGA_QI_FLOAT) || (fix_type == NMEA_GGA_QI_RTK)) {
     NMEA_SENTENCE_PRINTF(
         "%.1f,%04d",
         sbp_age->age * 0.1,
