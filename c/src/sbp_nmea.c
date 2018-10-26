@@ -30,10 +30,13 @@ bool gpgga_ready(struct sbp_nmea_state *state) {
 }
 
 bool gsa_ready(struct sbp_nmea_state *state) {
+  /* GSA message is ready to send when the last message of OBS sequence matching
+   * the DOP message has been received */
   if ((state->count == state->total - 1) &&
-      state->obs_time.tow != state->gsa_last_tow) {
-    state->gsa_last_tow = state->obs_time.tow;
-    state->total = 0;
+      state->sbp_utc_time.tow != state->gsa_last_tow &&
+      state->sbp_utc_time.tow == state->sbp_dops.tow &&
+      state->sbp_utc_time.tow == state->obs_time.tow) {
+    state->gsa_last_tow = state->sbp_utc_time.tow;
     return true;
   }
   return false;
@@ -69,7 +72,7 @@ bool gpgll_ready(struct sbp_nmea_state *state) {
 
 bool gpzda_ready(struct sbp_nmea_state *state) {
   if (state->sbp_utc_time.tow != state->gpzda_last_tow) {
-    state->gpzda_last_tow = state->sbp_gps_time.tow;
+    state->gpzda_last_tow = state->sbp_utc_time.tow;
     return true;
   }
   return false;
@@ -87,37 +90,37 @@ void check_nmea_send(struct sbp_nmea_state *state) {
   /* Check collaborative time stamps for all messages */
   if (gpgga_ready(state)) {
     if (check_nmea_rate(
-            state->gpgga_rate, state->sbp_gps_time.tow, state->soln_freq)) {
+            state->gpgga_rate, state->sbp_utc_time.tow, state->soln_freq)) {
       send_gpgga(state);
     }
   }
   if (gsa_ready(state)) {
     if (check_nmea_rate(
-            state->gsa_rate, state->obs_time.tow, state->soln_freq)) {
+            state->gsa_rate, state->sbp_utc_time.tow, state->soln_freq)) {
       send_gsa(state);
     }
   }
   if (gprmc_ready(state)) {
     if (check_nmea_rate(
-            state->gprmc_rate, state->sbp_gps_time.tow, state->soln_freq)) {
+            state->gprmc_rate, state->sbp_utc_time.tow, state->soln_freq)) {
       send_gprmc(state);
     }
   }
   if (gpvtg_ready(state)) {
     if (check_nmea_rate(
-            state->gpvtg_rate, state->sbp_gps_time.tow, state->soln_freq)) {
+            state->gpvtg_rate, state->sbp_utc_time.tow, state->soln_freq)) {
       send_gpvtg(state);
     }
   }
   if (gpgll_ready(state)) {
     if (check_nmea_rate(
-            state->gpgll_rate, state->sbp_gps_time.tow, state->soln_freq)) {
+            state->gpgll_rate, state->sbp_utc_time.tow, state->soln_freq)) {
       send_gpgll(state);
     }
   }
   if (gpzda_ready(state)) {
     if (check_nmea_rate(
-            state->gpzda_rate, state->sbp_gps_time.tow, state->soln_freq)) {
+            state->gpzda_rate, state->sbp_utc_time.tow, state->soln_freq)) {
       send_gpzda(state);
     }
   }
@@ -188,10 +191,7 @@ void unpack_obs_header(const observation_header_t *header,
                        sbp_gps_time_t *obs_time,
                        u8 *total,
                        u8 *count) {
-  obs_time->wn = header->t.wn;
-  obs_time->tow = round(((double)header->t.tow) / 1e3 +
-                        ((double)header->t.ns_residual) / 1e9);
-  sbp_normalize_gps_time(obs_time);
+  *obs_time = header->t;
   *total = (header->n_obs >> MSG_OBS_HEADER_SEQ_SHIFT);
   *count = (header->n_obs & MSG_OBS_HEADER_SEQ_MASK);
 }
@@ -283,7 +283,6 @@ void sbp2nmea_init(struct sbp_nmea_state *state,
   state->base_sender_id = 0;
 
   state->gpgga_last_tow = TOW_INVALID;
-  state->gpgsv_last_tow = TOW_INVALID;
   state->gprmc_last_tow = TOW_INVALID;
   state->gpvtg_last_tow = TOW_INVALID;
   state->gphdt_last_tow = TOW_INVALID;
@@ -298,7 +297,6 @@ void sbp2nmea_init(struct sbp_nmea_state *state,
   state->obs_time.tow = 0;
 
   state->gpgga_rate = 0;
-  state->gpgsv_rate = 0;
   state->gprmc_rate = 0;
   state->gpvtg_rate = 0;
   state->gphdt_rate = 0;

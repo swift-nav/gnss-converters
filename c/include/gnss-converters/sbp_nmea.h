@@ -43,7 +43,6 @@ struct sbp_nmea_state {
   uint16_t base_sender_id;
 
   uint32_t gpgga_last_tow;
-  uint32_t gpgsv_last_tow;
   uint32_t gprmc_last_tow;
   uint32_t gpvtg_last_tow;
   uint32_t gphdt_last_tow;
@@ -52,7 +51,6 @@ struct sbp_nmea_state {
   uint32_t gsa_last_tow;
 
   int gpgga_rate;
-  int gpgsv_rate;
   int gprmc_rate;
   int gpvtg_rate;
   int gphdt_rate;
@@ -93,8 +91,6 @@ void sbp2nmea_obs(const msg_obs_t *sbp_obs,
                   struct sbp_nmea_state *state);
 
 void sbp2nmea_set_gpgga_rate(const int gpgga_rate,
-                             struct sbp_nmea_state *state);
-void sbp2nmea_set_gpgsv_rate(const int gpgsv_rate,
                              struct sbp_nmea_state *state);
 void sbp2nmea_set_gprmc_rate(const int gprmc_rate,
                              struct sbp_nmea_state *state);
