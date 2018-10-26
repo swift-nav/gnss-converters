@@ -455,21 +455,18 @@ static talker_id_t sid_to_talker_id(const sbp_gnss_signal_t sid) {
  *
  * \param prns         Array of PRNs to output.
  * \param num_prns     Number of valid PRNs in array.
- * \param sbp_pos_llh  Pos data pointer.
  * \param sbp_dops     Pointer to SBP MSG DOP struct (PDOP, HDOP, VDOP).
  * \param talker       Talker ID to use.
  */
 void send_gsa_print(u16 *prns,
                     const u8 num_prns,
-                    const msg_pos_llh_t *sbp_pos_llh,
                     const msg_dops_t *sbp_dops,
                     const char *talker,
                     const struct sbp_nmea_state *state) {
   assert(prns);
   assert(sbp_dops);
-  assert(sbp_pos_llh);
 
-  bool fix = POSITION_MODE_NONE != (sbp_pos_llh->flags & POSITION_MODE_MASK);
+  bool fix = POSITION_MODE_NONE != (sbp_dops->flags & POSITION_MODE_MASK);
 
   /* Our fix is always 3D */
   char fix_mode = fix ? '3' : '1';
@@ -515,14 +512,10 @@ void send_gsa_print(u16 *prns,
  *       used in a combined solution and each shall have the PDOP, HDOP and VDOP
  *       for the combined satellites used in the position.
  *
- * \param sbp_pos      Pointer to position data
- * \param sbp_dops     Pointer to DOPS data
- * \param n_meas       Number of measurements
- * \param nav_meas     Array of navigation measurements
+ * \param sbp_nmea_state      Pointer to the converter state
  */
 void send_gsa(const struct sbp_nmea_state *state) {
   assert(state);
-  const msg_pos_llh_t *sbp_pos = &state->sbp_pos_llh;
   const msg_dops_t *sbp_dops = &state->sbp_dops;
   const u8 n_obs = state->num_obs;
   const sbp_gnss_signal_t *nav_sids = state->nav_sids;
@@ -571,12 +564,8 @@ void send_gsa(const struct sbp_nmea_state *state) {
   /* Check if no SVs identified */
   if (0 == constellations) {
     /* At bare minimum, print empty GPGSA and be done with it */
-    send_gsa_print(prns[TALKER_ID_GP],
-                   num_prns[TALKER_ID_GP],
-                   sbp_pos,
-                   sbp_dops,
-                   "GP",
-                   state);
+    send_gsa_print(
+        prns[TALKER_ID_GP], num_prns[TALKER_ID_GP], sbp_dops, "GP", state);
     return;
   }
 
@@ -592,7 +581,6 @@ void send_gsa(const struct sbp_nmea_state *state) {
 
     send_gsa_print(prns[i],
                    num_prns[i],
-                   sbp_pos,
                    sbp_dops,
                    use_gn ? "GN" : talker_id_to_str(i),
                    state);
