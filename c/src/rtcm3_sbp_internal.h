@@ -82,7 +82,7 @@ extern bool rtcm3_debug;
 
 /* How long to wait after receiving an MSM message before accepting the legacy
  * 1002/1004/1010/1012 observation messages again */
-#define MSM_TIMEOUT_SEC 60
+#define MSM_TIMEOUT_SEC 5
 
 /* Third party receiver bias value - these have been sourced from RTCM1230
  * message, the data can be found with the unit tests*/

@@ -509,7 +509,7 @@ void sbp_callback_msm_switching(
   (void)length;
   (void)sender_id;
   (void)context;
-  const u32 MAX_OBS_GAP_S = MSM_TIMEOUT_SEC + 5;
+  const u32 MAX_OBS_GAP_S = MSM_TIMEOUT_SEC + 10;
 
   if (msg_id == SBP_MSG_OBS) {
     msg_obs_t *sbp_obs = (msg_obs_t *)buffer;
