@@ -227,6 +227,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       if (RC_OK == rtcm3_decode_glo_eph(&payload[byte], &msg_eph)) {
         msg_ephemeris_glo_t sbp_glo_eph;
         rtcm3_glo_eph_to_sbp(&msg_eph, &sbp_glo_eph, state);
+        rtcm2sbp_set_glo_fcn(sbp_glo_eph.common.sid, sbp_glo_eph.fcn, state);
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GLO,
                               (u8)sizeof(sbp_glo_eph),
                               (u8 *)&sbp_glo_eph,
@@ -1505,9 +1506,10 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
       if (msg->header.cell_mask[sat * num_sigs + sig]) {
         sbp_gnss_signal_t sid;
         const rtcm_msm_signal_data *data = &msg->signals[cell_index];
-        if (get_sid_from_msm(&msg->header, sat, sig, &sid, state) &&
-            data->flags.valid_pr && data->flags.valid_cp &&
-            !unsupported_signal(&sid)) {
+        bool sid_valid = get_sid_from_msm(&msg->header, sat, sig, &sid, state);
+        bool supported = !unsupported_signal(&sid);
+        if (sid_valid && supported &&
+            data->flags.valid_pr && data->flags.valid_cp) {
           if (new_sbp_obs->header.n_obs >= MAX_OBS_PER_EPOCH) {
             send_buffer_full_error(state);
             return;
@@ -1815,7 +1817,7 @@ static void rtcm_init_obs_message(rtcm_obs_message *msg,
     msg->header.msg_num = 1012;
     /* GLO epoch time DF034 uint32 27 */
     msg->header.tow_ms =
-        (u32)(compute_glo_tod(state->sbp_header.t.tow, state) * S_TO_MS);
+        (u32) rint(compute_glo_tod(state->sbp_header.t.tow, state) * S_TO_MS);
   }
   /* Station Id DF003 uint16 12*/
   msg->header.stn_id = station_id;
