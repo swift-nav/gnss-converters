@@ -44,6 +44,9 @@
 /* BDS NMEA SV IDs are from 401 to 437 */
 #define NMEA_SV_ID_OFFSET_BDS2 (400)
 
+/* QZSS NMEA SV IDs are from 193 to 197 */
+#define NMEA_SV_ID_OFFSET_QZSS (192)
+
 /* Max SVs reported per GSA message */
 #define GSA_MAX_SV 12
 
@@ -403,6 +406,8 @@ static u16 nmea_get_id(const sbp_gnss_signal_t sid) {
       id = NMEA_SV_ID_OFFSET_SBAS + sid.sat;
       break;
     case CONSTELLATION_QZS:
+      id = NMEA_SV_ID_OFFSET_QZSS + sid.sat;
+      break;
     case CONSTELLATION_COUNT:
     case CONSTELLATION_INVALID:
     default:
