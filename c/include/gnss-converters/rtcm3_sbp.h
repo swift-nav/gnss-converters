@@ -13,14 +13,14 @@
 #ifndef GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
 #define GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <libsbp/observation.h>
 #include <rtcm3/messages.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/signal.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* This is the maximum number of SBP observations possible per epoch:
    - Max number of observation messages comes from the 4 bits assigned to the
