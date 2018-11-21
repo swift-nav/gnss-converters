@@ -93,6 +93,10 @@ struct rtcm3_out_state {
   bool send_legacy_obs;
   bool send_msm_obs;
   msm_enum msm_type;
+
+  double ant_height; /* Antenna height above ARP, meters */
+  char ant_descriptor[RTCM_MAX_STRING_LEN];
+  char rcv_descriptor[RTCM_MAX_STRING_LEN];
 };
 
 void rtcm2sbp_decode_frame(const uint8_t *frame,
@@ -134,6 +138,12 @@ void sbp2rtcm_set_rtcm_out_mode(msm_enum value, struct rtcm3_out_state *state);
 void sbp2rtcm_set_glo_fcn(sbp_gnss_signal_t sid,
                           u8 sbp_fcn,
                           struct rtcm3_out_state *state);
+
+void sbp2rtcm_set_ant_height(double ant_height, struct rtcm3_out_state *state);
+
+void sbp2rtcm_set_rcv_ant_descriptors(const char *ant_descriptor,
+                                      const char *rcv_descriptor,
+                                      struct rtcm3_out_state *state);
 
 void sbp2rtcm_base_pos_ecef_cb(const u16 sender_id,
                                const u8 len,

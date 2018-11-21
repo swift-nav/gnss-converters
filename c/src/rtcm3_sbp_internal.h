@@ -209,14 +209,19 @@ extern bool rtcm3_debug;
 void rtcm3_1005_to_sbp(const rtcm_msg_1005 *rtcm_1005,
                        msg_base_pos_ecef_t *sbp_base_pos);
 void sbp_to_rtcm3_1005(const msg_base_pos_ecef_t *sbp_base_pos,
-                       u16 sender_id,
-                       rtcm_msg_1005 *rtcm_1005);
+                       rtcm_msg_1005 *rtcm_1005,
+                       const struct rtcm3_out_state *state);
 
 void rtcm3_1006_to_sbp(const rtcm_msg_1006 *rtcm_1006,
                        msg_base_pos_ecef_t *sbp_base_pos);
 void sbp_to_rtcm3_1006(const msg_base_pos_ecef_t *sbp_base_pos,
-                       u16 station_id,
-                       rtcm_msg_1006 *rtcm_1006);
+                       rtcm_msg_1006 *rtcm_1006,
+                       const struct rtcm3_out_state *state);
+
+void generate_rtcm3_1033(rtcm_msg_1033 *rtcm_1033,
+                         const struct rtcm3_out_state *state);
+void rtcm3_1033_to_1008(const rtcm_msg_1033 *rtcm_1033,
+                        rtcm_msg_1008 *rtcm_1008);
 
 void rtcm3_1033_to_sbp(const rtcm_msg_1033 *rtcm_1033,
                        msg_glo_biases_t *sbp_glo_bias);
@@ -224,8 +229,8 @@ void rtcm3_1033_to_sbp(const rtcm_msg_1033 *rtcm_1033,
 void rtcm3_1230_to_sbp(const rtcm_msg_1230 *rtcm_1230,
                        msg_glo_biases_t *sbp_glo_bias);
 void sbp_to_rtcm3_1230(const msg_glo_biases_t *sbp_glo_bias,
-                       u16 sender_id,
-                       rtcm_msg_1230 *rtcm_1230);
+                       rtcm_msg_1230 *rtcm_1230,
+                       const struct rtcm3_out_state *state);
 
 void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
                   msg_obs_t *new_sbp_obs,
