@@ -139,7 +139,7 @@ void sbp2rtcm_set_glo_fcn(sbp_gnss_signal_t sid,
                           u8 sbp_fcn,
                           struct rtcm3_out_state *state);
 
-void sbp2rtcm_set_ant_height(double ant_height, struct rtcm3_out_state *state);
+bool sbp2rtcm_set_ant_height(double ant_height, struct rtcm3_out_state *state);
 
 void sbp2rtcm_set_rcv_ant_descriptors(const char *ant_descriptor,
                                       const char *rcv_descriptor,

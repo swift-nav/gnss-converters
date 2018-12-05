@@ -1223,9 +1223,13 @@ void sbp2rtcm_set_glo_fcn(sbp_gnss_signal_t sid,
   state->glo_sv_id_fcn_map[sid.sat] = sbp_fcn_to_rtcm(sbp_fcn);
 }
 
-void sbp2rtcm_set_ant_height(const double ant_height,
+bool sbp2rtcm_set_ant_height(const double ant_height,
                              struct rtcm3_out_state *state) {
+  if (ant_height < 0.0 || ant_height > RTCM_1006_MAX_ANTENNA_HEIGHT_M) {
+    return false;
+  }
   state->ant_height = ant_height;
+  return true;
 }
 
 void sbp2rtcm_set_rcv_ant_descriptors(const char *ant_descriptor,
