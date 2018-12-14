@@ -77,6 +77,7 @@ struct rtcm3_sbp_state {
 struct rtcm3_out_state {
   s8 leap_seconds;
   bool leap_second_known;
+  bool ant_known;
   void (*cb_sbp_to_rtcm)(u8 *buffer, u16 length, void *context);
   u16 sender_id;
   observation_header_t sbp_header;

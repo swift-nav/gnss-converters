@@ -104,6 +104,7 @@ void sbp2rtcm_init(struct rtcm3_out_state *state,
   state->send_msm_obs = true;
   state->msm_type = MSM5;
 
+  state->ant_known = false;
   state->ant_height = 0.0;
   memset(state->ant_descriptor, 0, sizeof(state->ant_descriptor));
   memset(state->rcv_descriptor, 0, sizeof(state->rcv_descriptor));
@@ -1229,6 +1230,7 @@ bool sbp2rtcm_set_ant_height(const double ant_height,
     return false;
   }
   state->ant_height = ant_height;
+  state->ant_known = true;
   return true;
 }
 
@@ -1237,6 +1239,7 @@ void sbp2rtcm_set_rcv_ant_descriptors(const char *ant_descriptor,
                                       struct rtcm3_out_state *state) {
   strncpy(state->ant_descriptor, ant_descriptor, sizeof(state->ant_descriptor));
   strncpy(state->rcv_descriptor, rcv_descriptor, sizeof(state->rcv_descriptor));
+  state->ant_known = true;
 };
 
 void compute_gps_message_time(u32 tow_ms,
@@ -1717,15 +1720,17 @@ void sbp2rtcm_base_pos_ecef_cb(const u16 sender_id,
   u16 frame_size = encode_rtcm3_frame(&msg_1006, 1006, frame);
   state->cb_sbp_to_rtcm(frame, frame_size, state->context);
 
-  /* generate and send the receiver and antenna description messages */
-  generate_rtcm3_1033(&msg_1033, state);
-  rtcm3_1033_to_1008(&msg_1033, &msg_1008);
+  if (state->ant_known) {
+    /* generate and send the receiver and antenna description messages */
+    generate_rtcm3_1033(&msg_1033, state);
+    rtcm3_1033_to_1008(&msg_1033, &msg_1008);
 
-  frame_size = encode_rtcm3_frame(&msg_1008, 1008, frame);
-  state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+    frame_size = encode_rtcm3_frame(&msg_1008, 1008, frame);
+    state->cb_sbp_to_rtcm(frame, frame_size, state->context);
 
-  frame_size = encode_rtcm3_frame(&msg_1033, 1033, frame);
-  state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+    frame_size = encode_rtcm3_frame(&msg_1033, 1033, frame);
+    state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+  }
 }
 
 void sbp2rtcm_glo_biases_cb(const u16 sender_id,
