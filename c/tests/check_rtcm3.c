@@ -452,6 +452,21 @@ void sbp_callback_1012_first(
   }
 }
 
+void sbp_callback_glo_5hz(
+    u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
+  (void)length;
+  (void)buffer;
+  (void)sender_id;
+  (void)context;
+  if (msg_id == SBP_MSG_OBS) {
+    msg_obs_t *msg = (msg_obs_t *)buffer;
+    u8 num_sbp_msgs = msg->header.n_obs >> 4;
+    /* every epoch should have 4 observation messages */
+    ck_assert_uint_ge(num_sbp_msgs, 4);
+    update_obs_time(msg);
+  }
+}
+
 void sbp_callback_glo_day_rollover(
     u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
@@ -802,6 +817,15 @@ END_TEST
 START_TEST(test_1012_first) {
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/1012_first.rtcm",
              sbp_callback_1012_first,
+             current_time);
+}
+END_TEST
+
+START_TEST(test_glo_5hz) {
+  current_time.wn = 2036;
+  current_time.tow = 204236;
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/piksi-5Hz.rtcm3",
+             sbp_callback_glo_5hz,
              current_time);
 }
 END_TEST
@@ -1193,6 +1217,7 @@ Suite *rtcm3_suite(void) {
   tcase_add_test(tc_core, test_gps_time);
   tcase_add_test(tc_core, test_glo_day_rollover);
   tcase_add_test(tc_core, test_1012_first);
+  tcase_add_test(tc_core, test_glo_5hz);
   suite_add_tcase(s, tc_core);
 
   TCase *tc_biases = tcase_create("Biases");

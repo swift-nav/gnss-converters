@@ -1298,15 +1298,16 @@ void compute_glo_time(u32 tod_ms,
 
   /* Approximate DOW from the reference GPS time */
   u8 glo_dow = rover_time->tow / SEC_IN_DAY;
-  s32 glo_tod_sec = (u32)(tod_ms * MS_TO_S) - UTC_SU_OFFSET * SEC_IN_HOUR;
+  s32 glo_tod_ms = tod_ms - UTC_SU_OFFSET * SEC_IN_HOUR * S_TO_MS;
 
   obs_time->wn = rover_time->wn;
-  s32 tow = glo_dow * SEC_IN_DAY + glo_tod_sec + state->leap_seconds;
-  while (tow < 0) {
-    tow += SEC_IN_WEEK;
+  s32 tow_ms = glo_dow * SEC_IN_DAY * S_TO_MS + glo_tod_ms +
+               state->leap_seconds * S_TO_MS;
+  while (tow_ms < 0) {
+    tow_ms += SEC_IN_WEEK * S_TO_MS;
     obs_time->wn -= 1;
   }
-  obs_time->tow = tow;
+  obs_time->tow = tow_ms * MS_TO_S;
 
   normalize_gps_time(obs_time);
 
@@ -1791,7 +1792,7 @@ static void msm_init_obs_message(rtcm_msm_message *msg,
   if (RTCM_CONSTELLATION_GLO == cons) {
     /* GLO epoch time DF034 uint32 27 */
     msg->header.tow_ms =
-        (u32)(compute_glo_tod(state->sbp_header.t.tow, state) * S_TO_MS);
+        (u32)round(compute_glo_tod(state->sbp_header.t.tow, state) * S_TO_MS);
   } else if (RTCM_CONSTELLATION_BDS == cons) {
     gps_tow_to_beidou_tow(&msg->header.tow_ms);
   }
