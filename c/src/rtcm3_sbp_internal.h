@@ -44,7 +44,7 @@
 #define CODE_WARNING_FMT_STRING "Unsupported code received from base: %s"
 
 #define MS_TO_S 1e-3
-#define S_TO_MS 1e3
+#define S_TO_MS 1e+3
 
 extern bool rtcm3_debug;
 

@@ -1519,7 +1519,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
 
     /* Build an SBP time stamp */
     new_sbp_obs->header.t.wn = obs_time.wn;
-    new_sbp_obs->header.t.tow = obs_time.tow * S_TO_MS;
+    new_sbp_obs->header.t.tow = rint(obs_time.tow * S_TO_MS);
     new_sbp_obs->header.t.ns_residual = 0;
 
     rtcm3_msm_to_sbp(new_rtcm_obs, new_sbp_obs, state);
