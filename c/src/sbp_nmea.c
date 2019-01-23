@@ -178,15 +178,6 @@ void sbp2nmea_set_base_id(const uint16_t base_sender_id,
   state->base_sender_id = base_sender_id;
 }
 
-void sbp_normalize_gps_time(sbp_gps_time_t *sbp_obs_time) {
-  gps_time_t obs_time;
-  obs_time.wn = sbp_obs_time->wn;
-  obs_time.tow = sbp_obs_time->tow;
-  normalize_gps_time(&obs_time);
-  sbp_obs_time->wn = obs_time.wn;
-  sbp_obs_time->tow = obs_time.tow;
-}
-
 void unpack_obs_header(const observation_header_t *header,
                        sbp_gps_time_t *obs_time,
                        u8 *total,

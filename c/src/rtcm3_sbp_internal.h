@@ -44,7 +44,7 @@
 #define CODE_WARNING_FMT_STRING "Unsupported code received from base: %s"
 
 #define MS_TO_S 1e-3
-#define S_TO_MS 1e+3
+#define S_TO_MS 1000
 
 extern bool rtcm3_debug;
 
@@ -262,8 +262,8 @@ void compute_glo_time(u32 tod_ms,
                       const gps_time_t *rover_time,
                       struct rtcm3_sbp_state *state);
 
-double compute_glo_tod(uint32_t gps_tow_ms,
-                       const struct rtcm3_out_state *state);
+uint32_t compute_glo_tod_ms(uint32_t gps_tow_ms,
+                            const struct rtcm3_out_state *state);
 
 void sbp_buffer_to_msm(const struct rtcm3_out_state *state);
 

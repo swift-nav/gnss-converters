@@ -19,19 +19,19 @@
 #define THIRD_SISA_STEP 100
 #define FOURTH_SISA_STEP 125
 
-#define FIRST_SISA_RESOLUTION 0.01
-#define SECOND_SISA_RESOLUTION 0.02
-#define THIRD_SISA_RESOLUTION 0.04
-#define FOURTH_SISA_RESOLUTION 0.16
+#define FIRST_SISA_RESOLUTION 0.01f
+#define SECOND_SISA_RESOLUTION 0.02f
+#define THIRD_SISA_RESOLUTION 0.04f
+#define FOURTH_SISA_RESOLUTION 0.16f
 
-#define FIRST_SISA_MIN_METERS 0.0
-#define SECOND_SISA_MIN_METERS 0.5
-#define THIRD_SISA_MIN_METERS 1.0
-#define FOURTH_SISA_MIN_METERS 2.0
+#define FIRST_SISA_MIN_METERS 0.0f
+#define SECOND_SISA_MIN_METERS 0.5f
+#define THIRD_SISA_MIN_METERS 1.0f
+#define FOURTH_SISA_MIN_METERS 2.0f
 
-#define GALILEO_TOC_RESOLUTION 60.0
-#define GPS_TOC_RESOLUTION 16.0
-#define BEIDOU_TOC_RESOLUTION 8.0
+#define GALILEO_TOC_RESOLUTION 60.0f
+#define GPS_TOC_RESOLUTION 16.0f
+#define BEIDOU_TOC_RESOLUTION 8.0f
 
 float convert_ura_to_uri(uint8_t ura) {
   /* Convert between RTCM/GPS URA ("User Range Accuracy") index to a number in
@@ -40,15 +40,15 @@ float convert_ura_to_uri(uint8_t ura) {
    * Indices 1, 3, and 5 are hard-coded according to spec, and 15 is hard-coded
    * according to SBP/Piksi convention. */
   if (ura == 1) {
-    return 2.8;
+    return 2.8f;
   } else if (ura == 3) {
-    return 5.7;
+    return 5.7f;
   } else if (ura == 5) {
-    return 11.3;
+    return 11.3f;
   } else if (ura <= 6) {
-    return pow(2, (1 + (ura / 2)));
+    return powf(2, (1 + (ura / 2)));
   } else if (ura > 6 && ura < 15) {
-    return pow(2, (ura - 2));
+    return powf(2, (ura - 2));
   } else if (ura == 15) {
     return 6144;
   }
@@ -63,37 +63,37 @@ float convert_glo_ft_to_meters(const uint8_t ft) {
    * according to SBP/Piksi convention. */
   switch (ft) {
     case 0:
-      return 1.0;
+      return 1.0f;
     case 1:
-      return 2.0;
+      return 2.0f;
     case 2:
-      return 2.5;
+      return 2.5f;
     case 3:
-      return 4.0;
+      return 4.0f;
     case 4:
-      return 5.0;
+      return 5.0f;
     case 5:
-      return 7.0;
+      return 7.0f;
     case 6:
-      return 10.0;
+      return 10.0f;
     case 7:
-      return 12.0;
+      return 12.0f;
     case 8:
-      return 14.0;
+      return 14.0f;
     case 9:
-      return 16.0;
+      return 16.0f;
     case 10:
-      return 32.0;
+      return 32.0f;
     case 11:
-      return 64.0;
+      return 64.0f;
     case 12:
-      return 128.0;
+      return 128.0f;
     case 13:
-      return 256.0;
+      return 256.0f;
     case 14:
-      return 512.0;
+      return 512.0f;
     case 15:
-      return 6144.0;
+      return 6144.0f;
     default:
       return -1;
   }
@@ -124,37 +124,37 @@ decimal place i.e. 2.8, 5.7 and 11.3) , N=
 risk) */
   switch (ura) {
     case 0:
-      return 2.0;
+      return 2.0f;
     case 1:
-      return 2.8;
+      return 2.8f;
     case 2:
-      return 4.0;
+      return 4.0f;
     case 3:
-      return 5.7;
+      return 5.7f;
     case 4:
-      return 8.0;
+      return 8.0f;
     case 5:
-      return 11.3;
+      return 11.3f;
     case 6:
-      return 16.0;
+      return 16.0f;
     case 7:
-      return 32.0;
+      return 32.0f;
     case 8:
-      return 64.0;
+      return 64.0f;
     case 9:
-      return 128.0;
+      return 128.0f;
     case 10:
-      return 256.0;
+      return 256.0f;
     case 11:
-      return 512.0;
+      return 512.0f;
     case 12:
-      return 1024.0;
+      return 1024.0f;
     case 13:
-      return 2048.0;
+      return 2048.0f;
     case 14:
-      return 4096.0;
+      return 4096.0f;
     case 15:
-      return 8192.0;
+      return 8192.0f;
     default:
       return -1;
   }
@@ -232,14 +232,14 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gps_eph->common.valid = msg_eph->kepler.iodc == msg_eph->kepler.iode;
   sbp_gps_eph->common.health_bits = msg_eph->health_bits;
 
-  sbp_gps_eph->tgd = msg_eph->kepler.tgd_gps_s * C_1_2P31;
+  sbp_gps_eph->tgd = (float)(msg_eph->kepler.tgd_gps_s * C_1_2P31);
 
-  sbp_gps_eph->c_rs = msg_eph->kepler.crs * C_1_2P5;
-  sbp_gps_eph->c_rc = msg_eph->kepler.crc * C_1_2P5;
-  sbp_gps_eph->c_uc = msg_eph->kepler.cuc * C_1_2P29;
-  sbp_gps_eph->c_us = msg_eph->kepler.cus * C_1_2P29;
-  sbp_gps_eph->c_ic = msg_eph->kepler.cic * C_1_2P29;
-  sbp_gps_eph->c_is = msg_eph->kepler.cis * C_1_2P29;
+  sbp_gps_eph->c_rs = (float)(msg_eph->kepler.crs * C_1_2P5);
+  sbp_gps_eph->c_rc = (float)(msg_eph->kepler.crc * C_1_2P5);
+  sbp_gps_eph->c_uc = (float)(msg_eph->kepler.cuc * C_1_2P29);
+  sbp_gps_eph->c_us = (float)(msg_eph->kepler.cus * C_1_2P29);
+  sbp_gps_eph->c_ic = (float)(msg_eph->kepler.cic * C_1_2P29);
+  sbp_gps_eph->c_is = (float)(msg_eph->kepler.cis * C_1_2P29);
 
   sbp_gps_eph->dn = msg_eph->kepler.dn * C_1_2P43 * M_PI;
   sbp_gps_eph->m0 = msg_eph->kepler.m0 * C_1_2P31 * M_PI;
@@ -251,15 +251,15 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gps_eph->inc = msg_eph->kepler.inc * C_1_2P31 * M_PI;
   sbp_gps_eph->inc_dot = msg_eph->kepler.inc_dot * C_1_2P43 * M_PI;
 
-  sbp_gps_eph->af0 = msg_eph->kepler.af0 * C_1_2P31;
-  sbp_gps_eph->af1 = msg_eph->kepler.af1 * C_1_2P43;
-  sbp_gps_eph->af2 = msg_eph->kepler.af2 * C_1_2P55;
+  sbp_gps_eph->af0 = (float)(msg_eph->kepler.af0 * C_1_2P31);
+  sbp_gps_eph->af1 = (float)(msg_eph->kepler.af1 * C_1_2P43);
+  sbp_gps_eph->af2 = (float)(msg_eph->kepler.af2 * C_1_2P55);
 
   sbp_gps_eph->iode = msg_eph->kepler.iode;
   sbp_gps_eph->iodc = msg_eph->kepler.iodc;
 
   sbp_gps_eph->toc.wn = (state->time_from_rover_obs.wn & 0xFC00) + msg_eph->wn;
-  sbp_gps_eph->toc.tow = msg_eph->kepler.toc * GPS_TOC_RESOLUTION;
+  sbp_gps_eph->toc.tow = (u32)rint(msg_eph->kepler.toc * GPS_TOC_RESOLUTION);
 }
 
 void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
@@ -271,7 +271,7 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
                    &state->time_from_rover_obs,
                    state);
   sbp_glo_eph->common.toe.wn = toe.wn;
-  sbp_glo_eph->common.toe.tow = rint(toe.tow);
+  sbp_glo_eph->common.toe.tow = (u32)rint(toe.tow);
   sbp_glo_eph->common.sid.sat = msg_eph->sat_id;
   sbp_glo_eph->common.sid.code = CODE_GLO_L1OF;
   sbp_glo_eph->common.ura = convert_glo_ft_to_meters(msg_eph->ura);
@@ -280,9 +280,9 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_glo_eph->common.valid = 1;
   sbp_glo_eph->common.health_bits = msg_eph->health_bits;
 
-  sbp_glo_eph->gamma = msg_eph->glo.gamma * C_1_2P40;
-  sbp_glo_eph->tau = msg_eph->glo.tau * C_1_2P30;
-  sbp_glo_eph->d_tau = msg_eph->glo.d_tau * C_1_2P30;
+  sbp_glo_eph->gamma = (float)(msg_eph->glo.gamma * C_1_2P40);
+  sbp_glo_eph->tau = (float)(msg_eph->glo.tau * C_1_2P30);
+  sbp_glo_eph->d_tau = (float)(msg_eph->glo.d_tau * C_1_2P30);
 
   sbp_glo_eph->pos[0] = msg_eph->glo.pos[0] * C_1_2P11 * 1000;
   sbp_glo_eph->pos[1] = msg_eph->glo.pos[1] * C_1_2P11 * 1000;
@@ -292,9 +292,9 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_glo_eph->vel[1] = msg_eph->glo.vel[1] * C_1_2P20 * 1000;
   sbp_glo_eph->vel[2] = msg_eph->glo.vel[2] * C_1_2P20 * 1000;
 
-  sbp_glo_eph->acc[0] = msg_eph->glo.acc[0] * C_1_2P30 * 1000;
-  sbp_glo_eph->acc[1] = msg_eph->glo.acc[1] * C_1_2P30 * 1000;
-  sbp_glo_eph->acc[2] = msg_eph->glo.acc[2] * C_1_2P30 * 1000;
+  sbp_glo_eph->acc[0] = (float)(msg_eph->glo.acc[0] * C_1_2P30 * 1000);
+  sbp_glo_eph->acc[1] = (float)(msg_eph->glo.acc[1] * C_1_2P30 * 1000);
+  sbp_glo_eph->acc[2] = (float)(msg_eph->glo.acc[2] * C_1_2P30 * 1000);
 
   sbp_glo_eph->fcn = msg_eph->glo.fcn + 1;
   sbp_glo_eph->iod = (msg_eph->glo.t_b * 15 * 60) & 127;
@@ -305,7 +305,8 @@ void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           struct rtcm3_sbp_state *state) {
   /* RTCM gives wn module 1024, so take the current time and mask the lower 10
    * bits */
-  sbp_gal_eph->common.toe.tow = msg_eph->toe * GALILEO_TOC_RESOLUTION;
+  sbp_gal_eph->common.toe.tow =
+      (u32)rint(msg_eph->toe * GALILEO_TOC_RESOLUTION);
   sbp_gal_eph->common.toe.wn =
       gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
   gps_time_match_weeks(
@@ -319,15 +320,15 @@ void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gal_eph->common.valid = 1;
   sbp_gal_eph->common.health_bits = msg_eph->health_bits;
 
-  sbp_gal_eph->bgd_e1e5a = msg_eph->kepler.tgd_gal_s[0] * C_1_2P32;
-  sbp_gal_eph->bgd_e1e5b = msg_eph->kepler.tgd_gal_s[1] * C_1_2P32;
+  sbp_gal_eph->bgd_e1e5a = (float)(msg_eph->kepler.tgd_gal_s[0] * C_1_2P32);
+  sbp_gal_eph->bgd_e1e5b = (float)(msg_eph->kepler.tgd_gal_s[1] * C_1_2P32);
 
-  sbp_gal_eph->c_rs = msg_eph->kepler.crs * C_1_2P5;
-  sbp_gal_eph->c_rc = msg_eph->kepler.crc * C_1_2P5;
-  sbp_gal_eph->c_uc = msg_eph->kepler.cuc * C_1_2P29;
-  sbp_gal_eph->c_us = msg_eph->kepler.cus * C_1_2P29;
-  sbp_gal_eph->c_ic = msg_eph->kepler.cic * C_1_2P29;
-  sbp_gal_eph->c_is = msg_eph->kepler.cis * C_1_2P29;
+  sbp_gal_eph->c_rs = (float)(msg_eph->kepler.crs * C_1_2P5);
+  sbp_gal_eph->c_rc = (float)(msg_eph->kepler.crc * C_1_2P5);
+  sbp_gal_eph->c_uc = (float)(msg_eph->kepler.cuc * C_1_2P29);
+  sbp_gal_eph->c_us = (float)(msg_eph->kepler.cus * C_1_2P29);
+  sbp_gal_eph->c_ic = (float)(msg_eph->kepler.cic * C_1_2P29);
+  sbp_gal_eph->c_is = (float)(msg_eph->kepler.cis * C_1_2P29);
 
   sbp_gal_eph->dn = msg_eph->kepler.dn * C_1_2P43 * M_PI;
   sbp_gal_eph->m0 = msg_eph->kepler.m0 * C_1_2P31 * M_PI;
@@ -341,13 +342,14 @@ void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
 
   sbp_gal_eph->af0 = msg_eph->kepler.af0 * C_1_2P34;
   sbp_gal_eph->af1 = msg_eph->kepler.af1 * C_1_2P46;
-  sbp_gal_eph->af2 = msg_eph->kepler.af2 * C_1_2P59;
+  sbp_gal_eph->af2 = (float)(msg_eph->kepler.af2 * C_1_2P59);
 
   sbp_gal_eph->iode = msg_eph->kepler.iode;
   sbp_gal_eph->iodc = msg_eph->kepler.iode;
 
   sbp_gal_eph->toc.wn = (state->time_from_rover_obs.wn & 0xFC00) + msg_eph->wn;
-  sbp_gal_eph->toc.tow = msg_eph->kepler.toc * GALILEO_TOC_RESOLUTION;
+  sbp_gal_eph->toc.tow =
+      (u32)rint(msg_eph->kepler.toc * GALILEO_TOC_RESOLUTION);
 }
 
 void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
@@ -358,12 +360,12 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
 
   sbp_bds_eph->common.toe.wn =
       gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
-  u32 tow_ms = msg_eph->toe * BEIDOU_TOC_RESOLUTION * SECS_MS;
+  u32 tow_ms = (u32)rint(msg_eph->toe * BEIDOU_TOC_RESOLUTION * SECS_MS);
   beidou_tow_to_gps_tow(&tow_ms);
   gps_time_t toe;
   compute_gps_message_time(tow_ms, &toe, &state->time_from_rover_obs);
   sbp_bds_eph->common.toe.wn = toe.wn;
-  sbp_bds_eph->common.toe.tow = rint(toe.tow);
+  sbp_bds_eph->common.toe.tow = (u32)rint(toe.tow);
 
   sbp_bds_eph->common.sid.sat = msg_eph->sat_id;
   sbp_bds_eph->common.sid.code = CODE_BDS2_B1;
@@ -373,15 +375,15 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_bds_eph->common.valid = 1;
   sbp_bds_eph->common.health_bits = msg_eph->health_bits;
 
-  sbp_bds_eph->tgd1 = msg_eph->kepler.tgd_bds_s[0] * 1e-10;
-  sbp_bds_eph->tgd2 = msg_eph->kepler.tgd_bds_s[1] * 1e-10;
+  sbp_bds_eph->tgd1 = (float)(msg_eph->kepler.tgd_bds_s[0] * 1e-10);
+  sbp_bds_eph->tgd2 = (float)(msg_eph->kepler.tgd_bds_s[1] * 1e-10);
 
-  sbp_bds_eph->c_rs = msg_eph->kepler.crs * C_1_2P6;
-  sbp_bds_eph->c_rc = msg_eph->kepler.crc * C_1_2P6;
-  sbp_bds_eph->c_uc = msg_eph->kepler.cuc * C_1_2P31;
-  sbp_bds_eph->c_us = msg_eph->kepler.cus * C_1_2P31;
-  sbp_bds_eph->c_ic = msg_eph->kepler.cic * C_1_2P31;
-  sbp_bds_eph->c_is = msg_eph->kepler.cis * C_1_2P31;
+  sbp_bds_eph->c_rs = (float)(msg_eph->kepler.crs * C_1_2P6);
+  sbp_bds_eph->c_rc = (float)(msg_eph->kepler.crc * C_1_2P6);
+  sbp_bds_eph->c_uc = (float)(msg_eph->kepler.cuc * C_1_2P31);
+  sbp_bds_eph->c_us = (float)(msg_eph->kepler.cus * C_1_2P31);
+  sbp_bds_eph->c_ic = (float)(msg_eph->kepler.cic * C_1_2P31);
+  sbp_bds_eph->c_is = (float)(msg_eph->kepler.cis * C_1_2P31);
 
   sbp_bds_eph->dn = msg_eph->kepler.dn * C_1_2P43 * M_PI;
   sbp_bds_eph->m0 = msg_eph->kepler.m0 * C_1_2P31 * M_PI;
@@ -394,17 +396,17 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_bds_eph->inc_dot = msg_eph->kepler.inc_dot * C_1_2P43 * M_PI;
 
   sbp_bds_eph->af0 = msg_eph->kepler.af0 * C_1_2P33;
-  sbp_bds_eph->af1 = msg_eph->kepler.af1 * C_1_2P50;
-  sbp_bds_eph->af2 = msg_eph->kepler.af2 * C_1_2P66;
+  sbp_bds_eph->af1 = (float)(msg_eph->kepler.af1 * C_1_2P50);
+  sbp_bds_eph->af2 = (float)(msg_eph->kepler.af2 * C_1_2P66);
 
   sbp_bds_eph->iode = msg_eph->kepler.iode;
   sbp_bds_eph->iodc = msg_eph->kepler.iodc;
 
   sbp_bds_eph->toc.wn = gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
-  tow_ms = msg_eph->kepler.toc * BEIDOU_TOC_RESOLUTION * SECS_MS;
+  tow_ms = (u32)rint(msg_eph->kepler.toc * BEIDOU_TOC_RESOLUTION * SECS_MS);
   beidou_tow_to_gps_tow(&tow_ms);
   gps_time_t toc;
   compute_gps_message_time(tow_ms, &toc, &state->time_from_rover_obs);
   sbp_bds_eph->toc.wn = toc.wn;
-  sbp_bds_eph->toc.tow = rint(toc.tow);
+  sbp_bds_eph->toc.tow = (u32)rint(toc.tow);
 }

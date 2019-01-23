@@ -483,18 +483,20 @@ void sbp_callback_glo_day_rollover(
 
 void check_biases(msg_glo_biases_t *sbp_glo_msg) {
   if (sbp_glo_msg->mask & 0x01) {
-    ck_assert(sbp_glo_msg->l1ca_bias / GLO_BIAS_RESOLUTION ==
-              expected_L1CA_bias);
+    ck_assert(fabs(sbp_glo_msg->l1ca_bias / GLO_BIAS_RESOLUTION -
+                   expected_L1CA_bias) < 1e-8);
   }
   if (sbp_glo_msg->mask & 0x02) {
-    ck_assert(sbp_glo_msg->l1p_bias / GLO_BIAS_RESOLUTION == expected_L1P_bias);
+    ck_assert(fabs(sbp_glo_msg->l1p_bias / GLO_BIAS_RESOLUTION -
+                   expected_L1P_bias) < 1e-8);
   }
   if (sbp_glo_msg->mask & 0x04) {
-    ck_assert(sbp_glo_msg->l2ca_bias / GLO_BIAS_RESOLUTION ==
-              expected_L2CA_bias);
+    ck_assert(fabs(sbp_glo_msg->l2ca_bias / GLO_BIAS_RESOLUTION -
+                   expected_L2CA_bias) < 1e-8);
   }
   if (sbp_glo_msg->mask & 0x08) {
-    ck_assert(sbp_glo_msg->l2p_bias / GLO_BIAS_RESOLUTION == expected_L2P_bias);
+    ck_assert(fabs(sbp_glo_msg->l2p_bias / GLO_BIAS_RESOLUTION -
+                   expected_L2P_bias) < 1e-8);
   }
 }
 
@@ -912,6 +914,16 @@ START_TEST(test_msm_mixed) {
 }
 END_TEST
 
+/* Missing GAL observations */
+START_TEST(test_msm_gal_gaps) {
+  current_time.wn = 2036;
+  current_time.tow = 75680.000;
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/20190120_1956_rover.023",
+             sbp_callback_msm_no_gaps,
+             current_time);
+}
+END_TEST
+
 /* Test 1033 message sources */
 START_TEST(test_bias_trm) {
   set_expected_bias(
@@ -1255,6 +1267,7 @@ Suite *rtcm3_suite(void) {
   tcase_add_test(tc_msm, test_msm_mixed);
   tcase_add_test(tc_msm, test_msm_missing_obs);
   tcase_add_test(tc_msm, test_msm_week_rollover);
+  tcase_add_test(tc_msm, test_msm_gal_gaps);
   suite_add_tcase(s, tc_msm);
 
   TCase *tc_eph = tcase_create("ephemeris");

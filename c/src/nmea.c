@@ -615,7 +615,7 @@ static void calc_cog_sog(const msg_vel_ned_t *sbp_vel_ned,
   }
 
   /* Rounding to specified accuracy */
-  *cog = roundf(*cog * NMEA_COG_FRAC_DIVISOR) / NMEA_COG_FRAC_DIVISOR;
+  *cog = round(*cog * NMEA_COG_FRAC_DIVISOR) / NMEA_COG_FRAC_DIVISOR;
 
   /* Avoid having duplicate values for same point (0 and 360) */
   if (fabs(FULL_CIRCLE_DEG - *cog) < 1 / NMEA_COG_FRAC_DIVISOR) {

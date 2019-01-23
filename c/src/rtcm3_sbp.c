@@ -187,11 +187,12 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       if (RC_OK == rtcm3_decode_1006(&payload[byte], &msg_1006)) {
         msg_base_pos_ecef_t sbp_base_pos;
         rtcm3_1006_to_sbp(&msg_1006, &sbp_base_pos);
-        state->cb_rtcm_to_sbp(SBP_MSG_BASE_POS_ECEF,
-                              (u8)sizeof(sbp_base_pos),
-                              (u8 *)&sbp_base_pos,
-                              rtcm_stn_to_sbp_sender_id(msg_1006.msg_1005.stn_id),
-                              state->context);
+        state->cb_rtcm_to_sbp(
+            SBP_MSG_BASE_POS_ECEF,
+            (u8)sizeof(sbp_base_pos),
+            (u8 *)&sbp_base_pos,
+            rtcm_stn_to_sbp_sender_id(msg_1006.msg_1005.stn_id),
+            state->context);
       }
       break;
     }
@@ -570,7 +571,7 @@ void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
   }
 
   if (!gps_time_valid(&state->last_glo_time) ||
-      gpsdifftime(&obs_time, &state->last_glo_time) > 0) {
+      gpsdifftime(&obs_time, &state->last_glo_time) > MS_TO_S / 2) {
     state->last_glo_time = obs_time;
     add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
   }
@@ -592,7 +593,7 @@ void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
   }
 
   if (!gps_time_valid(&state->last_gps_time) ||
-      gpsdifftime(&obs_time, &state->last_gps_time) > 0) {
+      gpsdifftime(&obs_time, &state->last_gps_time) > MS_TO_S / 2) {
     state->last_gps_time = obs_time;
     add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
   }
@@ -611,7 +612,7 @@ void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
 
   /* Build an SBP time stamp */
   new_sbp_obs->header.t.wn = obs_time->wn;
-  new_sbp_obs->header.t.tow = obs_time->tow * S_TO_MS;
+  new_sbp_obs->header.t.tow = (u32)rint(obs_time->tow * S_TO_MS);
   new_sbp_obs->header.t.ns_residual = 0;
 
   rtcm3_to_sbp(new_rtcm_obs, new_sbp_obs, state);
@@ -619,7 +620,8 @@ void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
   /* Check if the buffer already has obs of the same time */
   if (sbp_obs_buffer->header.n_obs != 0 &&
       (sbp_obs_buffer->header.t.tow != new_sbp_obs->header.t.tow ||
-       state->sender_id != rtcm_stn_to_sbp_sender_id(new_rtcm_obs->header.stn_id))) {
+       state->sender_id !=
+           rtcm_stn_to_sbp_sender_id(new_rtcm_obs->header.stn_id))) {
     /* We either have missed a message, or we have a new station. Either way,
      send through the current buffer and clear before adding new obs */
     send_observations(state);
@@ -811,14 +813,14 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
 
         if (rtcm_freq->flags.valid_pr == 1) {
           sbp_freq->P =
-              (u32)round(rtcm_freq->pseudorange * MSG_OBS_P_MULTIPLIER);
+              (u32)rint(rtcm_freq->pseudorange * MSG_OBS_P_MULTIPLIER);
           sbp_freq->flags |= MSG_OBS_FLAGS_CODE_VALID;
         }
         if (rtcm_freq->flags.valid_cp == 1) {
           sbp_freq->L.i = (s32)floor(rtcm_freq->carrier_phase);
           u16 frac_part =
-              (u16)round((rtcm_freq->carrier_phase - (double)sbp_freq->L.i) *
-                         MSG_OBS_LF_MULTIPLIER);
+              (u16)rint((rtcm_freq->carrier_phase - (double)sbp_freq->L.i) *
+                        MSG_OBS_LF_MULTIPLIER);
           if (frac_part == 256) {
             frac_part = 0;
             sbp_freq->L.i += 1;
@@ -829,7 +831,7 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
         }
 
         if (rtcm_freq->flags.valid_cnr == 1) {
-          sbp_freq->cn0 = (u8)round(rtcm_freq->cnr * MSG_OBS_CN0_MULTIPLIER);
+          sbp_freq->cn0 = (u8)rint(rtcm_freq->cnr * MSG_OBS_CN0_MULTIPLIER);
         } else {
           sbp_freq->cn0 = 0;
         }
@@ -966,128 +968,155 @@ void rtcm3_1033_to_sbp(const rtcm_msg_1033 *rtcm_1033,
   /* GEO++ RCV NAMES MUST COME FIRST TO AVOID FALSE POSITIVE */
   if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=ASH)") != NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_ASH1_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_ASH1_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_ASH1_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_ASH1_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=HEM)") !=
              NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_HEM_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_HEM_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_HEM_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_HEM_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=JAV)") !=
              NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_JAV_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_JAV_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_JAV_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_JAV_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=JPS)") !=
              NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_JPS_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_JPS_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_JPS_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_JPS_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=LEI)") !=
                  NULL ||
              strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=NOV)") !=
                  NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_NOV_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_NOV_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_NOV_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_NOV_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=NAV)") !=
              NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_NAV_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_NAV_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_NAV_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_NAV_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=NVR)") !=
              NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_NVR_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_NVR_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_NVR_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_NVR_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=SEP)") !=
              NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_SEP_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_SEP_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_SEP_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_SEP_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=SOK)") !=
              NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_SOK_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_SOK_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_SOK_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_SOK_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=TPS)") !=
              NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_TPS_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_TPS_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_TPS_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_TPS_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "Geo++ GNSMART (GLO=TRM)") !=
              NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(GPP_TRM_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(GPP_TRM_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(GPP_TRM_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(GPP_TRM_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "TRIMBLE") != NULL ||
              strstr(rtcm_1033->rcv_descriptor, "ASHTECH") != NULL) {
     sbp_glo_bias->mask = 0xF;
-    sbp_glo_bias->l1ca_bias = round(TRIMBLE_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l1p_bias = round(TRIMBLE_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l2ca_bias = round(TRIMBLE_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l2p_bias = round(TRIMBLE_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias = (s16)rint(TRIMBLE_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = (s16)rint(TRIMBLE_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2ca_bias = (s16)rint(TRIMBLE_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias = (s16)rint(TRIMBLE_BIAS_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "LEICA") != NULL ||
              strstr(rtcm_1033->rcv_descriptor, "NOV") != NULL ||
              strstr(rtcm_1033->rcv_descriptor, "GEOMAX") != NULL) {
     sbp_glo_bias->mask = 0xF;
-    sbp_glo_bias->l1ca_bias = round(NOVATEL_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l1p_bias = round(NOVATEL_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l2ca_bias = round(NOVATEL_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l2p_bias = round(NOVATEL_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias = (s16)rint(NOVATEL_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = (s16)rint(NOVATEL_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2ca_bias = (s16)rint(NOVATEL_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias = (s16)rint(NOVATEL_BIAS_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "SEPT") != NULL) {
     sbp_glo_bias->mask = 0xF;
-    sbp_glo_bias->l1ca_bias = round(SEPTENTRIO_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l1p_bias = round(SEPTENTRIO_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l2ca_bias = round(SEPTENTRIO_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l2p_bias = round(SEPTENTRIO_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(SEPTENTRIO_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = (s16)rint(SEPTENTRIO_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2ca_bias =
+        (s16)rint(SEPTENTRIO_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias = (s16)rint(SEPTENTRIO_BIAS_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "TPS") != NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l1p_bias = round(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l2ca_bias = round(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
-    sbp_glo_bias->l2p_bias = round(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias = (s16)rint(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1p_bias = (s16)rint(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2ca_bias = (s16)rint(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias = (s16)rint(TOPCON_BIAS_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "JAVAD") != NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(JAVAD_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(JAVAD_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(JAVAD_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias = (s16)rint(JAVAD_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "NAVCOM") != NULL) {
     sbp_glo_bias->mask = 0x9;
-    sbp_glo_bias->l1ca_bias = round(NAVCOM_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l1ca_bias =
+        (s16)rint(NAVCOM_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(NAVCOM_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias = (s16)rint(NAVCOM_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   } else if (strstr(rtcm_1033->rcv_descriptor, "HEMI") != NULL) {
     sbp_glo_bias->mask = 0x9;
     sbp_glo_bias->l1ca_bias =
-        round(HEMISPHERE_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
+        (s16)rint(HEMISPHERE_BIAS_L1CA_M * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias = 0.0;
     sbp_glo_bias->l2ca_bias = 0.0;
-    sbp_glo_bias->l2p_bias = round(HEMISPHERE_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
+    sbp_glo_bias->l2p_bias =
+        (s16)rint(HEMISPHERE_BIAS_L2P_M * GLO_BIAS_RESOLUTION);
   }
 }
 
@@ -1102,13 +1131,13 @@ void rtcm3_1230_to_sbp(const rtcm_msg_1230 *rtcm_1230,
   if (0 == rtcm_1230->bias_indicator) {
     /* Biases with resolution of 2cm */
     sbp_glo_bias->l1ca_bias =
-        round(rtcm_1230->L1_CA_cpb_meter * GLO_BIAS_RESOLUTION);
+        (s16)rint(rtcm_1230->L1_CA_cpb_meter * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l1p_bias =
-        round(rtcm_1230->L1_P_cpb_meter * GLO_BIAS_RESOLUTION);
+        (s16)rint(rtcm_1230->L1_P_cpb_meter * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l2ca_bias =
-        round(rtcm_1230->L2_CA_cpb_meter * GLO_BIAS_RESOLUTION);
+        (s16)rint(rtcm_1230->L2_CA_cpb_meter * GLO_BIAS_RESOLUTION);
     sbp_glo_bias->l2p_bias =
-        round(rtcm_1230->L2_P_cpb_meter * GLO_BIAS_RESOLUTION);
+        (s16)rint(rtcm_1230->L2_P_cpb_meter * GLO_BIAS_RESOLUTION);
   } else {
     /* send zero biases */
     sbp_glo_bias->l1ca_bias = 0;
@@ -1172,7 +1201,7 @@ static void rtcm2sbp_set_leap_second_from_wn(u16 wn_ref,
     gpst_sec.wn = wn_ref;
   }
   gps_time_t gt = {.wn = gpst_sec.wn, .tow = gpst_sec.tow};
-  s8 gps_utc_offset = rint(get_gps_utc_offset(&gt, NULL));
+  s8 gps_utc_offset = (s8)rint(get_gps_utc_offset(&gt, NULL));
   rtcm2sbp_set_leap_second(gps_utc_offset, state);
 }
 
@@ -1248,7 +1277,7 @@ void compute_gps_message_time(u32 tow_ms,
   assert(gps_time_valid(rover_time));
   obs_time->tow = tow_ms * MS_TO_S;
   obs_time->wn = rover_time->wn;
-  s32 timediff = gpsdifftime(obs_time, rover_time);
+  double timediff = gpsdifftime(obs_time, rover_time);
   if (timediff < -SEC_IN_WEEK / 2) {
     obs_time->wn = rover_time->wn + 1;
   } else if (timediff > SEC_IN_WEEK / 2) {
@@ -1297,7 +1326,7 @@ void compute_glo_time(u32 tod_ms,
   assert(gps_time_valid(rover_time));
 
   /* Approximate DOW from the reference GPS time */
-  u8 glo_dow = rover_time->tow / SEC_IN_DAY;
+  u8 glo_dow = (u8)(rover_time->tow / SEC_IN_DAY);
   s32 glo_tod_ms = tod_ms - UTC_SU_OFFSET * SEC_IN_HOUR * S_TO_MS;
 
   obs_time->wn = rover_time->wn;
@@ -1312,14 +1341,14 @@ void compute_glo_time(u32 tod_ms,
   normalize_gps_time(obs_time);
 
   /* check for day rollover against reference time */
-  s32 timediff = gpsdifftime(obs_time, rover_time);
-  if (abs(timediff) > SEC_IN_DAY / 2) {
+  double timediff = gpsdifftime(obs_time, rover_time);
+  if (fabs(timediff) > SEC_IN_DAY / 2) {
     obs_time->tow += (timediff < 0 ? 1 : -1) * SEC_IN_DAY;
     normalize_gps_time(obs_time);
     timediff = gpsdifftime(obs_time, rover_time);
   }
 
-  if (abs(timediff - state->leap_seconds) > GLO_SANITY_THRESHOLD_S) {
+  if (fabs(timediff - state->leap_seconds) > GLO_SANITY_THRESHOLD_S) {
     /* time too far from rover time, invalidate */
     obs_time->wn = INVALID_TIME;
   }
@@ -1330,7 +1359,7 @@ static void validate_base_obs_sanity(struct rtcm3_sbp_state *state,
                                      const gps_time_t *rover_time) {
   assert(gps_time_valid(obs_time));
   assert(gps_time_valid(rover_time));
-  s32 timediff = gpsdifftime(rover_time, obs_time);
+  double timediff = gpsdifftime(rover_time, obs_time);
 
   /* exclude base measurements with time stamp too far in the future */
   if (timediff >= BASE_FUTURE_THRESHOLD_S &&
@@ -1498,7 +1527,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
   }
 
   if (!gps_time_valid(&state->last_gps_time) ||
-      gpsdifftime(&obs_time, &state->last_gps_time) >= 0) {
+      gpsdifftime(&obs_time, &state->last_gps_time) >= -MS_TO_S / 2) {
     /* Find the buffer of obs to be sent */
     msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
 
@@ -1519,7 +1548,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
 
     /* Build an SBP time stamp */
     new_sbp_obs->header.t.wn = obs_time.wn;
-    new_sbp_obs->header.t.tow = rint(obs_time.tow * S_TO_MS);
+    new_sbp_obs->header.t.tow = (u32)rint(obs_time.tow * S_TO_MS);
     new_sbp_obs->header.t.ns_residual = 0;
 
     rtcm3_msm_to_sbp(new_rtcm_obs, new_sbp_obs, state);
@@ -1652,15 +1681,15 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
 
           if (data->flags.valid_pr) {
             double pseudorange_m = data->pseudorange_ms * GPS_C / 1000;
-            sbp_freq->P = (u32)round(pseudorange_m * MSG_OBS_P_MULTIPLIER);
+            sbp_freq->P = (u32)rint(pseudorange_m * MSG_OBS_P_MULTIPLIER);
             sbp_freq->flags |= MSG_OBS_FLAGS_CODE_VALID;
           }
           if (data->flags.valid_cp && freq_valid) {
             double carrier_phase_cyc = data->carrier_phase_ms * freq / 1000;
             sbp_freq->L.i = (s32)floor(carrier_phase_cyc);
             u16 frac_part =
-                (u16)round((carrier_phase_cyc - (double)sbp_freq->L.i) *
-                           MSG_OBS_LF_MULTIPLIER);
+                (u16)rint((carrier_phase_cyc - (double)sbp_freq->L.i) *
+                          MSG_OBS_LF_MULTIPLIER);
             if (256 == frac_part) {
               frac_part = 0;
               sbp_freq->L.i += 1;
@@ -1673,7 +1702,7 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
           }
 
           if (data->flags.valid_cnr) {
-            sbp_freq->cn0 = (u8)round(data->cnr * MSG_OBS_CN0_MULTIPLIER);
+            sbp_freq->cn0 = (u8)rint(data->cnr * MSG_OBS_CN0_MULTIPLIER);
           } else {
             sbp_freq->cn0 = 0;
           }
@@ -1686,8 +1715,8 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
             /* flip Doppler sign to Piksi sign convention */
             double doppler_Hz = -data->range_rate_m_s * freq / GPS_C;
             sbp_freq->D.i = (s16)floor(doppler_Hz);
-            u16 frac_part = (u16)round((doppler_Hz - (double)sbp_freq->D.i) *
-                                       MSG_OBS_DF_MULTIPLIER);
+            u16 frac_part = (u16)rint((doppler_Hz - (double)sbp_freq->D.i) *
+                                      MSG_OBS_DF_MULTIPLIER);
             if (256 == frac_part) {
               frac_part = 0;
               sbp_freq->D.i += 1;
@@ -1791,8 +1820,7 @@ static void msm_init_obs_message(rtcm_msm_message *msg,
   msg->header.tow_ms = state->sbp_header.t.tow;
   if (RTCM_CONSTELLATION_GLO == cons) {
     /* GLO epoch time DF034 uint32 27 */
-    msg->header.tow_ms =
-        (u32)round(compute_glo_tod(state->sbp_header.t.tow, state) * S_TO_MS);
+    msg->header.tow_ms = compute_glo_tod_ms(state->sbp_header.t.tow, state);
   } else if (RTCM_CONSTELLATION_BDS == cons) {
     gps_tow_to_beidou_tow(&msg->header.tow_ms);
   }
@@ -1856,7 +1884,7 @@ static void sbp_obs_to_msm_signal_data(const packed_obs_content_t *sbp_obs,
   if (0 != (sbp_flags & MSG_OBS_FLAGS_CODE_VALID)) {
     double pseudorange_m = sbp_obs->P / MSG_OBS_P_MULTIPLIER;
     signal_data->pseudorange_ms = pseudorange_m * 1000 / GPS_C;
-    sat_data->rough_range_ms = round(signal_data->pseudorange_ms * 1024) / 1024;
+    sat_data->rough_range_ms = rint(signal_data->pseudorange_ms * 1024) / 1024;
     msm_flags->valid_pr = true;
   } else {
     msm_flags->valid_pr = false;
@@ -1891,7 +1919,7 @@ static void sbp_obs_to_msm_signal_data(const packed_obs_content_t *sbp_obs,
   if (freq_valid && (0 != (sbp_flags & MSG_OBS_FLAGS_DOPPLER_VALID))) {
     double doppler_Hz = sbp_obs->D.i + sbp_obs->D.f / MSG_OBS_DF_MULTIPLIER;
     signal_data->range_rate_m_s = -doppler_Hz * GPS_C / freq;
-    sat_data->rough_range_rate_m_s = round(signal_data->range_rate_m_s);
+    sat_data->rough_range_rate_m_s = rint(signal_data->range_rate_m_s);
     msm_flags->valid_dop = true;
   } else {
     msm_flags->valid_dop = false;
@@ -1904,8 +1932,8 @@ static void sbp_obs_to_msm_signal_data(const packed_obs_content_t *sbp_obs,
   msm_flags->valid_cnr = true;
 }
 
-double compute_glo_tod(uint32_t gps_tow_ms,
-                       const struct rtcm3_out_state *state) {
+uint32_t compute_glo_tod_ms(uint32_t gps_tow_ms,
+                            const struct rtcm3_out_state *state) {
   if (!state->leap_second_known) {
     return -1;
   }
@@ -1925,7 +1953,7 @@ double compute_glo_tod(uint32_t gps_tow_ms,
   }
 
   assert(glo_tod_s >= 0 && glo_tod_s < (SEC_IN_DAY + 1));
-  return glo_tod_s;
+  return (uint32_t)rint(glo_tod_s * S_TO_MS);
 }
 
 static void rtcm_init_obs_message(rtcm_obs_message *msg,
@@ -1942,8 +1970,7 @@ static void rtcm_init_obs_message(rtcm_obs_message *msg,
     /* Msg Num DF002 uint16 12*/
     msg->header.msg_num = 1012;
     /* GLO epoch time DF034 uint32 27 */
-    msg->header.tow_ms =
-        (u32)rint(compute_glo_tod(state->sbp_header.t.tow, state) * S_TO_MS);
+    msg->header.tow_ms = compute_glo_tod_ms(state->sbp_header.t.tow, state);
   }
   /* Station Id DF003 uint16 12*/
   msg->header.stn_id = sbp_sender_to_rtcm_stn_id(state->sender_id);

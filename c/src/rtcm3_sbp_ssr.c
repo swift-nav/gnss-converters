@@ -36,7 +36,7 @@ gps_time_sec_t compute_ssr_message_time(
     compute_gps_message_time(epoch_time_ms, &obs_time, rover_time);
   }
   obs_time_sec.wn = obs_time.wn;
-  obs_time_sec.tow = rint(obs_time.tow);
+  obs_time_sec.tow = (u32)rint(obs_time.tow);
   return obs_time_sec;
 }
 

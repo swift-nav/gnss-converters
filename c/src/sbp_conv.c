@@ -10,13 +10,13 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <time.h>
 #include <assert.h>
 #include <gnss-converters/rtcm3_sbp.h>
 #include <gnss-converters/sbp_conv.h>
+#include <libsbp/sbp.h>
 #include <swiftnav/fifo_byte.h>
 #include <swiftnav/gnss_time.h>
-#include <libsbp/sbp.h>
+#include <time.h>
 
 struct sbp_conv_s {
   struct rtcm3_out_state state;
@@ -36,29 +36,31 @@ sbp_conv_t sbp_conv_new() {
     fifo_init(&conv->fifo, conv->buf, sizeof(conv->buf));
     sbp2rtcm_init(&conv->state, sbp_conv_cb, &conv->fifo);
     gps_time_t gps_time = time2gps_t(time(NULL));
-    sbp2rtcm_set_leap_second(get_gps_utc_offset(&gps_time, NULL), &conv->state);
+    sbp2rtcm_set_leap_second((s8)rint(get_gps_utc_offset(&gps_time, NULL)),
+                             &conv->state);
   }
   return conv;
 }
 
-void sbp_conv_delete(sbp_conv_t conv) {
-  free(conv);
-}
+void sbp_conv_delete(sbp_conv_t conv) { free(conv); }
 
-size_t sbp_conv(sbp_conv_t conv, uint16_t sender, uint16_t type,
-                uint8_t *rbuf, size_t rlen, uint8_t *wbuf, size_t wlen) {
+size_t sbp_conv(sbp_conv_t conv,
+                uint16_t sender,
+                uint16_t type,
+                uint8_t *rbuf,
+                size_t rlen,
+                uint8_t *wbuf,
+                size_t wlen) {
   switch (type) {
-  case SBP_MSG_BASE_POS_ECEF: {
-    sbp2rtcm_base_pos_ecef_cb(sender, rlen, rbuf, &conv->state);
-    break;
-  }
-  case SBP_MSG_OBS: {
-    sbp2rtcm_sbp_obs_cb(sender, rlen, rbuf, &conv->state);
-    break;
-  }
-  default: {
-    break;
-  }
+    case SBP_MSG_BASE_POS_ECEF: {
+      sbp2rtcm_base_pos_ecef_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
+    case SBP_MSG_OBS: {
+      sbp2rtcm_sbp_obs_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
+    default: { break; }
   }
   return fifo_read(&conv->fifo, wbuf, wlen);
 }
