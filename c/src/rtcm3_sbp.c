@@ -742,16 +742,14 @@ code_t get_glo_sbp_code(u8 freq, u8 rtcm_code, struct rtcm3_sbp_state *state) {
       code = CODE_GLO_L1OF;
     }
   } else if (freq == L2_FREQ) {
+    /* DF046: 0 - C/A code, 1 - P code, 2 - Reserved, 3 - Reserved */
     if (rtcm_code == 0) {
       code = CODE_GLO_L2OF;
-    } else if (rtcm_code == 1) {
+    } else  {
       /* CODE_GLO_L2P currently not supported in sbp */
       /* warn and then replace with a supported code for now */
       send_unsupported_code_warning(UNSUPPORTED_CODE_GLO_L2P, state);
       code = CODE_GLO_L2OF;
-    } else {
-      /* rtcm_code == 2 or 3 is reserved */
-      code = CODE_INVALID;
     }
   }
   return code;
