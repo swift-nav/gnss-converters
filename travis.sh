@@ -23,5 +23,8 @@ function build_c() {
     cd ../
 }
 
-build_c
-build_haskell
+if [ "$TESTENV" == "stack" ]; then
+  build_haskell
+else
+  build_c
+fi
