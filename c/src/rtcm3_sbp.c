@@ -745,7 +745,7 @@ code_t get_glo_sbp_code(u8 freq, u8 rtcm_code, struct rtcm3_sbp_state *state) {
     /* DF046: 0 - C/A code, 1 - P code, 2 - Reserved, 3 - Reserved */
     if (rtcm_code == 0) {
       code = CODE_GLO_L2OF;
-    } else  {
+    } else {
       /* CODE_GLO_L2P currently not supported in sbp */
       /* warn and then replace with a supported code for now */
       send_unsupported_code_warning(UNSUPPORTED_CODE_GLO_L2P, state);
@@ -1640,7 +1640,7 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
   for (u8 sat = 0; sat < num_sats; sat++) {
     for (u8 sig = 0; sig < num_sigs; sig++) {
       if (msg->header.cell_mask[sat * num_sigs + sig]) {
-        sbp_gnss_signal_t sid;
+        sbp_gnss_signal_t sid = {CODE_INVALID, 0};
         const rtcm_msm_signal_data *data = &msg->signals[cell_index];
         bool sid_valid = get_sid_from_msm(&msg->header, sat, sig, &sid, state);
         bool supported = !unsupported_signal(&sid);

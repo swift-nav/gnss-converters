@@ -290,9 +290,9 @@ void sbp_callback_glo_eph(
     ck_assert(fabs(msg->vel[1] - -1.609944343567e3) < FLOAT_EPS);
     ck_assert(fabs(msg->vel[2] - -2.291357994080e3) < FLOAT_EPS);
 
-    ck_assert(fabs(msg->acc[0] - 0) < FLOAT_EPS);
-    ck_assert(fabs(msg->acc[1] - -9.313225746155e-7) < FLOAT_EPS);
-    ck_assert(fabs(msg->acc[2] - 1.862645149231e-6) < FLOAT_EPS);
+    ck_assert(fabsf(msg->acc[0] - 0) < FLOAT_EPS);
+    ck_assert(fabsf(msg->acc[1] - -9.313225746155e-7f) < FLOAT_EPS);
+    ck_assert(fabsf(msg->acc[2] - 1.862645149231e-6f) < FLOAT_EPS);
 
     ck_assert(fabs(msg->gamma - 0) < FLOAT_EPS);
     ck_assert(fabs(msg->d_tau - -2.7939677238464355e-9) < FLOAT_EPS);
@@ -421,7 +421,6 @@ C06 2018 08 14 04 00 00 2.242858754471e-04 2.508659946443e-11 1.924458856162e-18
     ck_assert(msg->iode == 6);
     ck_assert(msg->iodc == 5);
   }
-  return;
 }
 
 void sbp_callback_eph_wn_rollover(
@@ -435,7 +434,6 @@ void sbp_callback_eph_wn_rollover(
     ck_assert(msg->common.toe.wn == 2026);
     ck_assert(msg->common.toe.tow == 0);
   }
-  return;
 }
 
 void sbp_callback_1012_first(
@@ -688,6 +686,7 @@ void test_RTCM3(const char *filename,
     /* skip pointer to the end of this message */
     buffer_index += message_size + 6;
   }
+  fclose(fp);
 }
 
 static s32 sbp_read_file(u8 *buff, u32 n, void *context) {
