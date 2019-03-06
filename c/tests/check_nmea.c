@@ -10,6 +10,7 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <assert.h>
 #include <check.h>
 #include <gnss-converters/sbp_nmea.h>
 #include <libsbp/sbp.h>
@@ -23,7 +24,6 @@
 #include "config.h"
 #include "nmea_truth.h"
 
-static struct sbp_nmea_state state;
 static sbp_msg_callbacks_node_t gps_time_callback_node;
 static sbp_msg_callbacks_node_t utc_time_callback_node;
 static sbp_msg_callbacks_node_t pos_llh_callback_node;
@@ -149,74 +149,59 @@ void nmea_callback_gsa(u8 msg[]) {
 }
 
 void gps_time_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)context;
   (void)length;
   (void)sender_id;
-  msg_gps_time_t *sbp_gps_time = (msg_gps_time_t *)msg;
-  sbp2nmea_gps_time(sbp_gps_time, &state);
+  sbp2nmea(context, msg, SBP2NMEA_SBP_GPS_TIME);
 }
 
 void utc_time_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)context;
   (void)length;
   (void)sender_id;
-  msg_utc_time_t *sbp_utc_time = (msg_utc_time_t *)msg;
-  sbp2nmea_utc_time(sbp_utc_time, &state);
+  sbp2nmea(context, msg, SBP2NMEA_SBP_UTC_TIME);
 }
 
 void pos_llh_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)context;
   (void)length;
   (void)sender_id;
-  msg_pos_llh_t *sbp_pos_llh = (msg_pos_llh_t *)msg;
-  sbp2nmea_pos_llh(sbp_pos_llh, &state);
+  sbp2nmea(context, msg, SBP2NMEA_SBP_POS_LLH);
 }
 
 void vel_ned_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)context;
   (void)length;
   (void)sender_id;
-  msg_vel_ned_t *sbp_vel_ned = (msg_vel_ned_t *)msg;
-  sbp2nmea_vel_ned(sbp_vel_ned, &state);
+  sbp2nmea(context, msg, SBP2NMEA_SBP_VEL_NED);
 }
 
 void dops_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)context;
   (void)length;
   (void)sender_id;
-  msg_dops_t *sbp_dops = (msg_dops_t *)msg;
-  sbp2nmea_dops(sbp_dops, &state);
+  sbp2nmea(context, msg, SBP2NMEA_SBP_DOPS);
 }
 
 void age_correction_callback(u16 sender_id,
                              u8 length,
                              u8 msg[],
                              void *context) {
-  (void)context;
   (void)length;
   (void)sender_id;
-  msg_age_corrections_t *sbp_age_corr = (msg_age_corrections_t *)msg;
-  sbp2nmea_age_corrections(sbp_age_corr, &state);
+  sbp2nmea(context, msg, SBP2NMEA_SBP_AGE_CORR);
 }
 
 void baseline_heading_callback(u16 sender_id,
                                u8 length,
                                u8 msg[],
                                void *context) {
-  (void)context;
   (void)length;
   (void)sender_id;
-  msg_baseline_heading_t *sbp_baseline_heading = (msg_baseline_heading_t *)msg;
-  sbp2nmea_baseline_heading(sbp_baseline_heading, &state);
+  sbp2nmea(context, msg, SBP2NMEA_SBP_HDG);
 }
 
 void observation_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)context;
   (void)sender_id;
   msg_obs_t *sbp_obs = (msg_obs_t *)msg;
   uint8_t num_obs =
       (length - sizeof(observation_header_t)) / sizeof(packed_obs_content_t);
-  sbp2nmea_obs(sbp_obs, num_obs, &state);
+  sbp2nmea_obs(context, sbp_obs, num_obs);
 }
 
 void sbp_init(sbp_state_t *sbp_state, void *ctx) {
@@ -261,19 +246,20 @@ void sbp_init(sbp_state_t *sbp_state, void *ctx) {
 }
 
 void test_NMEA(const char *filename, void (*cb_sbp_to_nmea)(u8 msg[])) {
+  sbp2nmea_t state = {0};
   sbp2nmea_init(&state, cb_sbp_to_nmea);
-  sbp2nmea_set_base_id(33, &state);
-  sbp2nmea_set_soln_freq(10, &state);
-  sbp2nmea_set_gpgga_rate(1, &state);
-  sbp2nmea_set_gprmc_rate(10, &state);
-  sbp2nmea_set_gpvtg_rate(10, &state);
-  /*sbp2nmea_set_gphdt_rate(1,&state);*/
-  sbp2nmea_set_gpgll_rate(10, &state);
-  sbp2nmea_set_gpzda_rate(10, &state);
-  sbp2nmea_set_gsa_rate(1, &state);
+  sbp2nmea_base_id_set(&state, 33);
+  sbp2nmea_soln_freq_set(&state, 10);
+  sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GGA);
+  sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_RMC);
+  sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_VTG);
+  /*sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_HDT);*/
+  sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_GLL);
+  sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_ZDA);
+  sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GSA);
 
   sbp_state_t sbp_state_;
-  sbp_init(&sbp_state_, NULL);
+  sbp_init(&sbp_state_, &state);
 
   FILE *fp = fopen(filename, "rb");
   if (fp == NULL) {
