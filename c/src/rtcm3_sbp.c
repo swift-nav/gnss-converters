@@ -2035,7 +2035,7 @@ void sbp_buffer_to_msm(const struct rtcm3_out_state *state) {
   }
 
   /* send out all the messages that have measurements */
-  static u8 frame[RTCM3_MAX_MSG_LEN];
+  u8 frame[RTCM3_MAX_MSG_LEN];
   for (u8 cons = 0; cons < RTCM_CONSTELLATION_COUNT; cons++) {
     if (msm_get_num_satellites(&obs[cons].header) > 0) {
       u16 frame_size =
@@ -2127,7 +2127,7 @@ static void sbp_buffer_to_legacy_rtcm3(struct rtcm3_out_state *state) {
   gps_obs.header.sync = (n_glo > 0) ? 1 : 0; /* if GLO message will follow */
   glo_obs.header.sync = 0; /* no further messages for this epoch */
 
-  static u8 frame[RTCM3_MAX_MSG_LEN];
+  u8 frame[RTCM3_MAX_MSG_LEN];
   if (n_gps > 0) {
     u16 frame_size =
         encode_rtcm3_frame(&gps_obs, gps_obs.header.msg_num, frame);
