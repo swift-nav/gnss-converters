@@ -49,6 +49,7 @@ void send_gprmc(const sbp2nmea_t *state);
 void send_gpvtg(const sbp2nmea_t *state);
 void send_gpgll(const sbp2nmea_t *state);
 void send_gpzda(const sbp2nmea_t *state);
+void send_gpgst(const sbp2nmea_t *state);
 void send_gphdt(const sbp2nmea_t *state);
 void send_gsa(const sbp2nmea_t *state);
 char get_nmea_status(u8 flags);

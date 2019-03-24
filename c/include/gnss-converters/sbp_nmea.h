@@ -29,13 +29,14 @@ typedef enum sbp2nmea_nmea_id {
   SBP2NMEA_NMEA_GLL = 4,
   SBP2NMEA_NMEA_ZDA = 5,
   SBP2NMEA_NMEA_GSA = 6,
-  SBP2NMEA_NMEA_CNT = 7,
+  SBP2NMEA_NMEA_GST = 7,
+  SBP2NMEA_NMEA_CNT = 8,
 } sbp2nmea_nmea_id_t;
 
 typedef enum sbp2nmea_sbp_id {
   SBP2NMEA_SBP_GPS_TIME = 0,
   SBP2NMEA_SBP_UTC_TIME = 1,
-  SBP2NMEA_SBP_POS_LLH = 2,
+  SBP2NMEA_SBP_POS_LLH_COV = 2,
   SBP2NMEA_SBP_VEL_NED = 3,
   SBP2NMEA_SBP_DOPS = 4,
   SBP2NMEA_SBP_AGE_CORR = 5,
@@ -52,7 +53,7 @@ typedef union sbp2nmea_msg {
   uint8_t begin;
   msg_gps_time_t sbp_gps_time;
   msg_utc_time_t sbp_utc_time;
-  msg_pos_llh_t sbp_pos_llh;
+  msg_pos_llh_cov_t sbp_pos_llh_cov;
   msg_vel_ned_t sbp_vel_ned;
   msg_dops_t sbp_dops;
   msg_age_corrections_t sbp_age_corr;

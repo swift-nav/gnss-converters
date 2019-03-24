@@ -22,50 +22,56 @@
 #include <gnss-converters/sbp_nmea.h>
 #include <swiftnav/constants.h>
 #include <swiftnav/gnss_time.h>
+#include <swiftnav/memcpy_s.h>
 
 struct nmea_meta_entry {
   uint8_t tow_mask;
   void (*send)(const sbp2nmea_t *);
 } nmea_meta[SBP2NMEA_NMEA_CNT] = {
-    [SBP2NMEA_NMEA_GGA] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH) |
-                                       (1 << SBP2NMEA_SBP_DOPS) |
-                                       (1 << SBP2NMEA_SBP_AGE_CORR),
-                           .send = send_gpgga},
-    [SBP2NMEA_NMEA_RMC] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH) |
-                                       (1 << SBP2NMEA_SBP_VEL_NED),
-                           .send = send_gprmc},
-    [SBP2NMEA_NMEA_VTG] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH) |
-                                       (1 << SBP2NMEA_SBP_VEL_NED),
-                           .send = send_gpvtg},
-    [SBP2NMEA_NMEA_HDT] = {.tow_mask = (1 << SBP2NMEA_SBP_HDG),
-                           .send = send_gphdt},
-    [SBP2NMEA_NMEA_GLL] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH),
-                           .send = send_gpgll},
-    [SBP2NMEA_NMEA_ZDA] = {.tow_mask = 0, .send = send_gpzda},
-    [SBP2NMEA_NMEA_GSA] = {.tow_mask = (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                       (1 << SBP2NMEA_SBP_DOPS),
-                           .send = send_gsa},
+        [SBP2NMEA_NMEA_GGA] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                           (1 << SBP2NMEA_SBP_DOPS) |
+                                           (1 << SBP2NMEA_SBP_AGE_CORR),
+                               .send = send_gpgga},
+        [SBP2NMEA_NMEA_RMC] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                           (1 << SBP2NMEA_SBP_VEL_NED),
+                               .send = send_gprmc},
+        [SBP2NMEA_NMEA_VTG] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                           (1 << SBP2NMEA_SBP_VEL_NED),
+                               .send = send_gpvtg},
+        [SBP2NMEA_NMEA_HDT] = {.tow_mask = (1 << SBP2NMEA_SBP_HDG),
+                               .send = send_gphdt},
+        [SBP2NMEA_NMEA_GLL] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV),
+                               .send = send_gpgll},
+        [SBP2NMEA_NMEA_ZDA] = {.tow_mask = 0, .send = send_gpzda},
+        [SBP2NMEA_NMEA_GSA] = {.tow_mask = (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                           (1 << SBP2NMEA_SBP_DOPS),
+                               .send = send_gsa},
+        [SBP2NMEA_NMEA_GST] = {.tow_mask = (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                           (1 << SBP2NMEA_SBP_POS_LLH_COV),
+                               .send = send_gpgst},
 };
 
 struct sbp_meta_entry {
   size_t msg_size;
   size_t offset_tow;
 } sbp_meta[SBP2NMEA_SBP_CNT] = {
-    [SBP2NMEA_SBP_GPS_TIME] = {.msg_size = sizeof(msg_gps_time_t),
-                               .offset_tow = offsetof(msg_gps_time_t, tow)},
-    [SBP2NMEA_SBP_UTC_TIME] = {.msg_size = sizeof(msg_utc_time_t),
-                               .offset_tow = offsetof(msg_utc_time_t, tow)},
-    [SBP2NMEA_SBP_POS_LLH] = {.msg_size = sizeof(msg_pos_llh_t),
-                              .offset_tow = offsetof(msg_pos_llh_t, tow)},
-    [SBP2NMEA_SBP_VEL_NED] = {.msg_size = sizeof(msg_vel_ned_t),
-                              .offset_tow = offsetof(msg_vel_ned_t, tow)},
-    [SBP2NMEA_SBP_DOPS] = {.msg_size = sizeof(msg_dops_t),
-                           .offset_tow = offsetof(msg_dops_t, tow)},
-    [SBP2NMEA_SBP_AGE_CORR] = {.msg_size = sizeof(msg_age_corrections_t),
-                               .offset_tow =
-                                   offsetof(msg_age_corrections_t, tow)},
-    [SBP2NMEA_SBP_HDG] = {.msg_size = sizeof(msg_baseline_heading_t),
-                          .offset_tow = offsetof(msg_baseline_heading_t, tow)},
+        [SBP2NMEA_SBP_GPS_TIME] = {.msg_size = sizeof(msg_gps_time_t),
+                                   .offset_tow = offsetof(msg_gps_time_t, tow)},
+        [SBP2NMEA_SBP_UTC_TIME] = {.msg_size = sizeof(msg_utc_time_t),
+                                   .offset_tow = offsetof(msg_utc_time_t, tow)},
+        [SBP2NMEA_SBP_POS_LLH_COV] = {.msg_size = sizeof(msg_pos_llh_cov_t),
+                                      .offset_tow =
+                                          offsetof(msg_pos_llh_cov_t, tow)},
+        [SBP2NMEA_SBP_VEL_NED] = {.msg_size = sizeof(msg_vel_ned_t),
+                                  .offset_tow = offsetof(msg_vel_ned_t, tow)},
+        [SBP2NMEA_SBP_DOPS] = {.msg_size = sizeof(msg_dops_t),
+                               .offset_tow = offsetof(msg_dops_t, tow)},
+        [SBP2NMEA_SBP_AGE_CORR] = {.msg_size = sizeof(msg_age_corrections_t),
+                                   .offset_tow =
+                                       offsetof(msg_age_corrections_t, tow)},
+        [SBP2NMEA_SBP_HDG] = {.msg_size = sizeof(msg_baseline_heading_t),
+                              .offset_tow =
+                                  offsetof(msg_baseline_heading_t, tow)},
 };
 
 static uint32_t get_tow(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id) {
@@ -147,7 +153,10 @@ static void check_nmea_send(sbp2nmea_t *state) {
 void sbp2nmea(sbp2nmea_t *state,
               const void *sbp_msg,
               sbp2nmea_sbp_id_t sbp_id) {
-  memcpy(sbp2nmea_msg_get(state, sbp_id), sbp_msg, sbp_meta[sbp_id].msg_size);
+  MEMCPY_S(sbp2nmea_msg_get(state, sbp_id),
+           sizeof(state->sbp_state[sbp_id].msg),
+           sbp_msg,
+           sbp_meta[sbp_id].msg_size);
   check_nmea_send(state);
 }
 
