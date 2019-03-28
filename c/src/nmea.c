@@ -773,7 +773,7 @@ void send_gphdt(const sbp2nmea_t *state) {
   if ((POSITION_MODE_MASK & sbp_baseline_heading->flags) ==
       POSITION_MODE_FIXED) {
     NMEA_SENTENCE_PRINTF(
-        "%.1f,T",
+        "%.2f,T",
         (float)sbp_baseline_heading->heading /
             MSG_HEADING_SCALE_FACTOR); /* Heading only valid when fixed */
   } else {
