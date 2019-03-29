@@ -31,6 +31,8 @@ static sbp_msg_callbacks_node_t vel_ned_callback_node;
 static sbp_msg_callbacks_node_t dops_callback_node;
 static sbp_msg_callbacks_node_t age_correction_callback_node;
 static sbp_msg_callbacks_node_t baseline_heading_callback_node;
+static sbp_msg_callbacks_node_t sv_az_el_callback_node;
+static sbp_msg_callbacks_node_t measurement_state_callback_node;
 static sbp_msg_callbacks_node_t observation_callback_node;
 
 static bool nmea_gpgga_processed = false;
@@ -41,6 +43,7 @@ static bool nmea_gpzda_processed = false;
 /*static bool nmea_gphdt_processed = false;*/
 static bool nmea_gsa_processed = false;
 static bool nmea_gpgst_processed = false;
+static bool nmea_gpgsv_processed = false;
 
 int32_t read_file(uint8_t *buff, uint32_t n, void *context) {
   FILE *f = (FILE *)context;
@@ -148,7 +151,7 @@ void nmea_callback_gpgst(u8 msg[]) {
   if (strstr((char *)msg, "GST")) {
     static int msg_count = 0;
     static bool start_count = false;
-    if ((strstr((char *)msg,"193501.80") || start_count) && msg_count < 10) {
+    if ((strstr((char *)msg, "193501.80") || start_count) && msg_count < 10) {
       nmea_gpgst_processed = true;
       start_count = true;
       msg[strcspn((char *)msg, "\r\n")] = '\0';
@@ -157,52 +160,69 @@ void nmea_callback_gpgst(u8 msg[]) {
   }
 }
 
+void nmea_callback_gpgsv(u8 msg[]) {
+  if (strstr((char *)msg, "GSV")) {
+    static int msg_count = 0;
+    if (msg_count < 10) {
+      nmea_gpgsv_processed = true;
+      msg[strcspn((char *)msg, "\r\n")] = '\0';
+      ck_assert(strcmp((char *)msg, gsv_truth[msg_count++]) == 0);
+    }
+  }
+}
+
 void gps_time_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)length;
   (void)sender_id;
-  sbp2nmea(context, msg, SBP2NMEA_SBP_GPS_TIME);
+  sbp2nmea(context, length, msg, SBP2NMEA_SBP_GPS_TIME);
 }
 
 void utc_time_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)length;
   (void)sender_id;
-  sbp2nmea(context, msg, SBP2NMEA_SBP_UTC_TIME);
+  sbp2nmea(context, length, msg, SBP2NMEA_SBP_UTC_TIME);
 }
 
 void pos_llh_cov_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)length;
   (void)sender_id;
-  sbp2nmea(context, msg, SBP2NMEA_SBP_POS_LLH_COV);
+  sbp2nmea(context, length, msg, SBP2NMEA_SBP_POS_LLH_COV);
 }
 
 void vel_ned_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)length;
   (void)sender_id;
-  sbp2nmea(context, msg, SBP2NMEA_SBP_VEL_NED);
+  sbp2nmea(context, length, msg, SBP2NMEA_SBP_VEL_NED);
 }
 
 void dops_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
-  (void)length;
   (void)sender_id;
-  sbp2nmea(context, msg, SBP2NMEA_SBP_DOPS);
+  sbp2nmea(context, length, msg, SBP2NMEA_SBP_DOPS);
 }
 
 void age_correction_callback(u16 sender_id,
                              u8 length,
                              u8 msg[],
                              void *context) {
-  (void)length;
   (void)sender_id;
-  sbp2nmea(context, msg, SBP2NMEA_SBP_AGE_CORR);
+  sbp2nmea(context, length, msg, SBP2NMEA_SBP_AGE_CORR);
 }
 
 void baseline_heading_callback(u16 sender_id,
                                u8 length,
                                u8 msg[],
                                void *context) {
-  (void)length;
   (void)sender_id;
-  sbp2nmea(context, msg, SBP2NMEA_SBP_HDG);
+  sbp2nmea(context, length, msg, SBP2NMEA_SBP_HDG);
+}
+
+void sv_az_el_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
+  (void)sender_id;
+  sbp2nmea(context, length, msg, SBP2NMEA_SBP_SV_AZ_EL);
+}
+
+void measurement_state_callback(u16 sender_id,
+                                u8 length,
+                                u8 msg[],
+                                void *context) {
+  (void)sender_id;
+  sbp2nmea(context, length, msg, SBP2NMEA_SBP_MEASUREMENT_STATE);
 }
 
 void observation_callback(u16 sender_id, u8 length, u8 msg[], void *context) {
@@ -248,6 +268,16 @@ void sbp_init(sbp_state_t *sbp_state, void *ctx) {
                         ctx,
                         &baseline_heading_callback_node);
   sbp_register_callback(sbp_state,
+                        SBP_MSG_SV_AZ_EL,
+                        &sv_az_el_callback,
+                        ctx,
+                        &sv_az_el_callback_node);
+  sbp_register_callback(sbp_state,
+                        SBP_MSG_MEASUREMENT_STATE,
+                        &measurement_state_callback,
+                        ctx,
+                        &measurement_state_callback_node);
+  sbp_register_callback(sbp_state,
                         SBP_MSG_OBS,
                         &observation_callback,
                         ctx,
@@ -267,6 +297,7 @@ void test_NMEA(const char *filename, void (*cb_sbp_to_nmea)(u8 msg[])) {
   sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_ZDA);
   sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GSA);
   sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GST);
+  sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_GSV);
 
   sbp_state_t sbp_state_;
   sbp_init(&sbp_state_, &state);
@@ -332,6 +363,12 @@ END_TEST
 START_TEST(test_nmea_gpgst) {
   test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpgst);
   ck_assert(nmea_gpgst_processed);
+}
+END_TEST
+
+START_TEST(test_nmea_gpgsv) {
+  test_NMEA(RELATIVE_PATH_PREFIX "/data/azel-sbp.sbp", nmea_callback_gpgsv);
+  ck_assert(nmea_gpgsv_processed);
 }
 END_TEST
 
@@ -440,6 +477,7 @@ Suite *nmea_suite(void) {
   tcase_add_test(tc_nmea, test_nmea_gpzda);
   tcase_add_test(tc_nmea, test_nmea_gsa);
   tcase_add_test(tc_nmea, test_nmea_gpgst);
+  tcase_add_test(tc_nmea, test_nmea_gpgsv);
   tcase_add_test(tc_nmea, test_nmea_time_string);
   suite_add_tcase(s, tc_nmea);
 

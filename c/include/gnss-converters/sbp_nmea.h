@@ -17,6 +17,7 @@
 #include <libsbp/navigation.h>
 #include <libsbp/observation.h>
 #include <libsbp/orientation.h>
+#include <libsbp/tracking.h>
 
 /* Max number of sats visible in an epoch */
 #define MAX_SATS 256
@@ -30,7 +31,8 @@ typedef enum sbp2nmea_nmea_id {
   SBP2NMEA_NMEA_ZDA = 5,
   SBP2NMEA_NMEA_GSA = 6,
   SBP2NMEA_NMEA_GST = 7,
-  SBP2NMEA_NMEA_CNT = 8,
+  SBP2NMEA_NMEA_GSV = 8,
+  SBP2NMEA_NMEA_CNT = 9,
 } sbp2nmea_nmea_id_t;
 
 typedef enum sbp2nmea_sbp_id {
@@ -41,7 +43,9 @@ typedef enum sbp2nmea_sbp_id {
   SBP2NMEA_SBP_DOPS = 4,
   SBP2NMEA_SBP_AGE_CORR = 5,
   SBP2NMEA_SBP_HDG = 6,
-  SBP2NMEA_SBP_CNT = 7,
+  SBP2NMEA_SBP_SV_AZ_EL = 7,
+  SBP2NMEA_SBP_MEASUREMENT_STATE = 8,
+  SBP2NMEA_SBP_CNT = 9,
 } sbp2nmea_sbp_id_t;
 
 typedef struct nmea_state_entry {
@@ -49,15 +53,11 @@ typedef struct nmea_state_entry {
   int rate;
 } nmea_state_entry_t;
 
-typedef union sbp2nmea_msg {
-  uint8_t begin;
-  msg_gps_time_t sbp_gps_time;
-  msg_utc_time_t sbp_utc_time;
-  msg_pos_llh_cov_t sbp_pos_llh_cov;
-  msg_vel_ned_t sbp_vel_ned;
-  msg_dops_t sbp_dops;
-  msg_age_corrections_t sbp_age_corr;
-  msg_baseline_heading_t sbp_heading;
+#define SBP_FRAMING_MAX_PAYLOAD_SIZE (255u)
+
+typedef struct sbp2nmea_msg {
+  uint8_t data[SBP_FRAMING_MAX_PAYLOAD_SIZE];
+  uint8_t length;
 } sbp2nmea_msg_t;
 
 typedef struct sbp_state_entry {
@@ -87,7 +87,10 @@ extern "C" {
 
 void sbp2nmea_init(sbp2nmea_t *state, void (*cb_sbp_to_nmea)(u8 msg_id[]));
 
-void sbp2nmea(sbp2nmea_t *state, const void *sbp_msg, sbp2nmea_sbp_id_t sbp_id);
+void sbp2nmea(sbp2nmea_t *state,
+              u8 len,
+              const void *sbp_msg,
+              sbp2nmea_sbp_id_t sbp_id);
 void sbp2nmea_obs(sbp2nmea_t *state, const msg_obs_t *sbp_obs, uint8_t num_obs);
 
 void sbp2nmea_base_id_set(sbp2nmea_t *state, uint16_t base_sender_id);
@@ -99,6 +102,10 @@ const sbp_gnss_signal_t *sbp2nmea_nav_sids_get(const sbp2nmea_t *state);
 void sbp2nmea_to_str(const sbp2nmea_t *state, char *sentence);
 
 void *sbp2nmea_msg_get(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id);
+
+uint8_t sbp2nmea_msg_length(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id);
+
+void sbp2nmea_msg_length_set(sbp2nmea_t *state, u8 len, sbp2nmea_sbp_id_t id);
 
 void sbp2nmea_rate_set(sbp2nmea_t *state, int rate, sbp2nmea_nmea_id_t id);
 

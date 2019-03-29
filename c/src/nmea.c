@@ -21,6 +21,7 @@
 
 #include <gnss-converters/nmea.h>
 #include <swiftnav/array_tools.h>
+#include <swiftnav/common.h>
 #include <swiftnav/constants.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/pvt_result.h>
@@ -114,6 +115,16 @@ typedef enum talker_id_e {
     nmea_append_checksum(sentence_buf, sizeof(sentence_buf)); \
     nmea_output(state, sentence_buf);                         \
   } while (0)
+
+/* data element for GSV sentence */
+typedef struct {
+  sbp_gnss_signal_t sid;
+  bool has_azel;
+  bool has_snr;
+  s8 el;
+  u16 az;
+  u8 snr;
+} nmea_gsv_element_t;
 
 /** Output NMEA sentence.
  *
@@ -949,6 +960,130 @@ void send_gpgst(const sbp2nmea_t *state) {
   NMEA_SENTENCE_DONE(state);
 
 } /* send_gpgst() */
+
+/** Print a NMEA GSV message string and send it out NMEA USARTs.
+ * NMEA GSV  message contains GNSS Satellites In View.
+ *
+ * \param[in] n_data      size of data
+ * \param[in] data        array of GSV data elements
+ * \param[in] talker      indicator which talker ID to use
+ */
+static void nmea_gsv_print(const u8 n_used,
+                           const nmea_gsv_element_t data[],
+                           const talker_id_t talker,
+                           const sbp2nmea_t *state) {
+  const char *talker_str = talker_id_to_str(talker);
+
+  u8 n_messages = (n_used + 3) / 4;
+
+  u8 n = 0;
+
+  for (u8 i = 0; i < n_messages; i++) {
+    NMEA_SENTENCE_START(120);
+    NMEA_SENTENCE_PRINTF(
+        "$%sGSV,%u,%u,%02u", talker_str, n_messages, i + 1, n_used);
+
+    for (u8 j = 0; j < 4 && n < n_used; n++) {
+      u16 sv_id = nmea_get_id(data[n].sid);
+
+      NMEA_SENTENCE_PRINTF(",%02u", sv_id);
+
+      if (data[n].has_azel) {
+        NMEA_SENTENCE_PRINTF(",%02d,%03u", data[n].el, data[n].az);
+      } else {
+        NMEA_SENTENCE_PRINTF(",,");
+      }
+
+      if (data[n].has_snr) {
+        NMEA_SENTENCE_PRINTF(",%02u", data[n].snr);
+      } else {
+        NMEA_SENTENCE_PRINTF(",");
+      }
+
+      j++; /* 4 sats per message no matter what */
+    }
+    NMEA_SENTENCE_DONE(state);
+  }
+}
+
+/** Group tracked SVs by constellation and forward information to GSV printing
+ * function.
+ *
+ * \note NMEA 0183 - Standard For Interfacing Marine Electronic Devices
+ *       versions 2.30, 3.01 and 4.10 state following:
+ *       If multiple GPS, GLONASS, Galileo, etc. satellites are in view, use
+ *       separate GSV sentences with talker ID GP to show the GPS satellites in
+ *       view and talker GL to show the GLONASS satellites in view and talker GA
+ *       to show the Galileo satellites in view, etc. When more than ranging
+ *       signal is used per satellite, also use separate GSV sentences with a
+ *       Signal ID corresponding to the ranging signal. The GN identifier shall
+ *       not be used with this sentence!
+ *
+ */
+void send_gsv(const sbp2nmea_t *state) {
+  const msg_measurement_state_t *sbp_meas_state =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_MEASUREMENT_STATE);
+  const msg_sv_az_el_t *sbp_azel =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_SV_AZ_EL);
+
+  const u8 n_used =
+      sbp2nmea_msg_length(state, SBP2NMEA_SBP_SV_AZ_EL) / sizeof(sv_az_el_t);
+  const u8 sbp_n_state =
+      sbp2nmea_msg_length(state, SBP2NMEA_SBP_MEASUREMENT_STATE) /
+      sizeof(measurement_state_t);
+
+  /* Group by constellation */
+  nmea_gsv_element_t sv_grouped[TALKER_ID_COUNT][n_used];
+  u8 num_sv[TALKER_ID_COUNT] = {0};
+
+  for (u8 i = 0; i < n_used; ++i) {
+    sbp_gnss_signal_t sid = sbp_azel->azel[i].sid;
+    talker_id_t id = sid_to_talker_id(sid);
+
+    if (TALKER_ID_INVALID == id) {
+      /* Unsupported constellation */
+      continue;
+    }
+
+    nmea_gsv_element_t element = {.sid = sbp_azel->azel[i].sid,
+                                  .has_azel = true,
+                                  .has_snr = false,
+                                  .az = 2 * sbp_azel->azel[i].az,
+                                  .el = sbp_azel->azel[i].el};
+
+    /* pick CN0 from the measurement state */
+    for (u8 j = 0; j < sbp_n_state; j++) {
+      sbp_gnss_signal_t meas_sid = sbp_meas_state->states[j].mesid;
+
+      /* take the CN0 from the first signal for this satellite */
+      if (meas_sid.sat == sid.sat && code_to_constellation(meas_sid.code) ==
+                                         code_to_constellation(sid.code)) {
+        element.has_snr = true;
+        element.snr = (u8)round(sbp_meas_state->states[j].cn0 / 4.0);
+        break;
+      }
+    }
+    sv_grouped[id][num_sv[id]++] = element;
+  }
+
+  /* Print grouped sentences */
+  u8 talkers = 0;
+  for (u8 i = 0; i < TALKER_ID_COUNT; ++i) {
+    if (0 == num_sv[i]) {
+      continue;
+    }
+    nmea_gsv_print(num_sv[i], sv_grouped[i], i, state);
+    talkers++;
+  }
+
+  /* Check if anything was printed */
+  if (0 == talkers) {
+    /* Print bare minimum */
+    NMEA_SENTENCE_START(120);
+    NMEA_SENTENCE_PRINTF("$GPGSV,1,1,0");
+    NMEA_SENTENCE_DONE(state);
+  }
+}
 
 bool check_nmea_rate(u32 rate, u32 gps_tow_ms, float soln_freq) {
   if (rate == 0) {
