@@ -29,8 +29,8 @@
 
 #include <rtcm3/constants.h>
 #include <rtcm3/msm_utils.h>
-#include <swiftnav/constants.h>
-#include <swiftnav/signal.h>
+#include <libswiftnav/constants.h>
+#include <libswiftnav/signal.h>
 
 /** Define the PRN ranges for each constellation. */
 typedef struct {

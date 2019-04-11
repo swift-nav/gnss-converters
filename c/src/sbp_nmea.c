@@ -20,10 +20,10 @@
 
 #include <gnss-converters/nmea.h>
 #include <gnss-converters/sbp_nmea.h>
-#include <swiftnav/constants.h>
-#include <swiftnav/gnss_time.h>
-#include <swiftnav/memcpy_s.h>
-#include <swiftnav/signal.h>
+#include <libswiftnav/constants.h>
+#include <libswiftnav/gnss_time.h>
+#include <libswiftnav/memcpy_s.h>
+#include <libswiftnav/signal.h>
 
 struct nmea_meta_entry {
   uint16_t tow_mask;

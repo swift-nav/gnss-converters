@@ -1,9 +1,0 @@
-[submodule "c/librtcm"]
-	path = c/librtcm
-	url = ../librtcm.git
-[submodule "c/libsbp"]
-	path = c/libsbp
-	url = ../libsbp.git
-[submodule "c/libswiftnav"]
-	path = c/libswiftnav
-	url = ../libswiftnav.git

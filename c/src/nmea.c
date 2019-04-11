@@ -20,12 +20,12 @@
 #include <string.h>
 
 #include <gnss-converters/nmea.h>
-#include <swiftnav/array_tools.h>
-#include <swiftnav/common.h>
-#include <swiftnav/constants.h>
-#include <swiftnav/gnss_time.h>
-#include <swiftnav/pvt_result.h>
-#include <swiftnav/signal.h>
+#include <libswiftnav/array_tools.h>
+#include <libswiftnav/common.h>
+#include <libswiftnav/constants.h>
+#include <libswiftnav/gnss_time.h>
+#include <libswiftnav/pvt_result.h>
+#include <libswiftnav/signal.h>
 
 /** \addtogroup io
  * \{ */

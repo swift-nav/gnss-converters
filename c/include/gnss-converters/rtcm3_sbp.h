@@ -15,8 +15,8 @@
 
 #include <libsbp/observation.h>
 #include <rtcm3/messages.h>
-#include <swiftnav/gnss_time.h>
-#include <swiftnav/signal.h>
+#include <libswiftnav/gnss_time.h>
+#include <libswiftnav/signal.h>
 
 #ifdef __cplusplus
 extern "C" {

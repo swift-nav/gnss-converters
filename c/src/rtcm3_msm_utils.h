@@ -17,7 +17,7 @@
 #include <stdint.h>
 
 #include <rtcm3/messages.h>
-#include <swiftnav/signal.h>
+#include <libswiftnav/signal.h>
 
 bool msm_signal_frequency(const rtcm_msm_header *header,
                           const u8 signal_index,

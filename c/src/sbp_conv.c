@@ -14,8 +14,8 @@
 #include <gnss-converters/rtcm3_sbp.h>
 #include <gnss-converters/sbp_conv.h>
 #include <libsbp/sbp.h>
-#include <swiftnav/fifo_byte.h>
-#include <swiftnav/gnss_time.h>
+#include <libswiftnav/fifo_byte.h>
+#include <libswiftnav/gnss_time.h>
 #include <time.h>
 
 struct sbp_conv_s {

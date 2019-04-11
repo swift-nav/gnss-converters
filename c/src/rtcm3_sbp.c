@@ -27,11 +27,11 @@
 #include <rtcm3/eph_decode.h>
 #include <rtcm3/logging.h>
 #include <rtcm3/ssr_decode.h>
-#include <swiftnav/edc.h>
-#include <swiftnav/gnss_time.h>
-#include <swiftnav/memcpy_s.h>
-#include <swiftnav/sid_set.h>
-#include <swiftnav/signal.h>
+#include <libswiftnav/edc.h>
+#include <libswiftnav/gnss_time.h>
+#include <libswiftnav/memcpy_s.h>
+#include <libswiftnav/sid_set.h>
+#include <libswiftnav/signal.h>
 
 #include "rtcm3_msm_utils.h"
 

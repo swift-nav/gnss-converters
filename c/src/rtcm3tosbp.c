@@ -23,9 +23,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <swiftnav/edc.h>
-#include <swiftnav/fifo_byte.h>
-#include <swiftnav/gnss_time.h>
+#include <libswiftnav/edc.h>
+#include <libswiftnav/fifo_byte.h>
+#include <libswiftnav/gnss_time.h>
 #include <time.h>
 #include <unistd.h>
 

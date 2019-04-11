@@ -11,7 +11,7 @@
  */
 
 #include <math.h>
-#include <swiftnav/constants.h>
+#include <libswiftnav/constants.h>
 #include "rtcm3_sbp_internal.h"
 
 #define FIRST_SISA_STEP 50

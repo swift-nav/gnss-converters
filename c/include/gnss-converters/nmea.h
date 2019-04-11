@@ -16,8 +16,8 @@
 #include <gnss-converters/sbp_nmea.h>
 #include <libsbp/navigation.h>
 #include <libsbp/orientation.h>
-#include <swiftnav/common.h>
-#include <swiftnav/gnss_time.h>
+#include <libswiftnav/common.h>
+#include <libswiftnav/gnss_time.h>
 
 /* The "QI" stands for "Quality Indicator" which is the terminology used
    for this field in the NMEA specification. */

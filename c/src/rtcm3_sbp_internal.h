@@ -15,8 +15,8 @@
 
 #include <rtcm3/messages.h>
 #include <rtcm3/msm_utils.h>
-#include <swiftnav/constants.h>
-#include <swiftnav/signal.h>
+#include <libswiftnav/constants.h>
+#include <libswiftnav/signal.h>
 #include "gnss-converters/rtcm3_sbp.h"
 
 #define MSG_OBS_P_MULTIPLIER ((double)5e1)
