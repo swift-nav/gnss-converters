@@ -221,9 +221,9 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gps_eph->common.toe.tow = msg_eph->toe * 16;
   sbp_gps_eph->common.toe.wn =
       gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
-  gps_time_match_weeks(
-      &(gps_time_t){sbp_gps_eph->common.toe.tow, sbp_gps_eph->common.toe.wn},
-      &state->time_from_rover_obs);
+  /* gps_time_match_weeks( TODO(ORI-482): as is, this updates a temporary - removing for now. */
+  /*     &(gps_time_t){sbp_gps_eph->common.toe.tow, sbp_gps_eph->common.toe.wn}, */
+  /*     &state->time_from_rover_obs); */
   sbp_gps_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gps_eph->common.sid.code = CODE_GPS_L1CA;
   sbp_gps_eph->common.ura = convert_ura_to_uri(msg_eph->ura);
@@ -309,9 +309,9 @@ void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
       (u32)rint(msg_eph->toe * GALILEO_TOC_RESOLUTION);
   sbp_gal_eph->common.toe.wn =
       gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
-  gps_time_match_weeks(
-      &(gps_time_t){sbp_gal_eph->common.toe.tow, sbp_gal_eph->common.toe.wn},
-      &state->time_from_rover_obs);
+  /* gps_time_match_weeks( TODO(ORI-482): as is, this updates a temporary - removing for now. */
+  /*     &(gps_time_t){sbp_gal_eph->common.toe.tow, sbp_gal_eph->common.toe.wn}, */
+  /*     &state->time_from_rover_obs); */
   sbp_gal_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gal_eph->common.sid.code = CODE_GAL_E1B;
   sbp_gal_eph->common.ura = convert_sisa_to_meters(msg_eph->ura);
@@ -347,7 +347,7 @@ void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gal_eph->iode = msg_eph->kepler.iode;
   sbp_gal_eph->iodc = msg_eph->kepler.iode;
 
-  sbp_gal_eph->toc.wn = (state->time_from_rover_obs.wn & 0xFC00) + msg_eph->wn;
+  sbp_gal_eph->toc.wn = (state->time_from_rover_obs.wn & 0xFC00) + (msg_eph->wn & 0x3FF);
   sbp_gal_eph->toc.tow =
       (u32)rint(msg_eph->kepler.toc * GALILEO_TOC_RESOLUTION);
 }
