@@ -885,7 +885,7 @@ void send_gpgst(const sbp2nmea_t *state) {
   NMEA_SENTENCE_START(120);
 
   char utc[NMEA_TS_MAX_LEN];
-  get_utc_time_string(true, true, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
+  get_utc_time_string(true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
 
   u16 talkers[TALKER_ID_COUNT] = {0};
 
