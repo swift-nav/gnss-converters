@@ -911,16 +911,16 @@ void send_gpgst(const sbp2nmea_t *state) {
   /* Check if no SVs identified */
   if (0 == constellations) {
     /* At bare minimum, print empty GPGST and be done with it */
-    NMEA_SENTENCE_PRINTF("$GPGST,%s,,,,,,,", utc);
+    NMEA_SENTENCE_PRINTF("$GPGST,%s,,,,,,", utc);
     NMEA_SENTENCE_DONE(state);
     return;
   } else if (constellations > 1) {
     /* At bare minimum, print empty GNGST and be done with it */
-    NMEA_SENTENCE_PRINTF("$GNGST,%s,", utc);
+    NMEA_SENTENCE_PRINTF("$GNGST,%s", utc);
   } else {
     for (u8 i = 0; i < TALKER_ID_COUNT; ++i) {
       if (talkers[i] == 1) {
-        NMEA_SENTENCE_PRINTF("$%sGST,%s,", talker_id_to_str(i), utc);
+        NMEA_SENTENCE_PRINTF("$%sGST,%s", talker_id_to_str(i), utc);
         break;
       }
     }
