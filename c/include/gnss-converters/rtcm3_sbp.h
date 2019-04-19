@@ -161,6 +161,11 @@ void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
                          const u8 msg[],
                          struct rtcm3_out_state *state);
 
+void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
+                         const u8 len,
+                         const u8 msg[],
+                         struct rtcm3_out_state *state);
+
 #ifdef __cplusplus
 }
 #endif

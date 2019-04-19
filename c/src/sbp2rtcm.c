@@ -72,6 +72,7 @@ int main(int argc, char **argv) {
   sbp_msg_callbacks_node_t sbp_base_pos_callback_node;
   sbp_msg_callbacks_node_t sbp_glo_biases_callback_node;
   sbp_msg_callbacks_node_t sbp_obs_callback_node;
+  sbp_msg_callbacks_node_t sbp_osr_callback_node;
   sbp_msg_callbacks_node_t sbp_ephemeris_glo_callback_node;
 
   sbp_state_t sbp_state;
@@ -92,6 +93,11 @@ int main(int argc, char **argv) {
                         (void *)&sbp2rtcm_sbp_obs_cb,
                         &state,
                         &sbp_obs_callback_node);
+  sbp_register_callback(&sbp_state,
+                        SBP_MSG_OSR,
+                        (void *)&sbp2rtcm_sbp_osr_cb,
+                        &state,
+                        &sbp_osr_callback_node);
   sbp_register_callback(&sbp_state,
                         SBP_MSG_EPHEMERIS_GLO,
                         (void *)&ephemeris_glo_callback,

@@ -429,6 +429,17 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       send_MSM_warning(&payload[byte], state);
       break;
     }
+    case 4062: {
+      rtcm_msg_swift_proprietary swift_msg;
+      if (RC_OK == rtcm3_decode_4062(payload, &swift_msg)) {
+        state->cb_rtcm_to_sbp(swift_msg.msg_type,
+                              swift_msg.len,
+                              swift_msg.data,
+                              swift_msg.sender_id,
+                              state->context);
+      }
+      break;
+    }
     default:
       break;
   }
@@ -514,6 +525,10 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
     case 1125: {
       rtcm_msm_message *msg_msm = (rtcm_msm_message *)rtcm_msg;
       return rtcm3_encode_msm5(msg_msm, buff);
+    }
+    case 4062: {
+      rtcm_msg_swift_proprietary *swift_msg = (rtcm_msg_swift_proprietary *)rtcm_msg;
+      return rtcm3_encode_4062(swift_msg, buff);
     }
     default:
       assert(!"Unsupported message type");
@@ -2245,4 +2260,20 @@ void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
   if (seq_counter == seq_size) {
     sbp_buffer_to_rtcm3(state);
   }
+}
+
+
+void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
+                         const u8 len,
+                         const u8 msg[],
+                         struct rtcm3_out_state *state) {
+  rtcm_msg_swift_proprietary osr_msg;
+  osr_msg.msg_type = SBP_MSG_OSR;
+  osr_msg.sender_id = sender_id;
+  osr_msg.len = len;
+  memcpy(osr_msg.data, msg, len);
+
+  u8 frame[RTCM3_MAX_MSG_LEN];
+  u16 frame_size = encode_rtcm3_frame(&osr_msg, 4062, frame);
+  state->cb_sbp_to_rtcm(frame, frame_size, state->context);
 }
