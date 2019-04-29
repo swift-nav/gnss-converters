@@ -10,6 +10,7 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <assert.h>
 #include <math.h>
 #include <swiftnav/constants.h>
 #include "rtcm3_sbp_internal.h"
@@ -161,12 +162,12 @@ risk) */
 }
 
 /** Calculate the GPS ephemeris curve fit interval.
-*
-* \param fit_interval_flag The curve fit interval flag. 0 is 4 hours, 1 is >4
-* hours.
-* \param iodc The IODC value.
-* \return the curve fit interval in seconds.
-*/
+ *
+ * \param fit_interval_flag The curve fit interval flag. 0 is 4 hours, 1 is >4
+ * hours.
+ * \param iodc The IODC value.
+ * \return the curve fit interval in seconds.
+ */
 u32 rtcm3_decode_fit_interval_gps(u8 fit_interval_flag, u16 iodc) {
   u8 fit_interval = 4; /* This is in hours */
 
@@ -193,11 +194,11 @@ u32 rtcm3_decode_fit_interval_gps(u8 fit_interval_flag, u16 iodc) {
 }
 
 /** Calculate the GLO ephemeris curve fit interval.
-*
-* \param fit_interval_flag The curve fit interval flag. 0 is 4 hours, 1 is >4
-* hours.
-* \return the curve fit interval in seconds.
-*/
+ *
+ * \param fit_interval_flag The curve fit interval flag. 0 is 4 hours, 1 is >4
+ * hours.
+ * \return the curve fit interval in seconds.
+ */
 u32 rtcm3_decode_fit_interval_glo(const u8 p1) {
   switch (p1) {
     case 0:
@@ -216,6 +217,9 @@ u32 rtcm3_decode_fit_interval_glo(const u8 p1) {
 void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_gps_t *sbp_gps_eph,
                           struct rtcm3_sbp_state *state) {
+  assert(msg_eph);
+  assert(sbp_gps_eph);
+  assert(RTCM_CONSTELLATION_GPS == msg_eph->constellation);
   /* RTCM gives wn module 1024, so take the current time and mask the lower 10
    * bits */
   sbp_gps_eph->common.toe.tow = msg_eph->toe * 16;
@@ -265,6 +269,9 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
 void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_glo_t *sbp_glo_eph,
                           struct rtcm3_sbp_state *state) {
+  assert(msg_eph);
+  assert(sbp_glo_eph);
+  assert(RTCM_CONSTELLATION_GLO == msg_eph->constellation);
   gps_time_t toe;
   compute_glo_time(msg_eph->glo.t_b * SEC_IN_15MINUTES * S_TO_MS,
                    &toe,
@@ -303,6 +310,9 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
 void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_gal_t *sbp_gal_eph,
                           struct rtcm3_sbp_state *state) {
+  assert(msg_eph);
+  assert(sbp_gal_eph);
+  assert(RTCM_CONSTELLATION_GAL == msg_eph->constellation);
   /* RTCM gives wn module 1024, so take the current time and mask the lower 10
    * bits */
   sbp_gal_eph->common.toe.tow =
@@ -355,6 +365,9 @@ void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
 void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_bds_t *sbp_bds_eph,
                           struct rtcm3_sbp_state *state) {
+  assert(msg_eph);
+  assert(sbp_bds_eph);
+  assert(RTCM_CONSTELLATION_BDS == msg_eph->constellation);
   /* RTCM gives wn module 1024, so take the current time and mask the lower 10
    * bits */
 

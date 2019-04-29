@@ -527,7 +527,8 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
       return rtcm3_encode_msm5(msg_msm, buff);
     }
     case 4062: {
-      rtcm_msg_swift_proprietary *swift_msg = (rtcm_msg_swift_proprietary *)rtcm_msg;
+      rtcm_msg_swift_proprietary *swift_msg =
+          (rtcm_msg_swift_proprietary *)rtcm_msg;
       return rtcm3_encode_4062(swift_msg, buff);
     }
     default:
@@ -537,8 +538,11 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
   return 0;
 }
 
-/* Encode RTCM frame into the given buffer, returns frame length */
+/* Encode RTCM frame into the given buffer of at least RTCM3_MAX_MSG_LEN bytes,
+ * returns frame length */
 u16 encode_rtcm3_frame(const void *rtcm_msg, u16 message_type, u8 *frame) {
+  memset(frame, 0, RTCM3_MAX_MSG_LEN);
+
   u16 byte = 3;
   u16 message_size = encode_rtcm3_payload(rtcm_msg, message_type, &frame[byte]);
 
@@ -2261,7 +2265,6 @@ void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
     sbp_buffer_to_rtcm3(state);
   }
 }
-
 
 void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
                          const u8 len,
