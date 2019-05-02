@@ -67,8 +67,8 @@ extern bool rtcm3_debug;
 /** UTC (SU) offset (hours) */
 #define UTC_SU_OFFSET 3
 
-/** Constant difference of Beidou time from GPS time */
-#define BDS_SECOND_TO_GPS_SECOND 14
+/** Constant difference of Galileo time from GPS time */
+#define GAL_WEEK_TO_GPS_WEEK 1024
 
 /* PREAMBLE to append to an RTCM3 log message */
 #define RTCM_LOG_PREAMBLE "RTCM: "

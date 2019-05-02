@@ -436,6 +436,57 @@ void sbp_callback_eph_wn_rollover(
   }
 }
 
+void sbp_callback_eph_wn_rollover2(
+    u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
+  (void)length;
+  (void)sender_id;
+  (void)context;
+  gps_time_t toe = GPS_TIME_UNKNOWN;
+  gps_time_t toc = GPS_TIME_UNKNOWN;
+
+  switch (msg_id) {
+    case SBP_MSG_EPHEMERIS_GPS: {
+      msg_ephemeris_gps_t *msg = (msg_ephemeris_gps_t *)buffer;
+      toe.wn = msg->common.toe.wn;
+      toe.tow = msg->common.toe.tow;
+      toc.wn = msg->toc.wn;
+      toc.tow = msg->toc.tow;
+      break;
+    }
+    case SBP_MSG_EPHEMERIS_GLO: {
+      msg_ephemeris_glo_t *msg = (msg_ephemeris_glo_t *)buffer;
+      toe.wn = msg->common.toe.wn;
+      toe.tow = msg->common.toe.tow;
+      toc = toe;
+      break;
+    }
+    case SBP_MSG_EPHEMERIS_GAL: {
+      msg_ephemeris_gal_t *msg = (msg_ephemeris_gal_t *)buffer;
+      toe.wn = msg->common.toe.wn;
+      toe.tow = msg->common.toe.tow;
+      toc.wn = msg->toc.wn;
+      toc.tow = msg->toc.tow;
+      break;
+    }
+    case SBP_MSG_EPHEMERIS_BDS: {
+      msg_ephemeris_bds_t *msg = (msg_ephemeris_bds_t *)buffer;
+      toe.wn = msg->common.toe.wn;
+      toe.tow = msg->common.toe.tow;
+      toc.wn = msg->toc.wn;
+      toc.tow = msg->toc.tow;
+      break;
+    }
+    default:
+      return;
+  }
+  ck_assert(gps_time_valid(&toe));
+  ck_assert(gps_time_valid(&toc));
+  ck_assert(gpsdifftime(&toe, &toc) == 0);
+
+  /* time of ephemeris is reasonably close to current time */
+  ck_assert(fabs(gpsdifftime(&toe, &current_time)) < 4 * 3600);
+}
+
 void sbp_callback_1012_first(
     u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
@@ -1151,6 +1202,17 @@ START_TEST(tc_rtcm_eph_wn_rollover) {
 }
 END_TEST
 
+START_TEST(tc_rtcm_eph_wn_rollover2) {
+  current_time.wn = 2050;
+  current_time.tow = 208800;
+  state.time_from_rover_obs = current_time;
+  /* short RTCM3 capture from a RTCM3EPH stream */
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/wn-rollover2.rtcm",
+             sbp_callback_eph_wn_rollover2,
+             current_time);
+}
+END_TEST
+
 static void rtcm_roundtrip_cb(u8 *buffer, u16 length, void *context) {
   (void)context;
 
@@ -1282,6 +1344,8 @@ Suite *rtcm3_suite(void) {
   tcase_add_test(tc_eph, tc_rtcm_eph_gal);
   tcase_add_test(tc_eph, tc_rtcm_eph_bds);
   tcase_add_test(tc_eph, tc_rtcm_eph_wn_rollover);
+  tcase_add_test(tc_eph, tc_rtcm_eph_wn_rollover2);
+
   suite_add_tcase(s, tc_eph);
 
   TCase *tc_sbp_to_rtcm = tcase_create("sbp2rtcm");

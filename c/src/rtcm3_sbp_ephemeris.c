@@ -30,9 +30,12 @@
 #define THIRD_SISA_MIN_METERS 1.0f
 #define FOURTH_SISA_MIN_METERS 2.0f
 
-#define GALILEO_TOC_RESOLUTION 60.0f
-#define GPS_TOC_RESOLUTION 16.0f
-#define BEIDOU_TOC_RESOLUTION 8.0f
+#define GALILEO_TOE_RESOLUTION 60
+#define GALILEO_TOC_RESOLUTION 60
+#define GPS_TOE_RESOLUTION 16
+#define GPS_TOC_RESOLUTION 16
+#define BEIDOU_TOE_RESOLUTION 8
+#define BEIDOU_TOC_RESOLUTION 8
 
 float convert_ura_to_uri(uint8_t ura) {
   /* Convert between RTCM/GPS URA ("User Range Accuracy") index to a number in
@@ -217,17 +220,14 @@ u32 rtcm3_decode_fit_interval_glo(const u8 p1) {
 void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_gps_t *sbp_gps_eph,
                           struct rtcm3_sbp_state *state) {
+  (void)state;
   assert(msg_eph);
   assert(sbp_gps_eph);
   assert(RTCM_CONSTELLATION_GPS == msg_eph->constellation);
-  /* RTCM gives wn module 1024, so take the current time and mask the lower 10
-   * bits */
-  sbp_gps_eph->common.toe.tow = msg_eph->toe * 16;
+  /* GPS week is 10 bit (DF076) */
   sbp_gps_eph->common.toe.wn =
       gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
-  /* gps_time_match_weeks( TODO(ORI-482): as is, this updates a temporary - removing for now. */
-  /*     &(gps_time_t){sbp_gps_eph->common.toe.tow, sbp_gps_eph->common.toe.wn}, */
-  /*     &state->time_from_rover_obs); */
+  sbp_gps_eph->common.toe.tow = msg_eph->toe * GPS_TOE_RESOLUTION;
   sbp_gps_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gps_eph->common.sid.code = CODE_GPS_L1CA;
   sbp_gps_eph->common.ura = convert_ura_to_uri(msg_eph->ura);
@@ -262,8 +262,8 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gps_eph->iode = msg_eph->kepler.iode;
   sbp_gps_eph->iodc = msg_eph->kepler.iodc;
 
-  sbp_gps_eph->toc.wn = (state->time_from_rover_obs.wn & 0xFC00) + msg_eph->wn;
-  sbp_gps_eph->toc.tow = (u32)rint(msg_eph->kepler.toc * GPS_TOC_RESOLUTION);
+  sbp_gps_eph->toc.wn = gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
+  sbp_gps_eph->toc.tow = msg_eph->kepler.toc * GPS_TOC_RESOLUTION;
 }
 
 void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
@@ -304,24 +304,22 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_glo_eph->acc[2] = (float)(msg_eph->glo.acc[2] * C_1_2P30 * 1000);
 
   sbp_glo_eph->fcn = msg_eph->glo.fcn + 1;
-  sbp_glo_eph->iod = (msg_eph->glo.t_b * 15 * 60) & 127;
+  sbp_glo_eph->iod = (msg_eph->glo.t_b * SEC_IN_15MINUTES) & 127u;
 }
 
 void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_gal_t *sbp_gal_eph,
                           struct rtcm3_sbp_state *state) {
+  (void)state;
   assert(msg_eph);
   assert(sbp_gal_eph);
   assert(RTCM_CONSTELLATION_GAL == msg_eph->constellation);
-  /* RTCM gives wn module 1024, so take the current time and mask the lower 10
-   * bits */
-  sbp_gal_eph->common.toe.tow =
-      (u32)rint(msg_eph->toe * GALILEO_TOC_RESOLUTION);
-  sbp_gal_eph->common.toe.wn =
-      gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
-  /* gps_time_match_weeks( TODO(ORI-482): as is, this updates a temporary - removing for now. */
-  /*     &(gps_time_t){sbp_gal_eph->common.toe.tow, sbp_gal_eph->common.toe.wn}, */
-  /*     &state->time_from_rover_obs); */
+  /* Galileo week is 12 bit (DF289) and starts from GPS WN 1024 */
+  const u16 week = gps_adjust_week_cycle(msg_eph->wn + GAL_WEEK_TO_GPS_WEEK,
+                                         GPS_WEEK_REFERENCE);
+  sbp_gal_eph->common.toe.wn = week;
+  sbp_gal_eph->common.toe.tow = msg_eph->toe * GALILEO_TOE_RESOLUTION;
+
   sbp_gal_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gal_eph->common.sid.code = CODE_GAL_E1B;
   sbp_gal_eph->common.ura = convert_sisa_to_meters(msg_eph->ura);
@@ -357,29 +355,26 @@ void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gal_eph->iode = msg_eph->kepler.iode;
   sbp_gal_eph->iodc = msg_eph->kepler.iode;
 
-  sbp_gal_eph->toc.wn = (state->time_from_rover_obs.wn & 0xFC00) + (msg_eph->wn & 0x3FF);
-  sbp_gal_eph->toc.tow =
-      (u32)rint(msg_eph->kepler.toc * GALILEO_TOC_RESOLUTION);
+  sbp_gal_eph->toc.wn = week;
+  sbp_gal_eph->toc.tow = msg_eph->kepler.toc * GALILEO_TOC_RESOLUTION;
 }
 
 void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_bds_t *sbp_bds_eph,
                           struct rtcm3_sbp_state *state) {
+  (void)state;
   assert(msg_eph);
   assert(sbp_bds_eph);
   assert(RTCM_CONSTELLATION_BDS == msg_eph->constellation);
-  /* RTCM gives wn module 1024, so take the current time and mask the lower 10
-   * bits */
 
-  sbp_bds_eph->common.toe.wn =
-      gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
-  u32 tow_ms = (u32)rint(msg_eph->toe * BEIDOU_TOC_RESOLUTION * SECS_MS);
-  beidou_tow_to_gps_tow(&tow_ms);
   gps_time_t toe;
-  compute_gps_message_time(tow_ms, &toe, &state->time_from_rover_obs);
-  sbp_bds_eph->common.toe.wn = toe.wn;
+  /* Beidou week is 13 bit (DF489) and starts from GPS WN 1356 */
+  toe.wn = msg_eph->wn + BDS_WEEK_TO_GPS_WEEK;
+  toe.tow = (msg_eph->toe * BEIDOU_TOE_RESOLUTION) + BDS_SECOND_TO_GPS_SECOND;
+  normalize_gps_time(&toe);
+  sbp_bds_eph->common.toe.wn =
+      gps_adjust_week_cycle(toe.wn, GPS_WEEK_REFERENCE);
   sbp_bds_eph->common.toe.tow = (u32)rint(toe.tow);
-
   sbp_bds_eph->common.sid.sat = msg_eph->sat_id;
   sbp_bds_eph->common.sid.code = CODE_BDS2_B1;
   sbp_bds_eph->common.ura = convert_bds_ura_to_meters(msg_eph->ura);
@@ -415,11 +410,11 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_bds_eph->iode = msg_eph->kepler.iode;
   sbp_bds_eph->iodc = msg_eph->kepler.iodc;
 
-  sbp_bds_eph->toc.wn = gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
-  tow_ms = (u32)rint(msg_eph->kepler.toc * BEIDOU_TOC_RESOLUTION * SECS_MS);
-  beidou_tow_to_gps_tow(&tow_ms);
   gps_time_t toc;
-  compute_gps_message_time(tow_ms, &toc, &state->time_from_rover_obs);
-  sbp_bds_eph->toc.wn = toc.wn;
+  toc.wn = msg_eph->wn + BDS_WEEK_TO_GPS_WEEK;
+  toc.tow =
+      (msg_eph->kepler.toc * BEIDOU_TOC_RESOLUTION) + BDS_SECOND_TO_GPS_SECOND;
+  normalize_gps_time(&toc);
+  sbp_bds_eph->toc.wn = gps_adjust_week_cycle(toc.wn, GPS_WEEK_REFERENCE);
   sbp_bds_eph->toc.tow = (u32)rint(toc.tow);
 }
