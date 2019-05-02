@@ -24,14 +24,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <swiftnav/edc.h>
-#include <swiftnav/fifo_byte.h>
 #include <swiftnav/gnss_time.h>
 #include <time.h>
 #include <unistd.h>
 
-/* You may reduce FIFO_SIZE if you need a lower memory footprint. */
-#define FIFO_SIZE (1 << 14)
-#define BUFFER_SIZE (FIFO_SIZE - RTCM3_MSG_OVERHEAD - RTCM3_MAX_MSG_LEN)
 #define SBP_PREAMBLE 0x55
 
 static struct rtcm3_sbp_state state;
@@ -93,37 +89,14 @@ static void cb_base_obs_invalid(const double timediff, void *context) {
   fprintf(stderr, "Invalid base observation! timediff: %lf\n", timediff);
 }
 
-static uint16_t extract_msg_len(uint8_t *buf) {
-  return (((uint16_t)buf[1] << 8) | buf[2]) & RTCM3_MAX_MSG_LEN;
-}
-
-/* buf_len is your total allocated space - can be much bigger than
-   your actual message */
-static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
-  uint16_t msg_len = extract_msg_len(buf);
-  if (buf_len < msg_len + RTCM3_MSG_OVERHEAD) {
-    fprintf(stderr,
-            "CRC failure! Buffer %u too short for message length %u\n",
-            buf_len,
-            msg_len);
-    return false;
-  }
-  uint32_t computed_crc = crc24q(buf, 3 + msg_len, 0);
-  uint32_t frame_crc = (buf[msg_len + 3] << 16) | (buf[msg_len + 4] << 8) |
-                       (buf[msg_len + 5] << 0);
-  if (frame_crc != computed_crc) {
-    fprintf(stderr,
-            "CRC failure! frame: %08X computed: %08X\n",
-            frame_crc,
-            computed_crc);
-  }
-  return (frame_crc == computed_crc);
+static int read_stdin(uint8_t *buf, size_t len, void *context) {
+  (void)context; /* squash warning */
+  return read(STDIN_FILENO, buf, len);
 }
 
 int main(int argc, char **argv) {
   (void)(argc); /* todo: accept arguments */
   (void)(argv); /* todo: accept arguments */
-  assert(FIFO_SIZE > RTCM3_MSG_OVERHEAD + RTCM3_MAX_MSG_LEN);
 
   /* set time from systime, account for UTC<->GPS leap second difference */
   time_t ct_utc_unix = time(NULL);
@@ -139,58 +112,7 @@ int main(int argc, char **argv) {
   rtcm2sbp_set_gps_time(&current_time, &state);
   rtcm2sbp_set_leap_second((s8)rint(gps_utc_offset), &state);
 
-  uint8_t fifo_buf[FIFO_SIZE] = {0};
-  fifo_t fifo;
-  fifo_init(&fifo, fifo_buf, sizeof(fifo_buf));
+  rtcm2sbp_process_stream(&state, read_stdin);
 
-  uint8_t inbuf[BUFFER_SIZE];
-  ssize_t numread;
-  while ((numread = read(STDIN_FILENO, inbuf, BUFFER_SIZE)) > 0) {
-    ssize_t numwritten = fifo_write(&fifo, inbuf, numread);
-    if (numwritten != numread) {
-      fprintf(stderr,
-              "%zd bytes read from stdin but only %zd written to FIFO\n",
-              numread,
-              numwritten);
-    }
-    assert(numwritten == numread);
-
-    uint8_t buf[FIFO_SIZE] = {0};
-    fifo_size_t bytes_avail = fifo_peek(&fifo, buf, FIFO_SIZE);
-    uint32_t index = 0;
-
-    while (index + RTCM3_MSG_OVERHEAD < bytes_avail) {
-      if (RTCM3_PREAMBLE != buf[index]) {
-        index++;
-        continue;
-      }
-
-      uint16_t msg_len = extract_msg_len(&buf[index]);
-      if ((msg_len == 0) || (msg_len > RTCM3_MAX_MSG_LEN)) {
-        index++;
-        continue;
-      }
-      if (index + RTCM3_MSG_OVERHEAD + msg_len > bytes_avail) {
-        break;
-      }
-
-      uint8_t *rtcm_msg = &buf[index];
-      if (!verify_crc(rtcm_msg, FIFO_SIZE - index)) {
-        index++;
-        continue;
-      }
-
-      rtcm2sbp_decode_frame(rtcm_msg, msg_len + RTCM3_MSG_OVERHEAD, &state);
-      index += msg_len + RTCM3_MSG_OVERHEAD;
-    }
-    fifo_size_t numremoved = fifo_remove(&fifo, index);
-    if (numremoved != index) {
-      fprintf(stderr,
-              "Tried to remove %u bytes from FIFO, only got %u\n",
-              index,
-              numremoved);
-    }
-    assert(numremoved == index);
-  }
   return 0;
 }

@@ -166,6 +166,11 @@ void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
                          const u8 msg[],
                          struct rtcm3_out_state *state);
 
+void rtcm2sbp_process_stream(struct rtcm3_sbp_state *state,
+                             int (*read_stream_func)(uint8_t *buf,
+                                                     size_t len,
+                                                     void *context));
+
 #ifdef __cplusplus
 }
 #endif

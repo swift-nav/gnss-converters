@@ -32,6 +32,7 @@
 #include <swiftnav/memcpy_s.h>
 #include <swiftnav/sid_set.h>
 #include <swiftnav/signal.h>
+#include <swiftnav/fifo_byte.h>
 
 #include "rtcm3_msm_utils.h"
 
@@ -2277,4 +2278,112 @@ void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
   u8 frame[RTCM3_MAX_MSG_LEN];
   u16 frame_size = encode_rtcm3_frame(&osr_msg, 4062, frame);
   state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+}
+
+static uint16_t extract_msg_len(const uint8_t *buf) {
+  return (((uint16_t)buf[1] << 8) | buf[2]) & RTCM3_MAX_MSG_LEN;
+}
+
+/* buf_len is the total allocated space - can be much bigger than
+   the actual message */
+static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
+  uint16_t msg_len = extract_msg_len(buf);
+  if (buf_len < msg_len + RTCM3_MSG_OVERHEAD) {
+    fprintf(stderr,
+            "CRC failure! Buffer %u too short for message length %u\n",
+            buf_len,
+            msg_len);
+    return false;
+  }
+  uint32_t computed_crc = crc24q(buf, 3 + msg_len, 0);
+  uint32_t frame_crc = (buf[msg_len + 3] << 16) | (buf[msg_len + 4] << 8) |
+      (buf[msg_len + 5] << 0);
+  if (frame_crc != computed_crc) {
+    fprintf(stderr,
+            "CRC failure! frame: %08X computed: %08X\n",
+            frame_crc,
+            computed_crc);
+  }
+  return (frame_crc == computed_crc);
+}
+
+/* You may reduce FIFO_SIZE if you need a lower memory footprint. */
+#define FIFO_SIZE (1 << 14)
+#define BUFFER_SIZE (FIFO_SIZE - RTCM3_MSG_OVERHEAD - RTCM3_MAX_MSG_LEN)
+
+/**
+ * Processes a stream of data, converting RTCM messages in to SBP and outputting
+ * via the callback functions in the `state` parameter. This function assumes
+ * that the `rtcm3_sbp_state` object has already been fully populated.
+ * `read_func` will be called repeatedly until it returns a zero or negative
+ * value.
+ *
+ * Note: See `main()` in rtcm3tosbp.c for an example of how to use this function
+ *
+ * @param state An already populated state object
+ * @param read_stream_func The function to call to read from the stream. `buf`
+ * is the buffer to write data into, `len` is the size of the buffer in bytes,
+ * `ctx` is the context pointer from the `state` argument, the return value is
+ * the number of bytes written into `buf` with negative values indicating an
+ * error.
+ */
+void rtcm2sbp_process_stream(struct rtcm3_sbp_state *state,
+                             int (*read_stream_func)(uint8_t *buf,
+                                                     size_t len,
+                                                     void *ctx)) {
+  assert(FIFO_SIZE > RTCM3_MSG_OVERHEAD + RTCM3_MAX_MSG_LEN);
+
+  uint8_t fifo_buf[FIFO_SIZE] = {0};
+  fifo_t fifo;
+  fifo_init(&fifo, fifo_buf, sizeof(fifo_buf));
+
+  uint8_t inbuf[BUFFER_SIZE];
+  ssize_t numread;
+  while ((numread = read_stream_func(inbuf, BUFFER_SIZE, state->context)) > 0) {
+    ssize_t numwritten = fifo_write(&fifo, inbuf, numread);
+    if (numwritten != numread) {
+      fprintf(stderr,
+              "%zd bytes read from stdin but only %zd written to FIFO\n",
+              numread,
+              numwritten);
+    }
+    assert(numwritten == numread);
+
+    uint8_t buf[FIFO_SIZE] = {0};
+    fifo_size_t bytes_avail = fifo_peek(&fifo, buf, FIFO_SIZE);
+    uint32_t index = 0;
+
+    while (index + RTCM3_MSG_OVERHEAD < bytes_avail) {
+      if (RTCM3_PREAMBLE != buf[index]) {
+        index++;
+        continue;
+      }
+
+      uint16_t msg_len = extract_msg_len(&buf[index]);
+      if ((msg_len == 0) || (msg_len > RTCM3_MAX_MSG_LEN)) {
+        index++;
+        continue;
+      }
+      if (index + RTCM3_MSG_OVERHEAD + msg_len > bytes_avail) {
+        break;
+      }
+
+      uint8_t *rtcm_msg = &buf[index];
+      if (!verify_crc(rtcm_msg, FIFO_SIZE - index)) {
+        index++;
+        continue;
+      }
+
+      rtcm2sbp_decode_frame(rtcm_msg, msg_len + RTCM3_MSG_OVERHEAD, state);
+      index += msg_len + RTCM3_MSG_OVERHEAD;
+    }
+    fifo_size_t numremoved = fifo_remove(&fifo, index);
+    if (numremoved != index) {
+      fprintf(stderr,
+              "Tried to remove %u bytes from FIFO, only got %u\n",
+              index,
+              numremoved);
+    }
+    assert(numremoved == index);
+  }
 }
