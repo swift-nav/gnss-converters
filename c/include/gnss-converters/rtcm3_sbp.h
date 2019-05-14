@@ -54,6 +54,19 @@ typedef enum {
   UNSUPPORTED_CODE_MAX
 } unsupported_code_t;
 
+// A struct for storing either an SSR orbit correction message
+// or an SSR clock correction message. Used for combining the
+// separate messages into a combined message
+typedef struct {
+  union {
+    rtcm_msg_clock clock;
+    rtcm_msg_orbit orbit;
+  };
+  // Only one of these can be true at once (or neither)
+  bool contains_clock; // True if clock contains data
+  bool contains_orbit; // True if orbit contains data
+} ssr_orbit_clock_cache;
+
 struct rtcm3_sbp_state {
   gps_time_t time_from_rover_obs;
   s8 leap_seconds;
@@ -72,6 +85,9 @@ struct rtcm3_sbp_state {
   bool sent_code_warning[UNSUPPORTED_CODE_MAX];
   /* GLO FCN map, indexed by 1-based PRN */
   u8 glo_sv_id_fcn_map[NUM_SATS_GLO + 1];
+  // The cache for storing the first message before combining the separate
+  // orbit and clock messages into a combined SBP message
+  ssr_orbit_clock_cache orbit_clock_cache[CONSTELLATION_COUNT];
 };
 
 struct rtcm3_out_state {

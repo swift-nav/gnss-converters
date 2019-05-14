@@ -15,6 +15,7 @@
 #include <rtcm3/msm_utils.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "rtcm3_sbp_internal.h"
 
 #define SSR_MESSAGE_LENGTH 256
@@ -40,6 +41,117 @@ gps_time_sec_t compute_ssr_message_time(
   return obs_time_sec;
 }
 
+static bool rtcm_ssr_header_to_sbp_orbit_clock(const rtcm_msg_ssr_header *header, uint8_t *length, const rtcm_msg_ssr_orbit_corr *orbit, msg_ssr_orbit_clock_t *sbp_orbit_clock, struct rtcm3_sbp_state *state) {
+  sbp_orbit_clock->time =
+      compute_ssr_message_time(header->constellation,
+                               header->epoch_time * S_TO_MS,
+                               &state->time_from_rover_obs,
+                               state);
+
+  if (!gps_time_sec_valid(&sbp_orbit_clock->time)) {
+    /* Invalid time */
+    return false;
+  }
+  *length += sizeof(sbp_orbit_clock->time);
+
+  sbp_orbit_clock->sid.code =
+      constellation_to_l1_code(header->constellation);
+
+  sbp_orbit_clock->sid.sat = orbit->sat_id;
+  *length += sizeof(sbp_orbit_clock->sid);
+
+  sbp_orbit_clock->update_interval = header->update_interval;
+  *length += sizeof(sbp_orbit_clock->update_interval);
+
+  sbp_orbit_clock->iod_ssr = header->iod_ssr;
+  *length += sizeof(sbp_orbit_clock->iod_ssr);
+
+  /* For Beidou, AODE is not unique so orbit/clock providers (CNES,..) use an
+   * IOD based on the CRC to discriminate between consecutive broadcast
+   * ephemeris. We dont use both so we only turn into SBP one or the other */
+  if (header->constellation == CONSTELLATION_BDS) {
+    sbp_orbit_clock->iod = orbit->iodcrc;
+  } else {
+    sbp_orbit_clock->iod = orbit->iode;
+  }
+  *length += sizeof(sbp_orbit_clock->iod);
+
+  return true;
+}
+
+static void rtcm_ssr_orbit_to_sbp(const rtcm_msg_ssr_orbit_corr *orbit, uint8_t *length, msg_ssr_orbit_clock_t *sbp_orbit_clock) {
+  sbp_orbit_clock->radial = orbit->radial;
+  *length += sizeof(sbp_orbit_clock->radial);
+
+  sbp_orbit_clock->along = orbit->along_track;
+  *length += sizeof(sbp_orbit_clock->along);
+
+  sbp_orbit_clock->cross = orbit->cross_track;
+  *length += sizeof(sbp_orbit_clock->cross);
+
+  sbp_orbit_clock->dot_radial = orbit->dot_radial;
+  *length += sizeof(sbp_orbit_clock->dot_radial);
+
+  sbp_orbit_clock->dot_along = orbit->dot_along_track;
+  *length += sizeof(sbp_orbit_clock->dot_along);
+
+  sbp_orbit_clock->dot_cross = orbit->dot_cross_track;
+  *length += sizeof(sbp_orbit_clock->dot_cross);
+}
+
+static void rtcm_ssr_clock_to_sbp(const rtcm_msg_ssr_clock_corr *clock, uint8_t *length, msg_ssr_orbit_clock_t *sbp_orbit_clock) {
+  sbp_orbit_clock->c0 = clock->c0;
+  *length += sizeof(sbp_orbit_clock->c0);
+
+  sbp_orbit_clock->c1 = clock->c1;
+  *length += sizeof(sbp_orbit_clock->c1);
+
+  sbp_orbit_clock->c2 = clock->c2;
+  *length += sizeof(sbp_orbit_clock->c2);
+}
+
+void rtcm3_ssr_separate_orbit_clock_to_sbp(rtcm_msg_clock *msg_clock,
+                                           rtcm_msg_orbit *msg_orbit,
+                                           struct rtcm3_sbp_state *state) {
+  assert(msg_clock);
+  assert(msg_orbit);
+  assert(msg_clock->header.constellation == msg_orbit->header.constellation);
+  assert(msg_clock->header.epoch_time == msg_orbit->header.epoch_time);
+  assert(msg_clock->header.iod_ssr == msg_orbit->header.iod_ssr);
+
+  uint8_t buffer[SSR_MESSAGE_LENGTH];
+  uint8_t length;
+  msg_ssr_orbit_clock_t *sbp_orbit_clock = (msg_ssr_orbit_clock_t *)buffer;
+
+  for (int sat_count = 0; (sat_count < msg_clock->header.num_sats) && (sat_count < msg_orbit->header.num_sats); ++sat_count) {
+    memset(buffer, 0, sizeof(buffer));
+    length = 0;
+
+    // We aren't guaranteed that the satellite info in the orbit and clock messages is in the same order
+    // so we must search for pair of corrections for a given satellite
+    int clock_index = sat_count;
+    int orbit_index = 0;
+    while (msg_orbit->orbit[orbit_index].sat_id != msg_clock->clock[clock_index].sat_id && orbit_index < msg_orbit->header.num_sats) {
+      orbit_index++;
+    }
+    if (orbit_index >= msg_orbit->header.num_sats) {
+      continue;
+    }
+
+    if (!rtcm_ssr_header_to_sbp_orbit_clock(&msg_orbit->header, &length, &msg_orbit->orbit[orbit_index], sbp_orbit_clock, state)) {
+      return;
+    }
+    rtcm_ssr_orbit_to_sbp(&msg_orbit->orbit[orbit_index], &length, sbp_orbit_clock);
+    rtcm_ssr_clock_to_sbp(&msg_clock->clock[clock_index], &length, sbp_orbit_clock);
+
+    state->cb_rtcm_to_sbp(SBP_MSG_SSR_ORBIT_CLOCK,
+                          length,
+                          (u8 *)sbp_orbit_clock,
+                          0,
+                          state->context);
+  }
+}
+
 void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
                                   struct rtcm3_sbp_state *state) {
   uint8_t buffer[SSR_MESSAGE_LENGTH];
@@ -50,68 +162,12 @@ void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
        sat_count++) {
     memset(buffer, 0, SSR_MESSAGE_LENGTH);
     length = 0;
-    sbp_orbit_clock->time =
-        compute_ssr_message_time(msg_orbit_clock->header.constellation,
-                                 msg_orbit_clock->header.epoch_time * S_TO_MS,
-                                 &state->time_from_rover_obs,
-                                 state);
 
-    if (!gps_time_sec_valid(&sbp_orbit_clock->time)) {
-      /* Invalid time */
+    if (!rtcm_ssr_header_to_sbp_orbit_clock(&msg_orbit_clock->header, &length, &msg_orbit_clock->orbit[sat_count], sbp_orbit_clock, state)) {
       return;
     }
-    length += sizeof(sbp_orbit_clock->time);
-
-    sbp_orbit_clock->sid.code =
-        constellation_to_l1_code(msg_orbit_clock->header.constellation);
-
-    sbp_orbit_clock->sid.sat = msg_orbit_clock->orbit[sat_count].sat_id;
-    length += sizeof(sbp_orbit_clock->sid);
-
-    sbp_orbit_clock->update_interval = msg_orbit_clock->header.update_interval;
-    length += sizeof(sbp_orbit_clock->update_interval);
-
-    sbp_orbit_clock->iod_ssr = msg_orbit_clock->header.iod_ssr;
-    length += sizeof(sbp_orbit_clock->iod_ssr);
-
-    /* For Beidou, AODE is not unique so orbit/clock providers (CNES,..) use an
-     * IOD based on the CRC to discriminate between consecutive broadcast
-     * ephemeris. We dont use both so we only turn into SBP one or the other */
-    if (msg_orbit_clock->header.constellation == CONSTELLATION_BDS) {
-      sbp_orbit_clock->iod = msg_orbit_clock->orbit[sat_count].iodcrc;
-    } else {
-      sbp_orbit_clock->iod = msg_orbit_clock->orbit[sat_count].iode;
-    }
-    length += sizeof(sbp_orbit_clock->iod);
-
-    sbp_orbit_clock->radial = msg_orbit_clock->orbit[sat_count].radial;
-    length += sizeof(sbp_orbit_clock->radial);
-
-    sbp_orbit_clock->along = msg_orbit_clock->orbit[sat_count].along_track;
-    length += sizeof(sbp_orbit_clock->along);
-
-    sbp_orbit_clock->cross = msg_orbit_clock->orbit[sat_count].cross_track;
-    length += sizeof(sbp_orbit_clock->cross);
-
-    sbp_orbit_clock->dot_radial = msg_orbit_clock->orbit[sat_count].dot_radial;
-    length += sizeof(sbp_orbit_clock->dot_radial);
-
-    sbp_orbit_clock->dot_along =
-        msg_orbit_clock->orbit[sat_count].dot_along_track;
-    length += sizeof(sbp_orbit_clock->dot_along);
-
-    sbp_orbit_clock->dot_cross =
-        msg_orbit_clock->orbit[sat_count].dot_cross_track;
-    length += sizeof(sbp_orbit_clock->dot_cross);
-
-    sbp_orbit_clock->c0 = msg_orbit_clock->clock[sat_count].c0;
-    length += sizeof(sbp_orbit_clock->c0);
-
-    sbp_orbit_clock->c1 = msg_orbit_clock->clock[sat_count].c1;
-    length += sizeof(sbp_orbit_clock->c1);
-
-    sbp_orbit_clock->c2 = msg_orbit_clock->clock[sat_count].c2;
-    length += sizeof(sbp_orbit_clock->c2);
+    rtcm_ssr_orbit_to_sbp(&msg_orbit_clock->orbit[sat_count], &length, sbp_orbit_clock);
+    rtcm_ssr_clock_to_sbp(&msg_orbit_clock->clock[sat_count], &length, sbp_orbit_clock);
 
     state->cb_rtcm_to_sbp(SBP_MSG_SSR_ORBIT_CLOCK,
                           length,

@@ -22,11 +22,14 @@
 #include "config.h"
 
 static bool gps_orbit_clock_processed = false;
+static bool gps_separate_orbit_clock_processed = false;
 static bool gps_code_bias_processed = false;
 static bool gps_phase_bias_processed = false;
 static bool glo_orbit_clock_processed = false;
+static bool glo_separate_orbit_clock_processed = false;
 static bool glo_code_bias_processed = false;
 static bool gal_orbit_clock_processed = false;
+static bool gal_separate_orbit_clock_processed = false;
 static bool gal_code_bias_processed = false;
 static bool gal_phase_bias_processed = false;
 static bool bds_orbit_clock_processed = false;
@@ -63,6 +66,42 @@ void sbp_callback_gps_orbit_clock(
     ck_assert(sbp_orbit_clock->dot_along == 18);
     ck_assert(sbp_orbit_clock->dot_cross == -22);
     ck_assert(sbp_orbit_clock->c0 == -268);
+    ck_assert(sbp_orbit_clock->c1 == 0);
+    ck_assert(sbp_orbit_clock->c2 == 0);
+  }
+}
+
+void sbp_callback_gps_separate_orbit_clock(
+    u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
+  (void)length;
+  (void)sender_id;
+  (void)context;
+  /* ignore log messages */
+  static bool msg_checked = false;
+  if (msg_id == SBP_MSG_SSR_ORBIT_CLOCK && !msg_checked) {
+    msg_ssr_orbit_clock_t *sbp_orbit_clock = (msg_ssr_orbit_clock_t *)buffer;
+    if (sbp_orbit_clock->sid.code != CODE_GPS_L1CA) {
+      // This is not a GPS message, wait for first GPS message
+      return;
+    }
+    msg_checked = true;
+    gps_separate_orbit_clock_processed = true;
+
+    ck_assert(sbp_orbit_clock->time.wn == 2013);
+    ck_assert(sbp_orbit_clock->time.tow == 513478);
+    printf("sat: %d\n", sbp_orbit_clock->sid.sat);
+    ck_assert(sbp_orbit_clock->sid.sat == 2);
+    ck_assert(sbp_orbit_clock->sid.code == 0);
+    ck_assert(sbp_orbit_clock->update_interval == 0);
+    ck_assert(sbp_orbit_clock->iod_ssr == 0);
+    ck_assert(sbp_orbit_clock->iod == 46);
+    ck_assert(sbp_orbit_clock->radial == -173824);
+    ck_assert(sbp_orbit_clock->along == -23407);
+    ck_assert(sbp_orbit_clock->cross == -4749);
+    ck_assert(sbp_orbit_clock->dot_radial == 0);
+    ck_assert(sbp_orbit_clock->dot_along == 0);
+    ck_assert(sbp_orbit_clock->dot_cross == 0);
+    ck_assert(sbp_orbit_clock->c0 == 10278);
     ck_assert(sbp_orbit_clock->c1 == 0);
     ck_assert(sbp_orbit_clock->c2 == 0);
   }
@@ -196,6 +235,41 @@ void sbp_callback_glo_orbit_clock(
   }
 }
 
+void sbp_callback_glo_separate_orbit_clock(
+    u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
+  (void)length;
+  (void)sender_id;
+  (void)context;
+  /* ignore log messages */
+  static bool msg_checked = false;
+  if (msg_id == SBP_MSG_SSR_ORBIT_CLOCK && !msg_checked) {
+    msg_ssr_orbit_clock_t *sbp_orbit_clock = (msg_ssr_orbit_clock_t *)buffer;
+    if (sbp_orbit_clock->sid.code != CODE_GLO_L1OF) {
+      // This is not a GLO message, wait for first GLO message
+      return;
+    }
+    msg_checked = true;
+    glo_separate_orbit_clock_processed = true;
+
+    ck_assert(sbp_orbit_clock->time.wn == 2013);
+    ck_assert(sbp_orbit_clock->time.tow == 167896);
+    ck_assert(sbp_orbit_clock->sid.sat == 3);
+    ck_assert(sbp_orbit_clock->sid.code == 3);
+    ck_assert(sbp_orbit_clock->update_interval == 0);
+    ck_assert(sbp_orbit_clock->iod_ssr == 0);
+    ck_assert(sbp_orbit_clock->iod == 7);
+    ck_assert(sbp_orbit_clock->radial == -14969);
+    ck_assert(sbp_orbit_clock->along == -25802);
+    ck_assert(sbp_orbit_clock->cross == 30707);
+    ck_assert(sbp_orbit_clock->dot_radial == 0);
+    ck_assert(sbp_orbit_clock->dot_along == 0);
+    ck_assert(sbp_orbit_clock->dot_cross == 0);
+    ck_assert(sbp_orbit_clock->c0 == 2694);
+    ck_assert(sbp_orbit_clock->c1 == 0);
+    ck_assert(sbp_orbit_clock->c2 == 0);
+  }
+}
+
 void sbp_callback_glo_code_bias(
     u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
   (void)length;
@@ -260,6 +334,41 @@ void sbp_callback_gal_orbit_clock(
     ck_assert(sbp_orbit_clock->dot_along == -22);
     ck_assert(sbp_orbit_clock->dot_cross == 4);
     ck_assert(sbp_orbit_clock->c0 == 714);
+    ck_assert(sbp_orbit_clock->c1 == 0);
+    ck_assert(sbp_orbit_clock->c2 == 0);
+  }
+}
+
+void sbp_callback_gal_separate_orbit_clock(
+    u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
+  (void)length;
+  (void)sender_id;
+  (void)context;
+  /* ignore log messages */
+  static bool msg_checked = false;
+  if (msg_id == SBP_MSG_SSR_ORBIT_CLOCK && !msg_checked) {
+    msg_ssr_orbit_clock_t *sbp_orbit_clock = (msg_ssr_orbit_clock_t *)buffer;
+    if (sbp_orbit_clock->sid.code != CODE_GAL_E1B) {
+      // This is not a GAL message, wait for first GAL message
+      return;
+    }
+    msg_checked = true;
+    gal_separate_orbit_clock_processed = true;
+
+    ck_assert(sbp_orbit_clock->time.wn == 2013);
+    ck_assert(sbp_orbit_clock->time.tow == 513478);
+    ck_assert(sbp_orbit_clock->sid.sat == 1);
+    ck_assert(sbp_orbit_clock->sid.code == CODE_GAL_E1B);
+    ck_assert(sbp_orbit_clock->update_interval == 0);
+    ck_assert(sbp_orbit_clock->iod_ssr == 0);
+    ck_assert(sbp_orbit_clock->iod == 86);
+    ck_assert(sbp_orbit_clock->radial == 238457);
+    ck_assert(sbp_orbit_clock->along == -29239);
+    ck_assert(sbp_orbit_clock->cross == 33418);
+    ck_assert(sbp_orbit_clock->dot_radial == 0);
+    ck_assert(sbp_orbit_clock->dot_along == 0);
+    ck_assert(sbp_orbit_clock->dot_cross == 0);
+    ck_assert(sbp_orbit_clock->c0 == -233944);
     ck_assert(sbp_orbit_clock->c1 == 0);
     ck_assert(sbp_orbit_clock->c2 == 0);
   }
@@ -469,6 +578,15 @@ START_TEST(test_ssr_gps_orbit_clock) {
 }
 END_TEST
 
+START_TEST(test_ssr_gps_separate_orbit_clock) {
+  current_time.wn = 2013;
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/separate_clk_orbit.rtcm",
+             sbp_callback_gps_separate_orbit_clock,
+             current_time);
+  ck_assert(gps_separate_orbit_clock_processed);
+}
+END_TEST
+
 START_TEST(test_ssr_gps_code_bias) {
   current_time.wn = 2013;
   test_RTCM3(RELATIVE_PATH_PREFIX "/data/clk.rtcm",
@@ -497,6 +615,16 @@ START_TEST(test_ssr_glo_orbit_clock) {
 }
 END_TEST
 
+START_TEST(test_ssr_glo_separate_orbit_clock) {
+  current_time.wn = 2013;
+  current_time.tow = 171680;
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/separate_clk_orbit.rtcm",
+             sbp_callback_glo_separate_orbit_clock,
+             current_time);
+  ck_assert(glo_separate_orbit_clock_processed);
+}
+END_TEST
+
 START_TEST(test_ssr_glo_code_bias) {
   current_time.wn = 2013;
   current_time.tow = 171680;
@@ -513,6 +641,15 @@ START_TEST(test_ssr_gal_orbit_clock) {
              sbp_callback_gal_orbit_clock,
              current_time);
   ck_assert(gal_orbit_clock_processed);
+}
+END_TEST
+
+START_TEST(test_ssr_gal_separate_orbit_clock) {
+  current_time.wn = 2013;
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/separate_clk_orbit.rtcm",
+             sbp_callback_gal_separate_orbit_clock,
+             current_time);
+  ck_assert(gal_separate_orbit_clock_processed);
 }
 END_TEST
 
@@ -567,11 +704,14 @@ Suite *rtcm3_ssr_suite(void) {
   TCase *tc_ssr = tcase_create("SSR");
   tcase_add_checked_fixture(tc_ssr, rtcm3_setup_basic, NULL);
   tcase_add_test(tc_ssr, test_ssr_gps_orbit_clock);
+  tcase_add_test(tc_ssr, test_ssr_gps_separate_orbit_clock);
   tcase_add_test(tc_ssr, test_ssr_gps_code_bias);
   tcase_add_test(tc_ssr, test_ssr_gps_phase_bias);
   tcase_add_test(tc_ssr, test_ssr_glo_orbit_clock);
+  tcase_add_test(tc_ssr, test_ssr_glo_separate_orbit_clock);
   tcase_add_test(tc_ssr, test_ssr_glo_code_bias);
   tcase_add_test(tc_ssr, test_ssr_gal_orbit_clock);
+  tcase_add_test(tc_ssr, test_ssr_gal_separate_orbit_clock);
   tcase_add_test(tc_ssr, test_ssr_gal_code_bias);
   tcase_add_test(tc_ssr, test_ssr_gal_phase_bias);
   tcase_add_test(tc_ssr, test_ssr_bds_orbit_clock);

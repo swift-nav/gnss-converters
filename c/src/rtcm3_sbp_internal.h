@@ -322,6 +322,9 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_bds_t *sbp_glo_eph,
                           struct rtcm3_sbp_state *state);
 
+void rtcm3_ssr_separate_orbit_clock_to_sbp(rtcm_msg_clock *msg_clock,
+                                           rtcm_msg_orbit *msg_orbit,
+                                           struct rtcm3_sbp_state *state);
 void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
                                   struct rtcm3_sbp_state *state);
 void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases,
