@@ -2387,8 +2387,10 @@ static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
  * `ctx` is the context pointer from the `state` argument, the return value is
  * the number of bytes written into `buf` with negative values indicating an
  * error.
+ * @return The last value of read_func, either 0 or a negatice value indicating
+ * an error.
  */
-void rtcm2sbp_process_stream(struct rtcm3_sbp_state *state,
+int rtcm2sbp_process_stream(struct rtcm3_sbp_state *state,
                              int (*read_stream_func)(uint8_t *buf,
                                                      size_t len,
                                                      void *ctx)) {
@@ -2447,4 +2449,6 @@ void rtcm2sbp_process_stream(struct rtcm3_sbp_state *state,
     }
     assert(numremoved == index);
   }
+
+  return numread;
 }
