@@ -884,6 +884,11 @@ void send_gpgst(const sbp2nmea_t *state) {
   const sbp_gnss_signal_t *nav_sids = sbp2nmea_nav_sids_get(state);
   NMEA_SENTENCE_START(120);
 
+  u8 fix_type = NMEA_GGA_QI_INVALID;
+  if ((sbp_pos_llh_cov->flags & POSITION_MODE_MASK) != POSITION_MODE_NONE) {
+    fix_type = get_nmea_quality_indicator(sbp_pos_llh_cov->flags);
+  }
+
   char utc[NMEA_TS_MAX_LEN];
   get_utc_time_string(true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
 
@@ -909,7 +914,7 @@ void send_gpgst(const sbp2nmea_t *state) {
   }
 
   /* Check if no SVs identified */
-  if (0 == constellations) {
+  if (0 == constellations || fix_type == NMEA_GGA_QI_INVALID) {
     /* At bare minimum, print empty GPGST and be done with it */
     NMEA_SENTENCE_PRINTF("$GPGST,%s,,,,,,", utc);
     NMEA_SENTENCE_DONE(state);
@@ -940,15 +945,15 @@ void send_gpgst(const sbp2nmea_t *state) {
                sbp_pos_llh_cov->cov_n_e * sbp_pos_llh_cov->cov_n_e;
 
   /* Semi-major and semi-minor axis of the error ellipse and orientation */
-  double eigenval_1 = (trace / 2 + sqrt(((trace * trace) / 4) - det));
-  double eigenval_2 = (trace / 2 - sqrt(((trace * trace) / 4) - det));
+  double eigenval_1 = (trace / 2 + sqrt(fmax(0,((trace * trace) / 4) - det)));
+  double eigenval_2 = (trace / 2 - sqrt(fmax(0,((trace * trace) / 4) - det)));
 
   double semi_major = sqrt(eigenval_1);
   double semi_minor = sqrt(eigenval_2);
 
   double orientation =
       atan(sbp_pos_llh_cov->cov_n_e / (eigenval_1 - sbp_pos_llh_cov->cov_e_e));
-
+  
   NMEA_SENTENCE_PRINTF("%f,%f,%f,%f,%f,%f",
                        semi_major,
                        semi_minor,
