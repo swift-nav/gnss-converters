@@ -28,11 +28,12 @@
 #include <rtcm3/logging.h>
 #include <rtcm3/ssr_decode.h>
 #include <swiftnav/edc.h>
+#include <swiftnav/ephemeris.h>
+#include <swiftnav/fifo_byte.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/memcpy_s.h>
 #include <swiftnav/sid_set.h>
 #include <swiftnav/signal.h>
-#include <swiftnav/fifo_byte.h>
 
 #include "rtcm3_msm_utils.h"
 
@@ -248,7 +249,8 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       rtcm_msg_eph msg_eph;
       if (RC_OK == rtcm3_decode_gal_eph_fnav(&payload[byte], &msg_eph)) {
         msg_ephemeris_gal_t sbp_gal_eph;
-        rtcm3_gal_eph_to_sbp(&msg_eph, &sbp_gal_eph, state);
+        rtcm3_gal_eph_to_sbp(
+            &msg_eph, EPH_SOURCE_GAL_FNAV, &sbp_gal_eph, state);
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GAL,
                               (u8)sizeof(sbp_gal_eph),
                               (u8 *)&sbp_gal_eph,
@@ -275,7 +277,8 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       rtcm_msg_eph msg_eph;
       if (RC_OK == rtcm3_decode_gal_eph(&payload[byte], &msg_eph)) {
         msg_ephemeris_gal_t sbp_gal_eph;
-        rtcm3_gal_eph_to_sbp(&msg_eph, &sbp_gal_eph, state);
+        rtcm3_gal_eph_to_sbp(
+            &msg_eph, EPH_SOURCE_GAL_INAV, &sbp_gal_eph, state);
         state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GAL,
                               (u8)sizeof(sbp_gal_eph),
                               (u8 *)&sbp_gal_eph,
@@ -321,18 +324,20 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       break;
     }
 
-    /* The following two chunks of messages handle converting separate SSR orbit correction
-     * and SSR clock correction messages into a single SBP message containing both orbit and
-     * clock corrections.
-     * This code makes the following assumptions:
-     *  1. Each pair of orbit and clock messages contain data for the same group of satellites,
-     *     this implies that we don't support the multimessage flag in the RTCM message. We do
-     *     match the clock correction satid with the orbit correction satid, so the corrections
-     *     don't have to be in the same order but we will silently drop any correction that we
-     *     can't find a matching pair for.
-     *  2. The clock and orbit messages are sent at the same frequency. The epoch time
-     *     of the two messages must match for them to be considered pairs.
-    */
+    /* The following two chunks of messages handle converting separate SSR orbit
+     * correction and SSR clock correction messages into a single SBP message
+     * containing both orbit and clock corrections. This code makes the
+     * following assumptions:
+     *  1. Each pair of orbit and clock messages contain data for the same group
+     * of satellites, this implies that we don't support the multimessage flag
+     * in the RTCM message. We do match the clock correction satid with the
+     * orbit correction satid, so the corrections don't have to be in the same
+     * order but we will silently drop any correction that we can't find a
+     * matching pair for.
+     *  2. The clock and orbit messages are sent at the same frequency. The
+     * epoch time of the two messages must match for them to be considered
+     * pairs.
+     */
     case 1057:
     case 1063:
     case 1240:
@@ -344,10 +349,17 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
         /* If we already have a matching clock message perform the conversion */
         if (state->orbit_clock_cache[constellation].contains_clock &&
             !state->orbit_clock_cache[constellation].contains_orbit &&
-            state->orbit_clock_cache[constellation].clock.header.epoch_time == msg_orbit.header.epoch_time &&
-            state->orbit_clock_cache[constellation].clock.header.iod_ssr == msg_orbit.header.iod_ssr &&
-            state->orbit_clock_cache[constellation].clock.header.constellation == msg_orbit.header.constellation) {
-          rtcm3_ssr_separate_orbit_clock_to_sbp(&state->orbit_clock_cache[constellation].clock, &msg_orbit, state);
+            state->orbit_clock_cache[constellation].clock.header.epoch_time ==
+                msg_orbit.header.epoch_time &&
+            state->orbit_clock_cache[constellation].clock.header.iod_ssr ==
+                msg_orbit.header.iod_ssr &&
+            state->orbit_clock_cache[constellation]
+                    .clock.header.constellation ==
+                msg_orbit.header.constellation) {
+          rtcm3_ssr_separate_orbit_clock_to_sbp(
+              &state->orbit_clock_cache[constellation].clock,
+              &msg_orbit,
+              state);
           state->orbit_clock_cache[constellation].contains_clock = false;
         } else { /* Store the decoded message in the cache */
           state->orbit_clock_cache[constellation].orbit = msg_orbit;
@@ -368,10 +380,17 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
         /* If we already have a matching orbit message perform the conversion */
         if (!state->orbit_clock_cache[constellation].contains_clock &&
             state->orbit_clock_cache[constellation].contains_orbit &&
-            state->orbit_clock_cache[constellation].orbit.header.epoch_time == msg_clock.header.epoch_time &&
-            state->orbit_clock_cache[constellation].orbit.header.iod_ssr == msg_clock.header.iod_ssr &&
-            state->orbit_clock_cache[constellation].orbit.header.constellation == msg_clock.header.constellation) {
-          rtcm3_ssr_separate_orbit_clock_to_sbp(&msg_clock, &state->orbit_clock_cache[constellation].orbit, state);
+            state->orbit_clock_cache[constellation].orbit.header.epoch_time ==
+                msg_clock.header.epoch_time &&
+            state->orbit_clock_cache[constellation].orbit.header.iod_ssr ==
+                msg_clock.header.iod_ssr &&
+            state->orbit_clock_cache[constellation]
+                    .orbit.header.constellation ==
+                msg_clock.header.constellation) {
+          rtcm3_ssr_separate_orbit_clock_to_sbp(
+              &msg_clock,
+              &state->orbit_clock_cache[constellation].orbit,
+              state);
           state->orbit_clock_cache[constellation].contains_orbit = false;
         } else { /* Store the decoded message in the cache */
           state->orbit_clock_cache[constellation].clock = msg_clock;
@@ -2358,7 +2377,7 @@ static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
   }
   uint32_t computed_crc = crc24q(buf, 3 + msg_len, 0);
   uint32_t frame_crc = (buf[msg_len + 3] << 16) | (buf[msg_len + 4] << 8) |
-      (buf[msg_len + 5] << 0);
+                       (buf[msg_len + 5] << 0);
   if (frame_crc != computed_crc) {
     fprintf(stderr,
             "CRC failure! frame: %08X computed: %08X\n",
@@ -2391,9 +2410,9 @@ static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
  * an error.
  */
 int rtcm2sbp_process_stream(struct rtcm3_sbp_state *state,
-                             int (*read_stream_func)(uint8_t *buf,
-                                                     size_t len,
-                                                     void *ctx)) {
+                            int (*read_stream_func)(uint8_t *buf,
+                                                    size_t len,
+                                                    void *ctx)) {
   assert(FIFO_SIZE > RTCM3_MSG_OVERHEAD + RTCM3_MAX_MSG_LEN);
 
   uint8_t fifo_buf[FIFO_SIZE] = {0};

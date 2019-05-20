@@ -307,7 +307,8 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_glo_eph->iod = (msg_eph->glo.t_b * SEC_IN_15MINUTES) & 127u;
 }
 
-void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
+void rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
+                          const u8 source,
                           msg_ephemeris_gal_t *sbp_gal_eph,
                           struct rtcm3_sbp_state *state) {
   (void)state;
@@ -357,6 +358,8 @@ void rtcm3_gal_eph_to_sbp(rtcm_msg_eph *msg_eph,
 
   sbp_gal_eph->toc.wn = week;
   sbp_gal_eph->toc.tow = msg_eph->kepler.toc * GALILEO_TOC_RESOLUTION;
+
+  sbp_gal_eph->source = source;
 }
 
 void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
