@@ -39,12 +39,12 @@ typedef struct {
 } prn_table_element_t;
 
 static const prn_table_element_t prn_table[RTCM_CONSTELLATION_COUNT] = {
-        [RTCM_CONSTELLATION_GPS] = {GPS_FIRST_PRN, NUM_SATS_GPS},
-        [RTCM_CONSTELLATION_SBAS] = {SBAS_FIRST_PRN, NUM_SATS_SBAS},
-        [RTCM_CONSTELLATION_GLO] = {GLO_FIRST_PRN, NUM_SATS_GLO},
-        [RTCM_CONSTELLATION_BDS] = {BDS_FIRST_PRN, NUM_SATS_BDS},
-        [RTCM_CONSTELLATION_QZS] = {QZS_FIRST_PRN, NUM_SATS_QZS},
-        [RTCM_CONSTELLATION_GAL] = {GAL_FIRST_PRN, NUM_SATS_GAL},
+    [RTCM_CONSTELLATION_GPS] = {GPS_FIRST_PRN, NUM_SATS_GPS},
+    [RTCM_CONSTELLATION_SBAS] = {SBAS_FIRST_PRN, NUM_SATS_SBAS},
+    [RTCM_CONSTELLATION_GLO] = {GLO_FIRST_PRN, NUM_SATS_GLO},
+    [RTCM_CONSTELLATION_BDS] = {BDS_FIRST_PRN, NUM_SATS_BDS},
+    [RTCM_CONSTELLATION_QZS] = {QZS_FIRST_PRN, NUM_SATS_QZS},
+    [RTCM_CONSTELLATION_GAL] = {GAL_FIRST_PRN, NUM_SATS_GAL},
 };
 
 static code_t get_msm_gps_code(u8 signal_id) {
@@ -189,20 +189,41 @@ static code_t get_msm_qzs_code(u8 signal_id) {
   }
 }
 
-static code_t get_msm_bds2_code(u8 signal_id) {
+static code_t get_msm_bds_code(u8 signal_id) {
   /* RTCM 10403.3 Table 3.5-108 */
   switch (signal_id) {
     case 2: /* 2I */
       return CODE_BDS2_B1;
     /* case 3:  2Q */
     /* case 4:  2X */
-    /* case 8:  6I */
-    /* case 9:  6Q */
-    /* case 10:  6X */
+    case 5:  /* B1C-I */
+      return CODE_BDS3_B1CI;
+    case 6:  /* B1C-Q */
+      return CODE_BDS3_B1CQ;
+    case 7:  /* B1C-X */
+      return CODE_BDS3_B1CX;
+    case 8:  /* 6I */
+      return CODE_BDS3_B3I;
+    case 9:  /* 6Q */
+      return CODE_BDS3_B3Q;
+    case 10:  /* 6X */
+      return CODE_BDS3_B3X;
     case 14: /* 7I */
       return CODE_BDS2_B2;
     /* case 15:  7Q */
     /* case 16:  7X */
+    case 17:  /* B2bI */
+      return CODE_BDS3_B7I;
+    case 18:  /* B2bQ */
+      return CODE_BDS3_B7Q;
+    case 19:  /* B2bX */
+      return CODE_BDS3_B7X;
+    case 20:  /* B2aI */
+      return CODE_BDS3_B5I;
+    case 21:  /* B2aQ */
+      return CODE_BDS3_B5Q;
+    case 22:  /* B2aX */
+      return CODE_BDS3_B5X;
     default:
       return CODE_INVALID;
   }
@@ -230,7 +251,7 @@ code_t msm_signal_to_code(const rtcm_msm_header *header, u8 signal_index) {
     case RTCM_CONSTELLATION_GLO:
       return get_msm_glo_code(code_index);
     case RTCM_CONSTELLATION_BDS:
-      return get_msm_bds2_code(code_index);
+      return get_msm_bds_code(code_index);
     case RTCM_CONSTELLATION_QZS:
       return get_msm_qzs_code(code_index);
     case RTCM_CONSTELLATION_GAL:
@@ -290,7 +311,7 @@ u8 code_to_msm_signal_id(const code_t code, const rtcm_constellation_t cons) {
       break;
     case RTCM_CONSTELLATION_BDS:
       for (u8 code_index = 0; code_index < MSM_SIGNAL_MASK_SIZE; code_index++) {
-        if (get_msm_bds2_code(code_index + 1) == code) {
+        if (get_msm_bds_code(code_index + 1) == code) {
           return code_index;
         }
       }
@@ -430,6 +451,26 @@ bool msm_signal_frequency(const rtcm_msm_header *header,
       return true;
     case CODE_BDS2_B2:
       *p_freq = BDS2_B2_HZ;
+      return true;
+    case CODE_BDS3_B1CI:
+    case CODE_BDS3_B1CQ:
+    case CODE_BDS3_B1CX:
+      *p_freq = BDS3_B1C_HZ;
+      return true;
+    case CODE_BDS3_B3I:
+    case CODE_BDS3_B3Q:
+    case CODE_BDS3_B3X:
+      *p_freq = BDS3_B3_HZ;
+      return true;
+    case CODE_BDS3_B5I:
+    case CODE_BDS3_B5Q:
+    case CODE_BDS3_B5X:
+      *p_freq = BDS3_B5_HZ;
+      return true;
+    case CODE_BDS3_B7I:
+    case CODE_BDS3_B7Q:
+    case CODE_BDS3_B7X:
+      *p_freq = BDS3_B7_HZ;
       return true;
     case CODE_SBAS_L1CA:
       *p_freq = SBAS_L1_HZ;
