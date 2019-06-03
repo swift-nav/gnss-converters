@@ -30,25 +30,43 @@ struct nmea_meta_entry {
   void (*send)(const sbp2nmea_t *);
 } nmea_meta[SBP2NMEA_NMEA_CNT] = {
     [SBP2NMEA_NMEA_GGA] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
                                        (1 << SBP2NMEA_SBP_DOPS) |
-                                       (1 << SBP2NMEA_SBP_AGE_CORR),
+                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
+                                       (1 << SBP2NMEA_SBP_VEL_NED),
                            .send = send_gpgga},
     [SBP2NMEA_NMEA_RMC] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                       (1 << SBP2NMEA_SBP_DOPS) |
+                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
                                        (1 << SBP2NMEA_SBP_VEL_NED),
                            .send = send_gprmc},
     [SBP2NMEA_NMEA_VTG] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                       (1 << SBP2NMEA_SBP_DOPS) |
+                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
                                        (1 << SBP2NMEA_SBP_VEL_NED),
                            .send = send_gpvtg},
     [SBP2NMEA_NMEA_HDT] = {.tow_mask = (1 << SBP2NMEA_SBP_HDG),
                            .send = send_gphdt},
-    [SBP2NMEA_NMEA_GLL] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV),
+    [SBP2NMEA_NMEA_GLL] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                       (1 << SBP2NMEA_SBP_DOPS) |
+                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
+                                       (1 << SBP2NMEA_SBP_VEL_NED),
                            .send = send_gpgll},
     [SBP2NMEA_NMEA_ZDA] = {.tow_mask = 0, .send = send_gpzda},
-    [SBP2NMEA_NMEA_GSA] = {.tow_mask = (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                       (1 << SBP2NMEA_SBP_DOPS),
+    [SBP2NMEA_NMEA_GSA] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                       (1 << SBP2NMEA_SBP_DOPS) |
+                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
+                                       (1 << SBP2NMEA_SBP_VEL_NED),
                            .send = send_gsa},
-    [SBP2NMEA_NMEA_GST] = {.tow_mask = (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                       (1 << SBP2NMEA_SBP_POS_LLH_COV),
+    [SBP2NMEA_NMEA_GST] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                       (1 << SBP2NMEA_SBP_DOPS) |
+                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
+                                       (1 << SBP2NMEA_SBP_VEL_NED),
                            .send = send_gpgst},
     [SBP2NMEA_NMEA_GSV] = {.tow_mask = 0, .send = send_gsv},
 };
