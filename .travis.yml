@@ -48,7 +48,7 @@ before_install:
       export CXX_COMPILER=$CXX;
       $CC --version;
       $CXX --version;
-      git submodule update --init;
+      git submodule update --init --recursive;
     fi
 
 script:

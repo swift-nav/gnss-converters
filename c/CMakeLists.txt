@@ -1,6 +1,29 @@
 cmake_minimum_required(VERSION 2.8.7)
 project(gnss-converters)
+
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake" "${CMAKE_CURRENT_LIST_DIR}/cmake/common")
+
 include(GNUInstallDirs)
+include(CCache)
+include(SwiftCmakeOptions)
+
+swift_create_project_options(
+    HAS_TESTS
+    TEST_PACKAGES "Check"
+    )
+
+include(ClangFormat)
+swift_setup_clang_format()
+
+option(librtcm_ENABLE_TESTS "" OFF)
+find_package(Rtcm REQUIRED)
+
+option(libsbp_ENABLE_TESTS "" OFF)
+option(libsbp_ENABLE_DOCS "" OFF)
+find_package(Sbp REQUIRED)
+
+option(libswiftnav_ENABLE_TESTS "" OFF)
+find_package(Swiftnav REQUIRED)
 
 # If NDEBUG is defined, all asserts() will be knocked out, and
 # currently we rely on asserts() for correct behavior.
@@ -13,17 +36,7 @@ if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR CMAKE_C_COMPILER_VERSION VE
   set(CMAKE_C_FLAGS "-Wfloat-conversion ${CMAKE_C_FLAGS}")
 endif()
 
-if(NOT TARGET rtcm AND EXISTS ${PROJECT_SOURCE_DIR}/librtcm/c)
-  add_subdirectory(librtcm/c)
-endif()
-
-if(NOT TARGET sbp AND EXISTS ${PROJECT_SOURCE_DIR}/libsbp/c)
-  add_subdirectory(libsbp/c)
-endif()
-
-if(NOT TARGET swiftnav AND EXISTS ${PROJECT_SOURCE_DIR}/libswiftnav)
-  add_subdirectory(libswiftnav)
-endif()
-
 add_subdirectory(src)
-add_subdirectory(tests)
+if(gnss-converters_BUILD_TESTS)
+  add_subdirectory(tests)
+endif()
