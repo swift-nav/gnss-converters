@@ -63,8 +63,8 @@ typedef struct {
     rtcm_msg_orbit orbit;
   };
   // Only one of these can be true at once (or neither)
-  bool contains_clock; // True if clock contains data
-  bool contains_orbit; // True if orbit contains data
+  bool contains_clock;  // True if clock contains data
+  bool contains_orbit;  // True if orbit contains data
 } ssr_orbit_clock_cache;
 
 struct rtcm3_sbp_state {
@@ -183,9 +183,9 @@ void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
                          struct rtcm3_out_state *state);
 
 int rtcm2sbp_process_stream(struct rtcm3_sbp_state *state,
-                             int (*read_stream_func)(uint8_t *buf,
-                                                     size_t len,
-                                                     void *context));
+                            int (*read_stream_func)(uint8_t *buf,
+                                                    size_t len,
+                                                    void *context));
 
 #ifdef __cplusplus
 }

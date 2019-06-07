@@ -266,6 +266,55 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gps_eph->toc.tow = msg_eph->kepler.toc * GPS_TOC_RESOLUTION;
 }
 
+void rtcm3_qzss_eph_to_sbp(rtcm_msg_eph *msg_eph,
+                           msg_ephemeris_qzss_t *sbp_qzss_eph,
+                           struct rtcm3_sbp_state *state) {
+  (void)state;
+  assert(msg_eph);
+  assert(sbp_qzss_eph);
+  assert(RTCM_CONSTELLATION_QZS == msg_eph->constellation);
+  /* QZSS week is 10 bit (DF452) */
+  sbp_qzss_eph->common.toe.wn =
+      gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
+  sbp_qzss_eph->common.toe.tow = msg_eph->toe * GPS_TOE_RESOLUTION;
+  sbp_qzss_eph->common.sid.sat = msg_eph->sat_id + QZS_FIRST_PRN - 1;
+  sbp_qzss_eph->common.sid.code = CODE_QZS_L1CA;
+  sbp_qzss_eph->common.ura = convert_ura_to_uri(msg_eph->ura);
+  sbp_qzss_eph->common.fit_interval = rtcm3_decode_fit_interval_gps(
+      msg_eph->fit_interval, msg_eph->kepler.iodc);
+  sbp_qzss_eph->common.valid = msg_eph->kepler.iodc == msg_eph->kepler.iode;
+  sbp_qzss_eph->common.health_bits = msg_eph->health_bits;
+
+  sbp_qzss_eph->tgd = (float)(msg_eph->kepler.tgd_gps_s * C_1_2P31);
+
+  sbp_qzss_eph->c_rs = (float)(msg_eph->kepler.crs * C_1_2P5);
+  sbp_qzss_eph->c_rc = (float)(msg_eph->kepler.crc * C_1_2P5);
+  sbp_qzss_eph->c_uc = (float)(msg_eph->kepler.cuc * C_1_2P29);
+  sbp_qzss_eph->c_us = (float)(msg_eph->kepler.cus * C_1_2P29);
+  sbp_qzss_eph->c_ic = (float)(msg_eph->kepler.cic * C_1_2P29);
+  sbp_qzss_eph->c_is = (float)(msg_eph->kepler.cis * C_1_2P29);
+
+  sbp_qzss_eph->dn = msg_eph->kepler.dn * C_1_2P43 * M_PI;
+  sbp_qzss_eph->m0 = msg_eph->kepler.m0 * C_1_2P31 * M_PI;
+  sbp_qzss_eph->ecc = msg_eph->kepler.ecc * C_1_2P33;
+  sbp_qzss_eph->sqrta = msg_eph->kepler.sqrta * C_1_2P19;
+  sbp_qzss_eph->omega0 = msg_eph->kepler.omega0 * C_1_2P31 * M_PI;
+  sbp_qzss_eph->omegadot = msg_eph->kepler.omegadot * C_1_2P43 * M_PI;
+  sbp_qzss_eph->w = msg_eph->kepler.w * C_1_2P31 * M_PI;
+  sbp_qzss_eph->inc = msg_eph->kepler.inc * C_1_2P31 * M_PI;
+  sbp_qzss_eph->inc_dot = msg_eph->kepler.inc_dot * C_1_2P43 * M_PI;
+
+  sbp_qzss_eph->af0 = (float)(msg_eph->kepler.af0 * C_1_2P31);
+  sbp_qzss_eph->af1 = (float)(msg_eph->kepler.af1 * C_1_2P43);
+  sbp_qzss_eph->af2 = (float)(msg_eph->kepler.af2 * C_1_2P55);
+
+  sbp_qzss_eph->iode = msg_eph->kepler.iode;
+  sbp_qzss_eph->iodc = msg_eph->kepler.iodc;
+
+  sbp_qzss_eph->toc.wn = sbp_qzss_eph->common.toe.wn;
+  sbp_qzss_eph->toc.tow = msg_eph->kepler.toc * GPS_TOC_RESOLUTION;
+}
+
 void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_glo_t *sbp_glo_eph,
                           struct rtcm3_sbp_state *state) {

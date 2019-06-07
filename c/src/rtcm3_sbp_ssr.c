@@ -10,12 +10,12 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <assert.h>
 #include <libsbp/ssr.h>
 #include <math.h>
 #include <rtcm3/msm_utils.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include "rtcm3_sbp_internal.h"
 
 #define SSR_MESSAGE_LENGTH 256
@@ -41,12 +41,16 @@ gps_time_sec_t compute_ssr_message_time(
   return obs_time_sec;
 }
 
-static bool rtcm_ssr_header_to_sbp_orbit_clock(const rtcm_msg_ssr_header *header, uint8_t *length, const rtcm_msg_ssr_orbit_corr *orbit, msg_ssr_orbit_clock_t *sbp_orbit_clock, struct rtcm3_sbp_state *state) {
-  sbp_orbit_clock->time =
-      compute_ssr_message_time(header->constellation,
-                               header->epoch_time * S_TO_MS,
-                               &state->time_from_rover_obs,
-                               state);
+static bool rtcm_ssr_header_to_sbp_orbit_clock(
+    const rtcm_msg_ssr_header *header,
+    uint8_t *length,
+    const rtcm_msg_ssr_orbit_corr *orbit,
+    msg_ssr_orbit_clock_t *sbp_orbit_clock,
+    struct rtcm3_sbp_state *state) {
+  sbp_orbit_clock->time = compute_ssr_message_time(header->constellation,
+                                                   header->epoch_time * S_TO_MS,
+                                                   &state->time_from_rover_obs,
+                                                   state);
 
   if (!gps_time_sec_valid(&sbp_orbit_clock->time)) {
     /* Invalid time */
@@ -54,8 +58,7 @@ static bool rtcm_ssr_header_to_sbp_orbit_clock(const rtcm_msg_ssr_header *header
   }
   *length += sizeof(sbp_orbit_clock->time);
 
-  sbp_orbit_clock->sid.code =
-      constellation_to_l1_code(header->constellation);
+  sbp_orbit_clock->sid.code = constellation_to_l1_code(header->constellation);
 
   sbp_orbit_clock->sid.sat = orbit->sat_id;
   *length += sizeof(sbp_orbit_clock->sid);
@@ -79,7 +82,9 @@ static bool rtcm_ssr_header_to_sbp_orbit_clock(const rtcm_msg_ssr_header *header
   return true;
 }
 
-static void rtcm_ssr_orbit_to_sbp(const rtcm_msg_ssr_orbit_corr *orbit, uint8_t *length, msg_ssr_orbit_clock_t *sbp_orbit_clock) {
+static void rtcm_ssr_orbit_to_sbp(const rtcm_msg_ssr_orbit_corr *orbit,
+                                  uint8_t *length,
+                                  msg_ssr_orbit_clock_t *sbp_orbit_clock) {
   sbp_orbit_clock->radial = orbit->radial;
   *length += sizeof(sbp_orbit_clock->radial);
 
@@ -99,7 +104,9 @@ static void rtcm_ssr_orbit_to_sbp(const rtcm_msg_ssr_orbit_corr *orbit, uint8_t 
   *length += sizeof(sbp_orbit_clock->dot_cross);
 }
 
-static void rtcm_ssr_clock_to_sbp(const rtcm_msg_ssr_clock_corr *clock, uint8_t *length, msg_ssr_orbit_clock_t *sbp_orbit_clock) {
+static void rtcm_ssr_clock_to_sbp(const rtcm_msg_ssr_clock_corr *clock,
+                                  uint8_t *length,
+                                  msg_ssr_orbit_clock_t *sbp_orbit_clock) {
   sbp_orbit_clock->c0 = clock->c0;
   *length += sizeof(sbp_orbit_clock->c0);
 
@@ -123,26 +130,37 @@ void rtcm3_ssr_separate_orbit_clock_to_sbp(rtcm_msg_clock *msg_clock,
   uint8_t length;
   msg_ssr_orbit_clock_t *sbp_orbit_clock = (msg_ssr_orbit_clock_t *)buffer;
 
-  for (int sat_count = 0; (sat_count < msg_clock->header.num_sats) && (sat_count < msg_orbit->header.num_sats); ++sat_count) {
+  for (int sat_count = 0; (sat_count < msg_clock->header.num_sats) &&
+                          (sat_count < msg_orbit->header.num_sats);
+       ++sat_count) {
     memset(buffer, 0, sizeof(buffer));
     length = 0;
 
-    // We aren't guaranteed that the satellite info in the orbit and clock messages is in the same order
-    // so we must search for pair of corrections for a given satellite
+    // We aren't guaranteed that the satellite info in the orbit and clock
+    // messages is in the same order so we must search for pair of corrections
+    // for a given satellite
     int clock_index = sat_count;
     int orbit_index = 0;
-    while (msg_orbit->orbit[orbit_index].sat_id != msg_clock->clock[clock_index].sat_id && orbit_index < msg_orbit->header.num_sats) {
+    while (msg_orbit->orbit[orbit_index].sat_id !=
+               msg_clock->clock[clock_index].sat_id &&
+           orbit_index < msg_orbit->header.num_sats) {
       orbit_index++;
     }
     if (orbit_index >= msg_orbit->header.num_sats) {
       continue;
     }
 
-    if (!rtcm_ssr_header_to_sbp_orbit_clock(&msg_orbit->header, &length, &msg_orbit->orbit[orbit_index], sbp_orbit_clock, state)) {
+    if (!rtcm_ssr_header_to_sbp_orbit_clock(&msg_orbit->header,
+                                            &length,
+                                            &msg_orbit->orbit[orbit_index],
+                                            sbp_orbit_clock,
+                                            state)) {
       return;
     }
-    rtcm_ssr_orbit_to_sbp(&msg_orbit->orbit[orbit_index], &length, sbp_orbit_clock);
-    rtcm_ssr_clock_to_sbp(&msg_clock->clock[clock_index], &length, sbp_orbit_clock);
+    rtcm_ssr_orbit_to_sbp(
+        &msg_orbit->orbit[orbit_index], &length, sbp_orbit_clock);
+    rtcm_ssr_clock_to_sbp(
+        &msg_clock->clock[clock_index], &length, sbp_orbit_clock);
 
     state->cb_rtcm_to_sbp(SBP_MSG_SSR_ORBIT_CLOCK,
                           length,
@@ -163,11 +181,17 @@ void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
     memset(buffer, 0, SSR_MESSAGE_LENGTH);
     length = 0;
 
-    if (!rtcm_ssr_header_to_sbp_orbit_clock(&msg_orbit_clock->header, &length, &msg_orbit_clock->orbit[sat_count], sbp_orbit_clock, state)) {
+    if (!rtcm_ssr_header_to_sbp_orbit_clock(&msg_orbit_clock->header,
+                                            &length,
+                                            &msg_orbit_clock->orbit[sat_count],
+                                            sbp_orbit_clock,
+                                            state)) {
       return;
     }
-    rtcm_ssr_orbit_to_sbp(&msg_orbit_clock->orbit[sat_count], &length, sbp_orbit_clock);
-    rtcm_ssr_clock_to_sbp(&msg_orbit_clock->clock[sat_count], &length, sbp_orbit_clock);
+    rtcm_ssr_orbit_to_sbp(
+        &msg_orbit_clock->orbit[sat_count], &length, sbp_orbit_clock);
+    rtcm_ssr_clock_to_sbp(
+        &msg_orbit_clock->clock[sat_count], &length, sbp_orbit_clock);
 
     state->cb_rtcm_to_sbp(SBP_MSG_SSR_ORBIT_CLOCK,
                           length,

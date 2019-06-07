@@ -945,15 +945,15 @@ void send_gpgst(const sbp2nmea_t *state) {
                sbp_pos_llh_cov->cov_n_e * sbp_pos_llh_cov->cov_n_e;
 
   /* Semi-major and semi-minor axis of the error ellipse and orientation */
-  double eigenval_1 = (trace / 2 + sqrt(fmax(0,((trace * trace) / 4) - det)));
-  double eigenval_2 = (trace / 2 - sqrt(fmax(0,((trace * trace) / 4) - det)));
+  double eigenval_1 = (trace / 2 + sqrt(fmax(0, ((trace * trace) / 4) - det)));
+  double eigenval_2 = (trace / 2 - sqrt(fmax(0, ((trace * trace) / 4) - det)));
 
   double semi_major = sqrt(eigenval_1);
   double semi_minor = sqrt(eigenval_2);
 
   double orientation =
       atan(sbp_pos_llh_cov->cov_n_e / (eigenval_1 - sbp_pos_llh_cov->cov_e_e));
-  
+
   NMEA_SENTENCE_PRINTF("%f,%f,%f,%f,%f,%f",
                        semi_major,
                        semi_minor,

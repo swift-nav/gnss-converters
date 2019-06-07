@@ -26,8 +26,13 @@ sbp_conv_t sbp_conv_new();
 
 void sbp_conv_delete(sbp_conv_t conv);
 
-size_t sbp_conv(sbp_conv_t conv, uint16_t sender, uint16_t type,
-                uint8_t *rbuf, size_t rlen, uint8_t *wbuf, size_t wlen);
+size_t sbp_conv(sbp_conv_t conv,
+                uint16_t sender,
+                uint16_t type,
+                uint8_t *rbuf,
+                size_t rlen,
+                uint8_t *wbuf,
+                size_t wlen);
 
 #ifdef __cplusplus
 }

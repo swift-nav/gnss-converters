@@ -38,8 +38,8 @@ sbp_conv_t sbp_conv_new() {
     gps_time_t gps_time = time2gps_t(time(NULL));
     sbp2rtcm_set_leap_second((s8)rint(get_gps_utc_offset(&gps_time, NULL)),
                              &conv->state);
-    sbp2rtcm_set_rcv_ant_descriptors("NULL                ", "SWFT",
-                                     &conv->state);
+    sbp2rtcm_set_rcv_ant_descriptors(
+        "NULL                ", "SWFT", &conv->state);
   }
   return conv;
 }

@@ -196,33 +196,33 @@ static code_t get_msm_bds_code(u8 signal_id) {
       return CODE_BDS2_B1;
     /* case 3:  2Q */
     /* case 4:  2X */
-    case 5:  /* B1C-I */
+    case 5: /* B1C-I */
       return CODE_BDS3_B1CI;
-    case 6:  /* B1C-Q */
+    case 6: /* B1C-Q */
       return CODE_BDS3_B1CQ;
-    case 7:  /* B1C-X */
+    case 7: /* B1C-X */
       return CODE_BDS3_B1CX;
-    case 8:  /* 6I */
+    case 8: /* 6I */
       return CODE_BDS3_B3I;
-    case 9:  /* 6Q */
+    case 9: /* 6Q */
       return CODE_BDS3_B3Q;
-    case 10:  /* 6X */
+    case 10: /* 6X */
       return CODE_BDS3_B3X;
     case 14: /* 7I */
       return CODE_BDS2_B2;
     /* case 15:  7Q */
     /* case 16:  7X */
-    case 17:  /* B2bI */
+    case 17: /* B2bI */
       return CODE_BDS3_B7I;
-    case 18:  /* B2bQ */
+    case 18: /* B2bQ */
       return CODE_BDS3_B7Q;
-    case 19:  /* B2bX */
+    case 19: /* B2bX */
       return CODE_BDS3_B7X;
-    case 20:  /* B2aI */
+    case 20: /* B2aI */
       return CODE_BDS3_B5I;
-    case 21:  /* B2aQ */
+    case 21: /* B2aQ */
       return CODE_BDS3_B5Q;
-    case 22:  /* B2aX */
+    case 22: /* B2aX */
       return CODE_BDS3_B5X;
     default:
       return CODE_INVALID;
