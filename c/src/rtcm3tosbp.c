@@ -113,7 +113,10 @@ int main(int argc, char **argv) {
   rtcm2sbp_set_leap_second((s8)rint(gps_utc_offset), &state);
 
   /* todo: Do we want to return a non-zero value on an error? */
-  rtcm2sbp_process_stream(&state, read_stdin);
+  ssize_t ret;
+  do {
+    ret = rtcm2sbp_process(&state, read_stdin);
+  } while (ret > 0);
 
   return 0;
 }

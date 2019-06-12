@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <libsbp/gnss.h>
 #include <libsbp/logging.h>
@@ -83,6 +84,8 @@ void rtcm2sbp_init(struct rtcm3_sbp_state *state,
   memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
 
   rtcm_init_logging(&rtcm_log_callback_fn, state);
+
+  fifo_init(&(state->fifo), state->fifo_buf, RTCM3_FIFO_SIZE);
 }
 
 void sbp2rtcm_init(struct rtcm3_out_state *state,
@@ -2401,10 +2404,6 @@ static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
   return (frame_crc == computed_crc);
 }
 
-/* You may reduce FIFO_SIZE if you need a lower memory footprint. */
-#define FIFO_SIZE (1 << 14)
-#define BUFFER_SIZE (FIFO_SIZE - RTCM3_MSG_OVERHEAD - RTCM3_MAX_MSG_LEN)
-
 /**
  * Processes a stream of data, converting RTCM messages in to SBP and outputting
  * via the callback functions in the `state` parameter. This function assumes
@@ -2420,68 +2419,65 @@ static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
  * `ctx` is the context pointer from the `state` argument, the return value is
  * the number of bytes written into `buf` with negative values indicating an
  * error.
- * @return The last value of read_func, either 0 or a negatice value indicating
+ * @return The last value of read_func, either 0 or a negative value indicating
  * an error.
  */
-int rtcm2sbp_process_stream(struct rtcm3_sbp_state *state,
-                            int (*read_stream_func)(uint8_t *buf,
-                                                    size_t len,
-                                                    void *ctx)) {
-  assert(FIFO_SIZE > RTCM3_MSG_OVERHEAD + RTCM3_MAX_MSG_LEN);
-
-  uint8_t fifo_buf[FIFO_SIZE] = {0};
-  fifo_t fifo;
-  fifo_init(&fifo, fifo_buf, sizeof(fifo_buf));
-
-  uint8_t inbuf[BUFFER_SIZE];
-  ssize_t numread;
-  while ((numread = read_stream_func(inbuf, BUFFER_SIZE, state->context)) > 0) {
-    ssize_t numwritten = fifo_write(&fifo, inbuf, numread);
-    if (numwritten != numread) {
-      fprintf(stderr,
-              "%zd bytes read from stdin but only %zd written to FIFO\n",
-              numread,
-              numwritten);
-    }
-    assert(numwritten == numread);
-
-    uint8_t buf[FIFO_SIZE] = {0};
-    fifo_size_t bytes_avail = fifo_peek(&fifo, buf, FIFO_SIZE);
-    uint32_t index = 0;
-
-    while (index + RTCM3_MSG_OVERHEAD < bytes_avail) {
-      if (RTCM3_PREAMBLE != buf[index]) {
-        index++;
-        continue;
-      }
-
-      uint16_t msg_len = extract_msg_len(&buf[index]);
-      if ((msg_len == 0) || (msg_len > RTCM3_MAX_MSG_LEN)) {
-        index++;
-        continue;
-      }
-      if (index + RTCM3_MSG_OVERHEAD + msg_len > bytes_avail) {
-        break;
-      }
-
-      uint8_t *rtcm_msg = &buf[index];
-      if (!verify_crc(rtcm_msg, FIFO_SIZE - index)) {
-        index++;
-        continue;
-      }
-
-      rtcm2sbp_decode_frame(rtcm_msg, msg_len + RTCM3_MSG_OVERHEAD, state);
-      index += msg_len + RTCM3_MSG_OVERHEAD;
-    }
-    fifo_size_t numremoved = fifo_remove(&fifo, index);
-    if (numremoved != index) {
-      fprintf(stderr,
-              "Tried to remove %u bytes from FIFO, only got %u\n",
-              index,
-              numremoved);
-    }
-    assert(numremoved == index);
+int rtcm2sbp_process(struct rtcm3_sbp_state *state,
+                     int (*read_stream_func)(uint8_t *buf,
+                                             size_t len,
+                                             void *ctx)) {
+  uint8_t inbuf[RTCM3_BUFFER_SIZE];
+  ssize_t read_sz = read_stream_func(inbuf, RTCM3_BUFFER_SIZE, state->context);
+  if (read_sz < 1) {
+    return read_sz;
   }
 
-  return numread;
+  ssize_t write_sz = fifo_write(&state->fifo, inbuf, read_sz);
+  if (write_sz != read_sz) {
+    fprintf(stderr,
+            "%zd bytes read but only %zd written to FIFO\n",
+            read_sz,
+            write_sz);
+    fifo_init(&state->fifo, state->fifo_buf, RTCM3_FIFO_SIZE);
+  }
+
+  uint8_t buf[RTCM3_FIFO_SIZE] = {0};
+  fifo_size_t avail_sz = fifo_peek(&state->fifo, buf, RTCM3_FIFO_SIZE);
+
+  uint32_t index = 0;
+  while (index + RTCM3_MSG_OVERHEAD < avail_sz) {
+    if (RTCM3_PREAMBLE != buf[index]) {
+      index++;
+      continue;
+    }
+
+    uint16_t msg_len = extract_msg_len(&buf[index]);
+    if ((msg_len == 0) || (msg_len > RTCM3_MAX_MSG_LEN)) {
+      index++;
+      continue;
+    }
+    if (index + RTCM3_MSG_OVERHEAD + msg_len > avail_sz) {
+      break;
+    }
+
+    uint8_t *rtcm_msg = &buf[index];
+    if (!verify_crc(rtcm_msg, RTCM3_FIFO_SIZE - index)) {
+      index++;
+      continue;
+    }
+
+    rtcm2sbp_decode_frame(rtcm_msg, msg_len + RTCM3_MSG_OVERHEAD, state);
+    index += msg_len + RTCM3_MSG_OVERHEAD;
+  }
+
+  fifo_size_t removed_sz = fifo_remove(&state->fifo, index);
+  if (removed_sz != index) {
+    fprintf(stderr,
+            "Tried to remove %u bytes from FIFO, only got %u\n",
+            index,
+            removed_sz);
+    fifo_init(&state->fifo, state->fifo_buf, RTCM3_FIFO_SIZE);
+  }
+
+  return read_sz;
 }

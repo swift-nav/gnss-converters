@@ -15,6 +15,7 @@
 
 #include <libsbp/observation.h>
 #include <rtcm3/messages.h>
+#include <swiftnav/fifo_byte.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/signal.h>
 
@@ -45,7 +46,19 @@ extern "C" {
 
 #define RTCM3_PREAMBLE 0xD3
 #define RTCM3_MSG_OVERHEAD 6
-#define RTCM3_MAX_MSG_LEN 0x3FF
+#define RTCM3_MAX_MSG_LEN 1023
+
+/* You may reduce FIFO_SIZE if you need a lower memory footprint. */
+#define RTCM3_FIFO_SIZE 4096
+#define RTCM3_BUFFER_SIZE \
+  (RTCM3_FIFO_SIZE - RTCM3_MSG_OVERHEAD - RTCM3_MAX_MSG_LEN)
+
+_Static_assert(RTCM3_FIFO_SIZE > (RTCM3_MSG_OVERHEAD + RTCM3_MAX_MSG_LEN),
+               "RTCM3_FIFO_SIZE is too small");
+
+#define IS_POWER_OF_TWO(x) (0 == ((x) & ((x)-1)))
+_Static_assert(IS_POWER_OF_TWO(RTCM3_FIFO_SIZE),
+               "RTCM3_FIFO_SIZE must be a power of two");
 
 typedef enum {
   UNSUPPORTED_CODE_UNKNOWN = 0u,
@@ -54,17 +67,17 @@ typedef enum {
   UNSUPPORTED_CODE_MAX
 } unsupported_code_t;
 
-// A struct for storing either an SSR orbit correction message
-// or an SSR clock correction message. Used for combining the
-// separate messages into a combined message
+/* A struct for storing either an SSR orbit correction message
+or an SSR clock correction message. Used for combining the
+separate messages into a combined message */
 typedef struct {
   union {
     rtcm_msg_clock clock;
     rtcm_msg_orbit orbit;
   };
-  // Only one of these can be true at once (or neither)
-  bool contains_clock;  // True if clock contains data
-  bool contains_orbit;  // True if orbit contains data
+  /* Only one of these can be true at once (or neither) */
+  bool contains_clock; /* True if clock contains data */
+  bool contains_orbit; /* True if orbit contains data */
 } ssr_orbit_clock_cache;
 
 struct rtcm3_sbp_state {
@@ -85,9 +98,11 @@ struct rtcm3_sbp_state {
   bool sent_code_warning[UNSUPPORTED_CODE_MAX];
   /* GLO FCN map, indexed by 1-based PRN */
   u8 glo_sv_id_fcn_map[NUM_SATS_GLO + 1];
-  // The cache for storing the first message before combining the separate
-  // orbit and clock messages into a combined SBP message
+  /* The cache for storing the first message before combining the separate
+  orbit and clock messages into a combined SBP message */
   ssr_orbit_clock_cache orbit_clock_cache[CONSTELLATION_COUNT];
+  uint8_t fifo_buf[RTCM3_FIFO_SIZE];
+  fifo_t fifo;
 };
 
 struct rtcm3_out_state {
@@ -182,10 +197,10 @@ void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
                          const u8 msg[],
                          struct rtcm3_out_state *state);
 
-int rtcm2sbp_process_stream(struct rtcm3_sbp_state *state,
-                            int (*read_stream_func)(uint8_t *buf,
-                                                    size_t len,
-                                                    void *context));
+int rtcm2sbp_process(struct rtcm3_sbp_state *state,
+                     int (*read_stream_func)(uint8_t *buf,
+                                             size_t len,
+                                             void *context));
 
 #ifdef __cplusplus
 }
