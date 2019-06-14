@@ -15,6 +15,7 @@
 
 #include <libsbp/logging.h>
 #include "../src/rtcm3_sbp_internal.h"
+#include "../src/sbp_rtcm3_internal.h"
 
 /* rtcm helper defines and functions */
 

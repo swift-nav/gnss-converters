@@ -41,14 +41,8 @@ extern "C" {
 #define INVALID_TIME 0xFFFF
 #define MAX_WN (INT16_MAX)
 
-#define SBP_GLO_FCN_OFFSET 8
-#define SBP_GLO_FCN_UNKNOWN 0
-
-#define RTCM3_PREAMBLE 0xD3
 #define RTCM3_MSG_OVERHEAD 6
 #define RTCM3_MAX_MSG_LEN 1023
-
-/* You may reduce FIFO_SIZE if you need a lower memory footprint. */
 #define RTCM3_FIFO_SIZE 4096
 #define RTCM3_BUFFER_SIZE \
   (RTCM3_FIFO_SIZE - RTCM3_MSG_OVERHEAD - RTCM3_MAX_MSG_LEN)
@@ -105,32 +99,6 @@ struct rtcm3_sbp_state {
   fifo_t fifo;
 };
 
-struct rtcm3_out_state {
-  s8 leap_seconds;
-  bool leap_second_known;
-  bool ant_known;
-  void (*cb_sbp_to_rtcm)(u8 *buffer, u16 length, void *context);
-  u16 sender_id;
-  observation_header_t sbp_header;
-  packed_obs_content_t sbp_obs_buffer[MAX_OBS_PER_EPOCH];
-  u16 n_sbp_obs;
-  void *context;
-  /* GLO FCN map, indexed by 1-based PRN */
-  u8 glo_sv_id_fcn_map[NUM_SATS_GLO + 1];
-
-  /** RTCM OUT format options. */
-
-  /* Note that while the specification does not forbid sending both the legacy
-   * and MSM observations, it does not recommend it. */
-  bool send_legacy_obs;
-  bool send_msm_obs;
-  msm_enum msm_type;
-
-  double ant_height; /* Antenna height above ARP, meters */
-  char ant_descriptor[RTCM_MAX_STRING_LEN];
-  char rcv_descriptor[RTCM_MAX_STRING_LEN];
-};
-
 void rtcm2sbp_decode_frame(const uint8_t *frame,
                            uint32_t frame_length,
                            struct rtcm3_sbp_state *state);
@@ -156,46 +124,6 @@ void rtcm2sbp_init(struct rtcm3_sbp_state *state,
                                           void *context),
                    void (*cb_base_obs_invalid)(double time_diff, void *context),
                    void *context);
-
-void sbp2rtcm_init(struct rtcm3_out_state *state,
-                   void (*cb_sbp_to_rtcm)(u8 *buffer,
-                                          u16 length,
-                                          void *context),
-                   void *context);
-
-void sbp2rtcm_set_leap_second(s8 leap_seconds, struct rtcm3_out_state *state);
-
-void sbp2rtcm_set_rtcm_out_mode(msm_enum value, struct rtcm3_out_state *state);
-
-void sbp2rtcm_set_glo_fcn(sbp_gnss_signal_t sid,
-                          u8 sbp_fcn,
-                          struct rtcm3_out_state *state);
-
-bool sbp2rtcm_set_ant_height(double ant_height, struct rtcm3_out_state *state);
-
-void sbp2rtcm_set_rcv_ant_descriptors(const char *ant_descriptor,
-                                      const char *rcv_descriptor,
-                                      struct rtcm3_out_state *state);
-
-void sbp2rtcm_base_pos_ecef_cb(const u16 sender_id,
-                               const u8 len,
-                               const u8 msg[],
-                               struct rtcm3_out_state *state);
-
-void sbp2rtcm_glo_biases_cb(const u16 sender_id,
-                            const u8 len,
-                            const u8 msg[],
-                            struct rtcm3_out_state *state);
-
-void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
-                         const u8 len,
-                         const u8 msg[],
-                         struct rtcm3_out_state *state);
-
-void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
-                         const u8 len,
-                         const u8 msg[],
-                         struct rtcm3_out_state *state);
 
 int rtcm2sbp_process(struct rtcm3_sbp_state *state,
                      int (*read_stream_func)(uint8_t *buf,

@@ -10,11 +10,12 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef CHECK_UTILS_H
-#define CHECK_UTILS_H
+#ifndef GNSS_CONVERTERS_CHECK_UTILS_H
+#define GNSS_CONVERTERS_CHECK_UTILS_H
 
 #include <libsbp/logging.h>
 #include "../src/rtcm3_msm_utils.h"
 #include "../src/rtcm3_sbp_internal.h"
+#include "../src/sbp_rtcm3_internal.h"
 
-#endif /* CHECK_UTILS_H */
+#endif /* GNSS_CONVERTERS_CHECK_UTILS_H */

@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
 
   rtcm2sbp_init(&state, cb_rtcm_to_sbp, cb_base_obs_invalid, NULL);
   rtcm2sbp_set_gps_time(&current_time, &state);
-  rtcm2sbp_set_leap_second((s8)rint(gps_utc_offset), &state);
+  rtcm2sbp_set_leap_second((s8)lrint(gps_utc_offset), &state);
 
   /* todo: Do we want to return a non-zero value on an error? */
   ssize_t ret;

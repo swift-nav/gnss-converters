@@ -11,12 +11,14 @@
  */
 
 #include <assert.h>
-#include <gnss-converters/rtcm3_sbp.h>
-#include <gnss-converters/sbp_conv.h>
+#include <time.h>
+
 #include <libsbp/sbp.h>
 #include <swiftnav/fifo_byte.h>
 #include <swiftnav/gnss_time.h>
-#include <time.h>
+
+#include "gnss-converters/sbp_conv.h"
+#include "gnss-converters/sbp_rtcm3.h"
 
 struct sbp_conv_s {
   struct rtcm3_out_state state;
