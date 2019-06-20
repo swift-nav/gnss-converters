@@ -47,12 +47,7 @@ extern "C" {
 #define RTCM3_BUFFER_SIZE \
   (RTCM3_FIFO_SIZE - RTCM3_MSG_OVERHEAD - RTCM3_MAX_MSG_LEN)
 
-_Static_assert(RTCM3_FIFO_SIZE > (RTCM3_MSG_OVERHEAD + RTCM3_MAX_MSG_LEN),
-               "RTCM3_FIFO_SIZE is too small");
-
 #define IS_POWER_OF_TWO(x) (0 == ((x) & ((x)-1)))
-_Static_assert(IS_POWER_OF_TWO(RTCM3_FIFO_SIZE),
-               "RTCM3_FIFO_SIZE must be a power of two");
 
 typedef enum {
   UNSUPPORTED_CODE_UNKNOWN = 0u,

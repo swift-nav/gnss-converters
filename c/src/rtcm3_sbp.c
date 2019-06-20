@@ -58,6 +58,9 @@ void rtcm2sbp_init(struct rtcm3_sbp_state *state,
                                           void *context),
                    void (*cb_base_obs_invalid)(double timediff, void *context),
                    void *context) {
+  assert(IS_POWER_OF_TWO(RTCM3_FIFO_SIZE));
+  assert(RTCM3_FIFO_SIZE > (RTCM3_MSG_OVERHEAD + RTCM3_MAX_MSG_LEN));
+
   state->time_from_rover_obs.wn = INVALID_TIME;
   state->time_from_rover_obs.tow = 0;
 
