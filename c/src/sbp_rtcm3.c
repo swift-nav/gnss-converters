@@ -121,6 +121,7 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
     case 1074:
     case 1084:
     case 1094:
+    case 1114:
     case 1124: {
       rtcm_msm_message *msg_msm = (rtcm_msm_message *)rtcm_msg;
       return rtcm3_encode_msm4(msg_msm, buff);
@@ -128,6 +129,7 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
     case 1075:
     case 1085:
     case 1095:
+    case 1115:
     case 1125: {
       rtcm_msm_message *msg_msm = (rtcm_msm_message *)rtcm_msg;
       return rtcm3_encode_msm5(msg_msm, buff);
@@ -138,7 +140,8 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
       return rtcm3_encode_4062(swift_msg, buff);
     }
     default:
-      assert(!"Unsupported message type");
+      log_error("%d is not a supported message", message_type);
+      assert(0);
       break;
   }
   return 0;
