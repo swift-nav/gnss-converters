@@ -23,8 +23,20 @@ function build_c() {
     cd ../
 }
 
+function build_codecov() {
+    cd c
+    mkdir build
+    cd build
+    cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ../
+    make -j8 ccov-all
+    cd ../
+    cd ../
+}
+
 if [ "$TESTENV" == "stack" ]; then
   build_haskell
+elif [ "$TESTENV" == "codecov" ]; then
+  build_codecov
 else
   build_c
 fi

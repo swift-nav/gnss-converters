@@ -14,6 +14,8 @@ swift_create_project_options(
 
 include(ClangFormat)
 swift_setup_clang_format()
+include(CodeCoverage)
+add_code_coverage_all_targets()
 
 option(librtcm_ENABLE_TESTS "" OFF)
 find_package(Rtcm REQUIRED)

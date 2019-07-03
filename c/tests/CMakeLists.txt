@@ -18,7 +18,8 @@ set(RELATIVE_PATH_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}")
 configure_file(config.h.in config.h)
 
 target_include_directories(test_gnss_converters PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(test_gnss_converters gnss_converters ${CHECK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(test_gnss_converters PRIVATE gnss_converters ${CHECK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_code_coverage(test_gnss_converters AUTO ALL)
 
 add_custom_command(
     TARGET test_gnss_converters POST_BUILD

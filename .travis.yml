@@ -18,7 +18,19 @@ matrix:
           packages:
             - g++-6
             - check
-      env: GCCVER=6
+      env: GCCVER=6 TESTENV=gcc6
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-6.0 main'
+              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+            - check
+            - lcov
+      env: GCCVER=6 TESTENV=codecov
     - os: linux
       env: TESTENV=stack
 
@@ -50,6 +62,11 @@ before_install:
       $CXX --version;
       git submodule update --init --recursive;
     fi
+
+after_success:
+  if [[ "$TESTENV" == "codecov" ]]; then
+    bash <(curl -s https://codecov.io/bash) -s c/build || echo "Codecov did not collect coverage reports";
+  fi
 
 script:
   - bash ./travis.sh

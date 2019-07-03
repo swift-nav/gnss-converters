@@ -1,0 +1,13 @@
+coverage:
+  status:
+    project:
+      tests:
+        target: 75%
+        paths:
+          - c/tests/
+      gnss-converters:
+        paths:
+          - c/include/
+          - c/src/
+
+comment: off
