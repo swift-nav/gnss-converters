@@ -6,7 +6,7 @@ set(gnss_converters_HEADERS
   )
 
 add_library(gnss_converters rtcm3_sbp.c sbp_rtcm3.c rtcm3_sbp_ephemeris.c rtcm3_sbp_ssr.c sbp_nmea.c nmea.c rtcm3_msm_utils.c sbp_conv.c)
-target_link_libraries(gnss_converters PRIVATE m swiftnav sbp rtcm)
+target_link_libraries(gnss_converters PUBLIC m swiftnav sbp rtcm)
 target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_code_coverage(gnss_converters AUTO ALL)
