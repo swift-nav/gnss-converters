@@ -34,7 +34,7 @@
 #include <swiftnav/signal.h>
 
 #include "gnss-converters/rtcm3_sbp.h"
-#include "rtcm3_msm_utils.h"
+#include "rtcm3_utils.h"
 #include "rtcm3_sbp_internal.h"
 
 #define SBP_GLO_FCN_OFFSET 8

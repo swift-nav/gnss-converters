@@ -21,7 +21,7 @@
  *
  */
 
-#include "rtcm3_msm_utils.h"
+#include "rtcm3_utils.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -694,4 +694,133 @@ bool msm_add_to_cell_mask(rtcm_msm_header *header, code_t code, u8 prn) {
   header->cell_mask[cell_id] = true;
 
   return true;
+}
+
+float convert_ura_to_uri(uint8_t ura) {
+  /* Convert between RTCM/GPS URA ("User Range Accuracy") index to a number in
+   * meters.
+   * See section 2.5.3, "User Range Accuracy", in the GPS signal specification.
+   * Indices 1, 3, and 5 are hard-coded according to spec, and 15 is hard-coded
+   * according to SBP/Piksi convention. */
+  if (ura == 1) {
+    return 2.8f;
+  } else if (ura == 3) {
+    return 5.7f;
+  } else if (ura == 5) {
+    return 11.3f;
+  } else if (ura <= 6) {
+    return powf(2, (1 + (ura / 2)));
+  } else if (ura > 6 && ura < 15) {
+    return powf(2, (ura - 2));
+  } else if (ura == 15) {
+    return 6144;
+  }
+  return -1;
+}
+
+uint8_t convert_uri_to_ura(float uri) {
+  /* Convert between RTCM/GPS URA ("User Range Accuracy") number in
+   * meters to the encoded index.
+   * See section 2.5.3, "User Range Accuracy", in the GPS signal specification.
+   * Indices 1, 3, and 5 are hard-coded according to spec, and 15 is hard-coded
+   * according to SBP/Piksi convention. */
+  uint8_t ura;
+  if (fabs(uri - 2.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 0;
+  } else if (fabs(uri - 2.8f) < FLOAT_EQUALITY_EPS) {
+    ura = 1;
+  } else if (fabs(uri - 4.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 2;
+  } else if (fabs(uri - 5.7f) < FLOAT_EQUALITY_EPS) {
+    ura = 3;
+  } else if (fabs(uri - 8.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 4;
+  } else if (fabs(uri - 11.3f) < FLOAT_EQUALITY_EPS) {
+    ura = 5;
+  } else if (fabs(uri - 16.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 6;
+  } else if (fabs(uri - 6144.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 15;
+  } else {
+    ura = (uint8_t)(log2f(uri) + 2.0);
+  }
+  return ura;
+}
+
+/** Calculate the GPS ephemeris curve fit interval.
+ *
+ * \param fit_interval_flag The curve fit interval flag. 0 is 4 hours, 1 is >4
+ * hours.
+ * \param iodc The IODC value.
+ * \return the curve fit interval in seconds.
+ */
+u32 rtcm3_decode_fit_interval_gps(u8 fit_interval_flag, u16 iodc) {
+  u8 fit_interval = 4; /* This is in hours */
+
+  if (fit_interval_flag) {
+    fit_interval = 6;
+
+    if ((iodc >= 240) && (iodc <= 247)) {
+      fit_interval = 8;
+    } else if (((iodc >= 248) && (iodc <= 255)) || (iodc == 496)) {
+      fit_interval = 14;
+    } else if (((iodc >= 497) && (iodc <= 503)) ||
+               ((iodc >= 1021) && (iodc <= 1023))) {
+      fit_interval = 26;
+    } else if ((iodc >= 504) && (iodc <= 510)) {
+      fit_interval = 50;
+    } else if ((iodc == 511) || ((iodc >= 752) && (iodc <= 756))) {
+      fit_interval = 74;
+    } else if (iodc == 757) {
+      fit_interval = 98;
+    }
+  }
+
+  return fit_interval * 60 * 60;
+}
+
+/** Calculate the GPS ephemeris curve fit interval.
+ *
+ * \param fit_interval The curve fit interval in seconds
+ * \param iodc The IODC value.
+ * \return the curve fit interval flag
+ */
+u8 rtcm3_encode_fit_interval_gps(u32 fit_interval) {
+
+  /* 4 hours in seconds */
+  if(fit_interval == 4 * 60 * 60) { 
+    return false;
+  }
+  return true;
+}
+
+float convert_sisa_to_meters(const uint8_t sisa) {
+  /* Convert between RTCM/GAL SISA  index to a number in meters.*/
+  if (sisa <= FIRST_SISA_STEP) {
+    return FIRST_SISA_MIN_METERS + sisa * FIRST_SISA_RESOLUTION;
+  } else if (sisa <= SECOND_SISA_STEP) {
+    return SECOND_SISA_MIN_METERS +
+           (sisa - FIRST_SISA_STEP) * SECOND_SISA_RESOLUTION;
+  } else if (sisa <= THIRD_SISA_STEP) {
+    return THIRD_SISA_MIN_METERS +
+           (sisa - SECOND_SISA_STEP) * THIRD_SISA_RESOLUTION;
+  } else if (sisa <= FOURTH_SISA_STEP) {
+    return FOURTH_SISA_MIN_METERS +
+           (sisa - THIRD_SISA_STEP) * FOURTH_SISA_RESOLUTION;
+  }
+  return -1;
+}
+
+uint8_t convert_meters_to_sisa(const float ura) {
+  /* Convert between meters and GAL SISA index.*/
+  if (ura <= FIRST_SISA_MAX_METERS) {
+    return (uint8_t)(((ura - FIRST_SISA_MIN_METERS) / FIRST_SISA_RESOLUTION) + 0.5);
+  } else if (ura <= SECOND_SISA_MAX_METERS) {
+    return (uint8_t)(((ura - SECOND_SISA_MIN_METERS) / SECOND_SISA_RESOLUTION) + FIRST_SISA_STEP + 0.5);
+  } else if (ura <= THIRD_SISA_MAX_METERS) {
+    return (uint8_t)(((ura - THIRD_SISA_MIN_METERS) / THIRD_SISA_RESOLUTION) + SECOND_SISA_STEP + 0.5);
+  } else if (ura <= FOURTH_SISA_MAX_METERS) {
+    return (uint8_t)(((ura - FOURTH_SISA_MIN_METERS) / FOURTH_SISA_RESOLUTION) + THIRD_SISA_STEP + 0.5);
+  }
+  return -1;
 }

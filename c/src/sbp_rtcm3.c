@@ -22,6 +22,7 @@
 #include <rtcm3/decode.h>
 #include <rtcm3/encode.h>
 #include <rtcm3/eph_decode.h>
+#include <rtcm3/eph_encode.h>
 #include <rtcm3/logging.h>
 #include <rtcm3/ssr_decode.h>
 #include <swiftnav/edc.h>
@@ -33,7 +34,7 @@
 #include <swiftnav/signal.h>
 
 #include "gnss-converters/sbp_rtcm3.h"
-#include "rtcm3_msm_utils.h"
+#include "rtcm3_utils.h"
 #include "sbp_rtcm3_internal.h"
 
 #define SBP_GLO_FCN_OFFSET 8
@@ -110,9 +111,21 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
       rtcm_obs_message *msg_1012 = (rtcm_obs_message *)rtcm_msg;
       return rtcm3_encode_1012(msg_1012, buff);
     }
+    case 1019: {
+      rtcm_msg_eph *msg_1019 = (rtcm_msg_eph *)rtcm_msg;
+      return rtcm3_encode_gps_eph(msg_1019, buff);
+    }
     case 1033: {
       rtcm_msg_1033 *msg_1033 = (rtcm_msg_1033 *)rtcm_msg;
       return rtcm3_encode_1033(msg_1033, buff);
+    }
+    case 1045: {
+      rtcm_msg_eph *msg_1045 = (rtcm_msg_eph *)rtcm_msg;
+      return rtcm3_encode_gal_eph_fnav(msg_1045, buff);
+    }
+    case 1046: {
+      rtcm_msg_eph *msg_1046 = (rtcm_msg_eph *)rtcm_msg;
+      return rtcm3_encode_gal_eph_inav(msg_1046, buff);
     }
     case 1230: {
       rtcm_msg_1230 *msg_1230 = (rtcm_msg_1230 *)rtcm_msg;
@@ -904,5 +917,41 @@ void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
 
   u8 frame[RTCM3_MAX_MSG_LEN];
   u16 frame_size = encode_rtcm3_frame(&osr_msg, 4062, frame);
+  state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+}
+
+void sbp2rtcm_sbp_gps_eph_cb(const u16 sender_id,
+                             const u8 len,
+                             const u8 msg[],
+                             struct rtcm3_out_state *state) {
+  (void)len;
+  (void)sender_id;
+  msg_ephemeris_gps_t *sbp_gps_eph = (msg_ephemeris_gps_t *)msg;
+  
+  rtcm_msg_eph msg_gps_eph;
+  u8 frame[RTCM3_MAX_MSG_LEN]; // Max RTCM message length is 1023 Bytes
+
+  /* generate and send the gps ephemeris message */
+  sbp_to_rtcm3_gps_eph(sbp_gps_eph, &msg_gps_eph, state);
+  u16 frame_size = encode_rtcm3_frame(&msg_gps_eph, 1019, frame);
+  state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+}
+
+void sbp2rtcm_sbp_gal_eph_cb(const u16 sender_id,
+                             const u8 len,
+                             const u8 msg[],
+                             struct rtcm3_out_state *state) {
+  (void)len;
+  (void)sender_id;
+  msg_ephemeris_gal_t *sbp_gal_eph = (msg_ephemeris_gal_t *)msg;
+  
+  rtcm_msg_eph msg_gal_eph;
+  u8 frame[RTCM3_MAX_MSG_LEN]; // Max RTCM message length is 1023 Bytes
+
+  /* generate and send the gal ephemeris message - message type depends on source */
+  sbp_to_rtcm3_gal_eph(sbp_gal_eph, &msg_gal_eph, state);  
+  
+  u16 message_type = sbp_gal_eph->source == EPH_SOURCE_GAL_INAV ? 1046 : 1045;
+  u16 frame_size = encode_rtcm3_frame(&msg_gal_eph, message_type, frame);
   state->cb_sbp_to_rtcm(frame, frame_size, state->context);
 }

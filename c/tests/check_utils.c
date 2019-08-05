@@ -331,6 +331,28 @@ START_TEST(test_msm_add_to_header) {
 }
 END_TEST
 
+START_TEST(test_ura_uri_convertor) {
+  
+  uint8_t output_ura;
+  for (int i = 0; i < 15; i++) {
+    float uri = convert_ura_to_uri(i);
+    output_ura = convert_uri_to_ura(uri);
+    ck_assert_uint_eq(i,output_ura);
+  }
+}
+END_TEST
+
+START_TEST(test_sisa_meters_convertor) {
+  
+  uint8_t output_sisa;
+  for (int i = 0; i < 64; i++) {
+    float ura = convert_sisa_to_meters(i);
+    output_sisa = convert_meters_to_sisa(ura);
+    ck_assert_uint_eq(i,output_sisa);
+  }
+}
+END_TEST
+
 Suite *utils_suite(void) {
   Suite *s = suite_create("Utils");
 
@@ -342,6 +364,8 @@ Suite *utils_suite(void) {
   tcase_add_test(tc_utils, test_msm_code_prn_conversion);
   tcase_add_test(tc_utils, test_msm_glo_fcn);
   tcase_add_test(tc_utils, test_msm_add_to_header);
+  tcase_add_test(tc_utils, test_ura_uri_convertor);
+  tcase_add_test(tc_utils, test_sisa_meters_convertor);
 
   suite_add_tcase(s, tc_utils);
 

@@ -57,6 +57,9 @@
 /* Galileo Indicator DF024 */
 #define PIKSI_GAL_SERVICE_SUPPORTED 1
 
+/* Constant difference of Galileo time from GPS time */
+#define GAL_WEEK_TO_GPS_WEEK 1024
+
 /* Single Receiver Oscillator Indicator DF142
  * 0 - All raw data observations in messages 1001-1004 and 1009-1012 may be
  *     measured at different instants. This indicator should be set to “0”
@@ -140,6 +143,14 @@ void rtcm3_1033_to_1008(const rtcm_msg_1033 *rtcm_1033,
 void sbp_to_rtcm3_1230(const msg_glo_biases_t *sbp_glo_bias,
                        rtcm_msg_1230 *rtcm_1230,
                        const struct rtcm3_out_state *state);
+
+void sbp_to_rtcm3_gps_eph(const msg_ephemeris_gps_t *sbp_gps_eph,
+                       rtcm_msg_eph *msg_eph,
+                       const struct rtcm3_out_state *state);
+
+void sbp_to_rtcm3_gal_eph(const msg_ephemeris_gal_t *sbp_gps_eph,
+                            rtcm_msg_eph *msg_eph,
+                            const struct rtcm3_out_state *state);
 
 u16 encode_rtcm3_frame(const void *rtcm_msg, u16 message_type, u8 *frame);
 

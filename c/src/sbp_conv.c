@@ -68,6 +68,14 @@ size_t sbp_conv(sbp_conv_t conv,
       sbp2rtcm_sbp_osr_cb(sender, rlen, rbuf, &conv->state);
       break;
     }
+    case SBP_MSG_EPHEMERIS_GPS: {
+      sbp2rtcm_sbp_gps_eph_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
+    case SBP_MSG_EPHEMERIS_GAL: {
+      sbp2rtcm_sbp_gal_eph_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
     default: { break; }
   }
   return fifo_read(&conv->fifo, wbuf, wlen);

@@ -20,6 +20,8 @@
 #include <libsbp/sbp.h>
 #include <rtcm3/decode.h>
 #include <rtcm3/encode.h>
+#include <rtcm3/eph_decode.h>
+#include <rtcm3/eph_encode.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/sid_set.h>
 
@@ -785,6 +787,8 @@ static void test_SBP(const char *filename,
   sbp_msg_callbacks_node_t sbp_obs_callback_node;
   sbp_msg_callbacks_node_t sbp_osr_callback_node;
   sbp_msg_callbacks_node_t sbp_ephemeris_glo_callback_node;
+  sbp_msg_callbacks_node_t sbp_ephemeris_gps_callback_node;
+  sbp_msg_callbacks_node_t sbp_ephemeris_gal_callback_node;
 
   sbp_state_t s;
   sbp_state_init(&s);
@@ -814,7 +818,16 @@ static void test_SBP(const char *filename,
                         (void *)&ephemeris_glo_callback,
                         &out_state,
                         &sbp_ephemeris_glo_callback_node);
-
+  sbp_register_callback(&s,
+                        SBP_MSG_EPHEMERIS_GPS,
+                        (void *)&sbp2rtcm_sbp_gps_eph_cb,
+                        &out_state,
+                        &sbp_ephemeris_gps_callback_node);
+  sbp_register_callback(&s,
+                        SBP_MSG_EPHEMERIS_GAL,
+                        (void *)&sbp2rtcm_sbp_gal_eph_cb,
+                        &out_state,
+                        &sbp_ephemeris_gal_callback_node);
   sbp_state_set_io_context(&s, fp);
 
   while (!feof(fp)) {
@@ -825,12 +838,178 @@ static void test_SBP(const char *filename,
 
 static void rtcm_sanity_check_cb(u8 *buffer, u16 length, void *context) {
   (void)context;
-
+  
   u16 byte = 0;
   ck_assert_uint_eq(buffer[byte], RTCM3_PREAMBLE);
   byte = 1;
   u16 message_size = ((buffer[byte] & 0x3) << 8) | buffer[byte + 1];
   ck_assert_uint_eq(message_size, length - RTCM3_MSG_OVERHEAD);
+}
+
+static void rtcm_gps_eph_cb(u8 *buffer, u16 length, void *context) {
+  (void)context;
+  size_t buffer_index = 0;
+
+  ck_assert(buffer[buffer_index] == RTCM3_PREAMBLE);
+  
+  uint16_t message_size =
+      ((buffer[buffer_index + 1] & 0x3) << 8) | buffer[buffer_index + 2];
+  ck_assert_uint_eq(message_size, length - RTCM3_MSG_OVERHEAD);
+  ck_assert(message_size < 1023);
+  ck_assert(verify_crc(&buffer[buffer_index], length - buffer_index));
+
+  uint16_t byte = 3;
+  uint16_t message_type =
+      (buffer[byte] << 4) | ((buffer[byte + 1] >> 4) & 0xf);
+
+  static bool checked_eph_gps = false;
+  if(!checked_eph_gps && message_type == 1019) {
+    checked_eph_gps = true;
+    rtcm_msg_eph msg_eph;
+    rtcm3_decode_gps_eph(&buffer[byte], &msg_eph);
+
+    ck_assert(msg_eph.constellation == RTCM_CONSTELLATION_GPS);
+    ck_assert_uint_eq(msg_eph.sat_id,1);
+    ck_assert_uint_eq(msg_eph.wn,16);
+    ck_assert_uint_eq(msg_eph.ura,0);
+    ck_assert_uint_eq(msg_eph.kepler.codeL2,3);
+    ck_assert_int_eq(msg_eph.kepler.inc_dot,-1278);
+    ck_assert_uint_eq(msg_eph.kepler.iode,82);
+    ck_assert_uint_eq(msg_eph.toe,19800);
+    ck_assert_int_eq(msg_eph.kepler.af2,0);
+    ck_assert_int_eq(msg_eph.kepler.af1,-97);
+    ck_assert_int_eq(msg_eph.kepler.af0,-178235);
+    ck_assert_uint_eq(msg_eph.kepler.iodc,82);
+    ck_assert_int_eq(msg_eph.kepler.crs,-4333);
+    ck_assert_int_eq(msg_eph.kepler.dn,12543);
+    ck_assert_int_eq(msg_eph.kepler.m0,951542738);
+    ck_assert_int_eq(msg_eph.kepler.cuc,-3726);
+    ck_assert_uint_eq(msg_eph.kepler.ecc,78044687);
+    ck_assert_int_eq(msg_eph.kepler.cus,2002);
+    ck_assert_uint_eq(msg_eph.kepler.sqrta,2701998303);
+    ck_assert_uint_eq(msg_eph.kepler.toc,19800);
+    ck_assert_int_eq(msg_eph.kepler.cic,-82);
+    ck_assert_int_eq(msg_eph.kepler.omega0,1487724627);
+    ck_assert_int_eq(msg_eph.kepler.cis,110);
+    ck_assert_int_eq(msg_eph.kepler.inc,667415864);
+    ck_assert_int_eq(msg_eph.kepler.crc,10189);
+    ck_assert_int_eq(msg_eph.kepler.w,508965259);
+    ck_assert_int_eq(msg_eph.kepler.omegadot,-23477);
+    ck_assert_int_eq(msg_eph.kepler.tgd_gps_s,12);
+    ck_assert_uint_eq(msg_eph.health_bits,0);
+    ck_assert_uint_eq(msg_eph.kepler.L2_data_bit,1);
+    ck_assert_uint_eq(msg_eph.fit_interval,0);
+  }
+}
+
+static void rtcm_gal_fnav_eph_cb(u8 *buffer, u16 length, void *context) {
+  (void)context;
+  size_t buffer_index = 0;
+
+  ck_assert(buffer[buffer_index] == RTCM3_PREAMBLE);
+  
+  uint16_t message_size =
+      ((buffer[buffer_index + 1] & 0x3) << 8) | buffer[buffer_index + 2];
+  ck_assert_uint_eq(message_size, length - RTCM3_MSG_OVERHEAD);
+  ck_assert(message_size < 1023);
+  ck_assert(verify_crc(&buffer[buffer_index], length - buffer_index));
+
+  uint16_t byte = 3;
+  uint16_t message_type =
+      (buffer[byte] << 4) | ((buffer[byte + 1] >> 4) & 0xf);
+
+  static bool checked_eph_gal_fnav = false;
+  if(!checked_eph_gal_fnav && message_type == 1045) {
+    printf("GAL FNAV Eph checked\n");
+    checked_eph_gal_fnav = true;
+    rtcm_msg_eph msg_eph;
+    rtcm3_decode_gal_eph_fnav(&buffer[byte], &msg_eph);
+
+    ck_assert(msg_eph.constellation == RTCM_CONSTELLATION_GAL);
+    ck_assert_uint_eq(msg_eph.sat_id,1);
+    ck_assert_uint_eq(msg_eph.wn,1040);
+    ck_assert_uint_eq(msg_eph.ura,122);
+    ck_assert_int_eq(msg_eph.kepler.inc_dot,-1353);
+    ck_assert_uint_eq(msg_eph.kepler.iode,14);
+    ck_assert_uint_eq(msg_eph.toe,5260);
+    ck_assert_int_eq(msg_eph.kepler.af2,0);
+    ck_assert_int_eq(msg_eph.kepler.af1,-569);
+    ck_assert_int_eq(msg_eph.kepler.af0,-11317458);
+    ck_assert_int_eq(msg_eph.kepler.crs,2084);
+    ck_assert_int_eq(msg_eph.kepler.dn,6367);
+    ck_assert_int_eq(msg_eph.kepler.m0,1164441757);
+    ck_assert_int_eq(msg_eph.kepler.cuc,1690);
+    ck_assert_uint_eq(msg_eph.kepler.ecc,1899057);
+    ck_assert_int_eq(msg_eph.kepler.cus,7169);
+    ck_assert_uint_eq(msg_eph.kepler.sqrta,2852451186);
+    ck_assert_uint_eq(msg_eph.kepler.toc,5260);
+    ck_assert_int_eq(msg_eph.kepler.cic,26);
+    ck_assert_int_eq(msg_eph.kepler.omega0,-173178173);
+    ck_assert_int_eq(msg_eph.kepler.cis,4);
+    ck_assert_int_eq(msg_eph.kepler.inc,674889763);
+    ck_assert_int_eq(msg_eph.kepler.crc,2011);
+    ck_assert_int_eq(msg_eph.kepler.w,-1872118354);
+    ck_assert_int_eq(msg_eph.kepler.omegadot,-14100);
+    ck_assert_int_eq(msg_eph.kepler.tgd_gal_s[0],-8);
+    ck_assert_int_eq(msg_eph.kepler.tgd_gal_s[1],0);
+    ck_assert_uint_eq(msg_eph.health_bits,0);
+    ck_assert_uint_eq(msg_eph.fit_interval,0);
+  }
+}
+
+static void rtcm_gal_inav_eph_cb(u8 *buffer, u16 length, void *context) {
+  (void)context;
+  size_t buffer_index = 0;
+
+  ck_assert(buffer[buffer_index] == RTCM3_PREAMBLE);
+  
+  uint16_t message_size =
+      ((buffer[buffer_index + 1] & 0x3) << 8) | buffer[buffer_index + 2];
+  ck_assert_uint_eq(message_size, length - RTCM3_MSG_OVERHEAD);
+  ck_assert(message_size < 1023);
+  ck_assert(verify_crc(&buffer[buffer_index], length - buffer_index));
+
+  uint16_t byte = 3;
+  uint16_t message_type =
+      (buffer[byte] << 4) | ((buffer[byte + 1] >> 4) & 0xf);
+
+  static bool checked_eph_gal_inav = false;
+  if(!checked_eph_gal_inav && message_type == 1046) {
+    printf("GAL INAV Eph checked\n");
+    checked_eph_gal_inav = true;
+    rtcm_msg_eph msg_eph;
+    rtcm3_decode_gal_eph(&buffer[byte], &msg_eph);
+
+    ck_assert(msg_eph.constellation == RTCM_CONSTELLATION_GAL);
+    ck_assert_uint_eq(msg_eph.sat_id,1);
+    ck_assert_uint_eq(msg_eph.wn,1040);
+    ck_assert_uint_eq(msg_eph.ura,122);
+    ck_assert_int_eq(msg_eph.kepler.inc_dot,-1353);
+    ck_assert_uint_eq(msg_eph.kepler.iode,14);
+    ck_assert_uint_eq(msg_eph.toe,5260);
+    ck_assert_int_eq(msg_eph.kepler.af2,0);
+    ck_assert_int_eq(msg_eph.kepler.af1,-568);
+    ck_assert_int_eq(msg_eph.kepler.af0,-11317428);
+    ck_assert_int_eq(msg_eph.kepler.crs,2084);
+    ck_assert_int_eq(msg_eph.kepler.dn,6367);
+    ck_assert_int_eq(msg_eph.kepler.m0,1164441757);
+    ck_assert_int_eq(msg_eph.kepler.cuc,1690);
+    ck_assert_uint_eq(msg_eph.kepler.ecc,1899057);
+    ck_assert_int_eq(msg_eph.kepler.cus,7169);
+    ck_assert_uint_eq(msg_eph.kepler.sqrta,2852451186);
+    ck_assert_uint_eq(msg_eph.kepler.toc,5260);
+    ck_assert_int_eq(msg_eph.kepler.cic,26);
+    ck_assert_int_eq(msg_eph.kepler.omega0,-173178173);
+    ck_assert_int_eq(msg_eph.kepler.cis,4);
+    ck_assert_int_eq(msg_eph.kepler.inc,674889763);
+    ck_assert_int_eq(msg_eph.kepler.crc,2011);
+    ck_assert_int_eq(msg_eph.kepler.w,-1872118354);
+    ck_assert_int_eq(msg_eph.kepler.omegadot,-14100);
+    ck_assert_int_eq(msg_eph.kepler.tgd_gal_s[0],-8);
+    ck_assert_int_eq(msg_eph.kepler.tgd_gal_s[1],-9);
+    ck_assert_uint_eq(msg_eph.health_bits,0);
+    ck_assert_uint_eq(msg_eph.fit_interval,0);
+  }
 }
 
 void set_expected_bias(double L1CA_bias,
@@ -1173,6 +1352,39 @@ START_TEST(test_sbp_to_rtcm_legacy) {
 }
 END_TEST
 
+START_TEST(test_sbp_to_rtcm_gps_eph) {
+  current_time.wn = 2020;
+  current_time.tow = 211000;
+  
+  test_SBP(RELATIVE_PATH_PREFIX "/data/igseph.sbp",
+           rtcm_gps_eph_cb,
+           current_time,
+           MSM_UNKNOWN);
+}
+END_TEST
+
+START_TEST(test_sbp_to_rtcm_gal_inav_eph) {
+  current_time.wn = 2020;
+  current_time.tow = 211000;
+
+  test_SBP(RELATIVE_PATH_PREFIX "/data/igseph.sbp",
+           rtcm_gal_inav_eph_cb,
+           current_time,
+           MSM_UNKNOWN);
+}
+END_TEST
+
+START_TEST(test_sbp_to_rtcm_gal_fnav_eph) {
+  current_time.wn = 2020;
+  current_time.tow = 211000;
+
+  test_SBP(RELATIVE_PATH_PREFIX "/data/igseph.sbp",
+           rtcm_gal_fnav_eph_cb,
+           current_time,
+           MSM_UNKNOWN);
+}
+END_TEST
+
 START_TEST(test_sbp_to_rtcm_msm) {
   current_time.wn = 2020;
   current_time.tow = 211000;
@@ -1353,6 +1565,9 @@ Suite *rtcm3_suite(void) {
   tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_legacy);
   tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_msm);
   tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_msm_roundtrip);
+  tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_gps_eph);
+  tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_gal_fnav_eph);
+  tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_gal_inav_eph);
   suite_add_tcase(s, tc_sbp_to_rtcm);
 
   return s;

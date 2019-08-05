@@ -14,50 +14,7 @@
 #include <math.h>
 #include <swiftnav/constants.h>
 #include "rtcm3_sbp_internal.h"
-
-#define FIRST_SISA_STEP 50
-#define SECOND_SISA_STEP 75
-#define THIRD_SISA_STEP 100
-#define FOURTH_SISA_STEP 125
-
-#define FIRST_SISA_RESOLUTION 0.01f
-#define SECOND_SISA_RESOLUTION 0.02f
-#define THIRD_SISA_RESOLUTION 0.04f
-#define FOURTH_SISA_RESOLUTION 0.16f
-
-#define FIRST_SISA_MIN_METERS 0.0f
-#define SECOND_SISA_MIN_METERS 0.5f
-#define THIRD_SISA_MIN_METERS 1.0f
-#define FOURTH_SISA_MIN_METERS 2.0f
-
-#define GALILEO_TOE_RESOLUTION 60
-#define GALILEO_TOC_RESOLUTION 60
-#define GPS_TOE_RESOLUTION 16
-#define GPS_TOC_RESOLUTION 16
-#define BEIDOU_TOE_RESOLUTION 8
-#define BEIDOU_TOC_RESOLUTION 8
-
-float convert_ura_to_uri(uint8_t ura) {
-  /* Convert between RTCM/GPS URA ("User Range Accuracy") index to a number in
-   * meters.
-   * See section 2.5.3, "User Range Accuracy", in the GPS signal specification.
-   * Indices 1, 3, and 5 are hard-coded according to spec, and 15 is hard-coded
-   * according to SBP/Piksi convention. */
-  if (ura == 1) {
-    return 2.8f;
-  } else if (ura == 3) {
-    return 5.7f;
-  } else if (ura == 5) {
-    return 11.3f;
-  } else if (ura <= 6) {
-    return powf(2, (1 + (ura / 2)));
-  } else if (ura > 6 && ura < 15) {
-    return powf(2, (ura - 2));
-  } else if (ura == 15) {
-    return 6144;
-  }
-  return -1;
-}
+#include "rtcm3_utils.h"
 
 float convert_glo_ft_to_meters(const uint8_t ft) {
   /* Convert between RTCM/GLO FT ("GLONASS-M predicted satellite user range
@@ -103,23 +60,6 @@ float convert_glo_ft_to_meters(const uint8_t ft) {
   }
 }
 
-float convert_sisa_to_meters(const uint8_t sisa) {
-  /* Convert between RTCM/GAL SISA  index to a number in meters.*/
-  if (sisa <= FIRST_SISA_STEP) {
-    return FIRST_SISA_MIN_METERS + sisa * FIRST_SISA_RESOLUTION;
-  } else if (sisa <= SECOND_SISA_STEP) {
-    return SECOND_SISA_MIN_METERS +
-           (sisa - FIRST_SISA_STEP) * SECOND_SISA_RESOLUTION;
-  } else if (sisa <= THIRD_SISA_STEP) {
-    return THIRD_SISA_MIN_METERS +
-           (sisa - SECOND_SISA_STEP) * THIRD_SISA_RESOLUTION;
-  } else if (sisa <= FOURTH_SISA_STEP) {
-    return FOURTH_SISA_MIN_METERS +
-           (sisa - THIRD_SISA_STEP) * FOURTH_SISA_RESOLUTION;
-  }
-  return -1;
-}
-
 float convert_bds_ura_to_meters(const uint8_t ura) {
   /* (meters See: BDS ICD Section 5.2.4.: to define nominal
 values, N = 0-6: use 2^(1+N/2) (round to one
@@ -162,38 +102,6 @@ risk) */
     default:
       return -1;
   }
-}
-
-/** Calculate the GPS ephemeris curve fit interval.
- *
- * \param fit_interval_flag The curve fit interval flag. 0 is 4 hours, 1 is >4
- * hours.
- * \param iodc The IODC value.
- * \return the curve fit interval in seconds.
- */
-u32 rtcm3_decode_fit_interval_gps(u8 fit_interval_flag, u16 iodc) {
-  u8 fit_interval = 4; /* This is in hours */
-
-  if (fit_interval_flag) {
-    fit_interval = 6;
-
-    if ((iodc >= 240) && (iodc <= 247)) {
-      fit_interval = 8;
-    } else if (((iodc >= 248) && (iodc <= 255)) || (iodc == 496)) {
-      fit_interval = 14;
-    } else if (((iodc >= 497) && (iodc <= 503)) ||
-               ((iodc >= 1021) && (iodc <= 1023))) {
-      fit_interval = 26;
-    } else if ((iodc >= 504) && (iodc <= 510)) {
-      fit_interval = 50;
-    } else if ((iodc == 511) || ((iodc >= 752) && (iodc <= 756))) {
-      fit_interval = 74;
-    } else if (iodc == 757) {
-      fit_interval = 98;
-    }
-  }
-
-  return fit_interval * 60 * 60;
 }
 
 /** Calculate the GLO ephemeris curve fit interval.

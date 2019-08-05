@@ -14,7 +14,7 @@
 #define GNSS_CONVERTERS_CHECK_UTILS_H
 
 #include <libsbp/logging.h>
-#include "../src/rtcm3_msm_utils.h"
+#include "../src/rtcm3_utils.h"
 #include "../src/rtcm3_sbp_internal.h"
 #include "../src/sbp_rtcm3_internal.h"
 
