@@ -1198,7 +1198,7 @@ void send_1029(rtcm_msg_1029 *msg_1029, struct rtcm3_sbp_state *state) {
    * patterns (2,3 and 4 byte code units) */
   if (message_size == max_message_size) {
     if ((message[message_size] & 0xF8) == 0xF0 ||
-        (message[message_size] & 0xE0) == 0xE0 || /*TODO this is always false*/
+        (message[message_size] & 0xE0) == 0xE0 ||
         (message[message_size] & 0xE0) == 0xC0) {
       /* We've truncated a 2, 3 or 4 byte code unit */
       message_size--;
