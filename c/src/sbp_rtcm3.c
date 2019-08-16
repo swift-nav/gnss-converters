@@ -376,8 +376,9 @@ bool sbp2rtcm_set_ant_height(const double ant_height,
 void sbp2rtcm_set_rcv_ant_descriptors(const char *ant_descriptor,
                                       const char *rcv_descriptor,
                                       struct rtcm3_out_state *state) {
-  strncpy(state->ant_descriptor, ant_descriptor, sizeof(state->ant_descriptor));
-  strncpy(state->rcv_descriptor, rcv_descriptor, sizeof(state->rcv_descriptor));
+  // -1 to account for NULL terminator
+  strncpy(state->ant_descriptor, ant_descriptor, sizeof(state->ant_descriptor) - 1);
+  strncpy(state->rcv_descriptor, rcv_descriptor, sizeof(state->rcv_descriptor) - 1);
   state->ant_known = true;
 };
 

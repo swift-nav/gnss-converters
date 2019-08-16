@@ -1197,16 +1197,16 @@ void send_1029(rtcm_msg_1029 *msg_1029, struct rtcm3_sbp_state *state) {
    * pattern that denotes a 4 byte code unit as it is the super set of all bit
    * patterns (2,3 and 4 byte code units) */
   if (message_size == max_message_size) {
-    if ((message[message_size] & 0xF0) == 0xF0 ||
-        (message[message_size] & 0xE0) == 0xF0 || /*TODO this is always false*/
-        (message[message_size] & 0xF0) == 0xC0) {
+    if ((message[message_size] & 0xF8) == 0xF0 ||
+        (message[message_size] & 0xE0) == 0xE0 ||
+        (message[message_size] & 0xE0) == 0xC0) {
       /* We've truncated a 2, 3 or 4 byte code unit */
       message_size--;
-    } else if ((message[message_size - 1] & 0xF0) == 0xF0 ||
+    } else if ((message[message_size - 1] & 0xF8) == 0xF0 ||
                (message[message_size - 1] & 0xE0) == 0xE0) {
       /* We've truncated a 3 or 4 byte code unit */
       message_size -= 2;
-    } else if ((message[message_size - 1] & 0xF0) == 0xF0) {
+    } else if ((message[message_size - 1] & 0xF8) == 0xF0) {
       /* We've truncated a 4 byte code unit */
       message_size -= 3;
     }
