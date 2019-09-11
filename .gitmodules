@@ -1,12 +1,12 @@
-[submodule "c/librtcm"]
+[submodule "c/third_party/librtcm"]
 	path = c/third_party/librtcm
-	url = ../librtcm.git
-[submodule "c/libsbp"]
+	url = https://github.com/swift-nav/librtcm.git
+[submodule "c/third_party/libsbp"]
 	path = c/third_party/libsbp
-	url = ../libsbp.git
-[submodule "c/libswiftnav"]
+	url = https://github.com/swift-nav/libsbp.git
+[submodule "c/third_party/libswiftnav"]
 	path = c/third_party/libswiftnav
-	url = ../libswiftnav.git
+	url = https://github.com/swift-nav/libswiftnav.git
 [submodule "c/cmake/common"]
 	path = c/cmake/common
 	url = https://github.com/swift-nav/cmake.git
