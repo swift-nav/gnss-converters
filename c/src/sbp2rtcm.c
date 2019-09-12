@@ -81,6 +81,12 @@ typedef struct {
   sbp_msg_callbacks_node_t glo_biases;
   sbp_msg_callbacks_node_t obs;
   sbp_msg_callbacks_node_t osr;
+  sbp_msg_callbacks_node_t ssr_orbit_clock;
+  sbp_msg_callbacks_node_t ssr_phase_biases;
+  sbp_msg_callbacks_node_t ssr_code_biases;
+  sbp_msg_callbacks_node_t ssr_gridded_correction;
+  sbp_msg_callbacks_node_t ssr_grid_definition;
+  sbp_msg_callbacks_node_t ssr_stec_correction;
   sbp_msg_callbacks_node_t ephemeris_gps;
   sbp_msg_callbacks_node_t ephemeris_gal;
   sbp_msg_callbacks_node_t ephemeris_bds;
@@ -125,6 +131,36 @@ int main(int argc, char **argv) {
                         (void *)&sbp2rtcm_sbp_osr_cb,
                         &state,
                         &sbp_nodes.osr);
+  sbp_register_callback(&sbp_state,
+                        SBP_MSG_SSR_ORBIT_CLOCK,
+                        (void *)&sbp2rtcm_sbp_ssr_orbit_clock_cb,
+                        &state,
+                        &sbp_nodes.ssr_orbit_clock);
+  sbp_register_callback(&sbp_state,
+                        SBP_MSG_SSR_PHASE_BIASES,
+                        (void *)&sbp2rtcm_sbp_ssr_phase_biases_cb,
+                        &state,
+                        &sbp_nodes.ssr_phase_biases);
+  sbp_register_callback(&sbp_state,
+                        SBP_MSG_SSR_CODE_BIASES,
+                        (void *)&sbp2rtcm_sbp_ssr_code_biases_cb,
+                        &state,
+                        &sbp_nodes.ssr_code_biases);
+  sbp_register_callback(&sbp_state,
+                        SBP_MSG_SSR_GRIDDED_CORRECTION,
+                        (void *)&sbp2rtcm_sbp_ssr_gridded_correction_cb,
+                        &state,
+                        &sbp_nodes.ssr_gridded_correction);
+  sbp_register_callback(&sbp_state,
+                        SBP_MSG_SSR_GRID_DEFINITION,
+                        (void *)&sbp2rtcm_sbp_ssr_grid_definition_cb,
+                        &state,
+                        &sbp_nodes.ssr_grid_definition);
+  sbp_register_callback(&sbp_state,
+                        SBP_MSG_SSR_STEC_CORRECTION,
+                        (void *)&sbp2rtcm_sbp_ssr_stec_correction_cb,
+                        &state,
+                        &sbp_nodes.ssr_stec_correction);
   sbp_register_callback(&sbp_state,
                         SBP_MSG_EPHEMERIS_GPS,
                         (void *)&ephemeris_gps_callback,

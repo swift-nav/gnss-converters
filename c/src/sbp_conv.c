@@ -68,6 +68,30 @@ size_t sbp_conv(sbp_conv_t conv,
       sbp2rtcm_sbp_osr_cb(sender, rlen, rbuf, &conv->state);
       break;
     }
+    case SBP_MSG_SSR_ORBIT_CLOCK: {
+      sbp2rtcm_sbp_ssr_orbit_clock_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
+    case SBP_MSG_SSR_PHASE_BIASES: {
+      sbp2rtcm_sbp_ssr_phase_biases_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
+    case SBP_MSG_SSR_CODE_BIASES: {
+      sbp2rtcm_sbp_ssr_code_biases_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
+    case SBP_MSG_SSR_GRIDDED_CORRECTION: {
+      sbp2rtcm_sbp_ssr_gridded_correction_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
+    case SBP_MSG_SSR_GRID_DEFINITION: {
+      sbp2rtcm_sbp_ssr_grid_definition_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
+    case SBP_MSG_SSR_STEC_CORRECTION: {
+      sbp2rtcm_sbp_ssr_stec_correction_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
     case SBP_MSG_EPHEMERIS_GPS: {
       sbp2rtcm_sbp_gps_eph_cb(sender, rlen, rbuf, &conv->state);
       break;

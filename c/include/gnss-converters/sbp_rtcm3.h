@@ -14,6 +14,7 @@
 #define GNSS_CONVERTERS_SBP_RTCM3_INTERFACE_H
 
 #include <libsbp/observation.h>
+#include <libsbp/ssr.h>
 #include <rtcm3/messages.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/signal.h>
@@ -102,6 +103,36 @@ void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
                          const u8 len,
                          const u8 msg[],
                          struct rtcm3_out_state *state);
+
+void sbp2rtcm_sbp_ssr_orbit_clock_cb(const u16 sender_id,
+                                     const u8 len,
+                                     const u8 msg[],
+                                     struct rtcm3_out_state *state);
+
+void sbp2rtcm_sbp_ssr_phase_biases_cb(const u16 sender_id,
+                                      const u8 len,
+                                      const u8 msg[],
+                                      struct rtcm3_out_state *state);
+
+void sbp2rtcm_sbp_ssr_code_biases_cb(const u16 sender_id,
+                                     const u8 len,
+                                     const u8 msg[],
+                                     struct rtcm3_out_state *state);
+
+void sbp2rtcm_sbp_ssr_gridded_correction_cb(const u16 sender_id,
+                                            const u8 len,
+                                            const u8 msg[],
+                                            struct rtcm3_out_state *state);
+
+void sbp2rtcm_sbp_ssr_grid_definition_cb(const u16 sender_id,
+                                         const u8 len,
+                                         const u8 msg[],
+                                         struct rtcm3_out_state *state);
+
+void sbp2rtcm_sbp_ssr_stec_correction_cb(const u16 sender_id,
+                                         const u8 len,
+                                         const u8 msg[],
+                                         struct rtcm3_out_state *state);
 
 void sbp2rtcm_sbp_gps_eph_cb(const u16 sender_id,
                              const u8 len,
