@@ -51,7 +51,6 @@
 bool msm_signal_frequency(const rtcm_msm_header *header,
                           const u8 signal_index,
                           const u8 glo_fcn,
-                          const bool glo_fcn_valid,
                           double *p_freq);
 code_t msm_signal_to_code(const rtcm_msm_header *header, u8 signal_index);
 u8 code_to_msm_signal_index(const rtcm_msm_header *header, code_t code);

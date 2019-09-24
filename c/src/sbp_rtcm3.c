@@ -558,7 +558,6 @@ static void sbp_obs_to_msm_signal_data(const packed_obs_content_t *sbp_obs,
       msm_signal_frequency(&msg->header,
                            signal_index,
                            sat_data->glo_fcn,
-                           (MSM_GLO_FCN_UNKNOWN != sat_data->glo_fcn),
                            &freq);
 
   if (freq_valid && (0 != (sbp_flags & MSG_OBS_FLAGS_PHASE_VALID))) {

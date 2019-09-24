@@ -10,6 +10,7 @@ set(TEST_SOURCE_FILES
     check_rtcm3_ssr.c
     check_nmea.c
     check_utils.c
+    check_options.c
     )
 add_executable(test_gnss_converters ${TEST_SOURCE_FILES})
 

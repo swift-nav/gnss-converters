@@ -394,21 +394,17 @@ u8 prn_to_msm_sat_id(u8 prn, rtcm_constellation_t cons) {
  * \param header Pointer to message header
  * \param signal_index 0-based index into the signal mask
  * \param glo_fcn The FCN value for GLO satellites
- * \param glo_fcn_valid Validity flag for glo_fcn
  * \param p_freq Pointer to write the frequency output to
  * \return true if a valid frequency was returned
  */
 bool msm_signal_frequency(const rtcm_msm_header *header,
                           const u8 signal_index,
                           const u8 glo_fcn,
-                          const bool glo_fcn_valid,
                           double *p_freq) {
   assert(signal_index <= MSM_SIGNAL_MASK_SIZE);
   code_t code = msm_signal_to_code(header, signal_index);
 
   /* TODO: use sid_to_carr_freq from LNSP */
-  /* TODO: remove glo_fcn_valid parameter and use
-   * glo_fcn=MSM_GLO_FCN_UNKNOWN instead */
 
   switch ((int8_t)code) {
     case CODE_GPS_L1CA:
@@ -432,7 +428,7 @@ bool msm_signal_frequency(const rtcm_msm_header *header,
     case CODE_GLO_L1OF:
     case CODE_GLO_L1P:
       /* GLO FCN given in the sat info field, see Table 3.4-6 */
-      if (glo_fcn_valid) {
+      if (MSM_GLO_FCN_UNKNOWN != glo_fcn) {
         *p_freq = GLO_L1_HZ + (glo_fcn - MSM_GLO_FCN_OFFSET) * GLO_L1_DELTA_HZ;
         return true;
       } else {
@@ -440,7 +436,7 @@ bool msm_signal_frequency(const rtcm_msm_header *header,
       }
     case CODE_GLO_L2OF:
     case CODE_GLO_L2P:
-      if (glo_fcn_valid) {
+      if (MSM_GLO_FCN_UNKNOWN != glo_fcn) {
         *p_freq = GLO_L2_HZ + (glo_fcn - MSM_GLO_FCN_OFFSET) * GLO_L2_DELTA_HZ;
         return true;
       } else {

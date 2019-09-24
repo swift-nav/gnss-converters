@@ -3,9 +3,10 @@ set(gnss_converters_HEADERS
   ${PROJECT_SOURCE_DIR}/include/gnss-converters/rtcm3_sbp.h
   ${PROJECT_SOURCE_DIR}/include/gnss-converters/sbp_rtcm3.h
   ${PROJECT_SOURCE_DIR}/include/gnss-converters/sbp_nmea.h
+  ${PROJECT_SOURCE_DIR}/include/gnss-converters/options.h
   )
 
-add_library(gnss_converters rtcm3_sbp.c sbp_rtcm3.c rtcm3_sbp_ephemeris.c rtcm3_sbp_ssr.c sbp_nmea.c nmea.c rtcm3_utils.c sbp_conv.c sbp_rtcm3_ephemeris.c)
+add_library(gnss_converters rtcm3_sbp.c sbp_rtcm3.c rtcm3_sbp_ephemeris.c rtcm3_sbp_ssr.c sbp_nmea.c nmea.c rtcm3_utils.c sbp_conv.c sbp_rtcm3_ephemeris.c options.c)
 target_link_libraries(gnss_converters PUBLIC m swiftnav sbp rtcm)
 target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/src)
