@@ -17,6 +17,7 @@
    the current system time, which may not be suitable for pre-recorded
    data.  */
 #include <assert.h>
+#include <gnss-converters/options.h>
 #include <gnss-converters/rtcm3_sbp.h>
 #include <libsbp/edc.h>
 #include <math.h>
@@ -29,8 +30,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <getopt.h>
-
-#include "options.h"
 
 #define SBP_PREAMBLE 0x55
 #define STRCMP_EQ 0
@@ -118,10 +117,10 @@ static void help(char *arg) {
   fprintf(stderr,
           "  -l CODE:BIAS applies a liner phase bias to Glonass signals with "
           "code CODE_GLO_L1OF or CODE_GLO_L2OF\n");
-  fprintf(stderr, 
+  fprintf(stderr,
           "  -w GPS WN:GPS TOW passes time to the converter, needs to be accurate to within a half "
           "week for GPS only and within a half day for glonass, TOW is in seconds\n");
-  fprintf(stderr, 
+  fprintf(stderr,
           "  -d YEAR:MONTH:DAY:HOUR passes time to the nearest hour of the beginning of the data to "
           "the converter, needs to be accurate to within a half week for GPS only and within a half day "
           "for glonass\n");

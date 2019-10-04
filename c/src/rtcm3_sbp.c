@@ -33,10 +33,10 @@
 #include <swiftnav/sid_set.h>
 #include <swiftnav/signal.h>
 
-#include "gnss-converters/rtcm3_sbp.h"
+#include <gnss-converters/options.h>
+#include <gnss-converters/rtcm3_sbp.h>
 #include "rtcm3_utils.h"
 #include "rtcm3_sbp_internal.h"
-#include "options.h"
 
 #define SBP_GLO_FCN_OFFSET 8
 #define SBP_GLO_FCN_UNKNOWN 0
@@ -1349,7 +1349,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
   /* Find the buffer of obs to be sent */
   msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
 
-  /* We see some receivers output observations with TOW = 0 on startup, but this can 
+  /* We see some receivers output observations with TOW = 0 on startup, but this can
    * cause a large time jump when the actual time is decoded. As such, ignore TOW = 0
    * if these are the first time stamps we see */
   if(!gps_time_valid(&state->last_gps_time) && fabs(obs_time.tow) <= FLOAT_EQUALITY_EPS ) {

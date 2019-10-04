@@ -11,13 +11,13 @@
  */
 #include <assert.h>
 
+#include <gnss-converters/options.h>
 #include <rtcm3/constants.h>
 #include <rtcm3/msm_utils.h>
 #include <swiftnav/constants.h>
 #include <swiftnav/signal.h>
 
 #include "rtcm3_utils.h"
-#include "options.h"
 
 float sbp_signal_biases[CODE_COUNT] = {0.0f};
 float sbp_glo_code_bias[2] = {0.0f};

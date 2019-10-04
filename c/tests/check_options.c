@@ -13,7 +13,7 @@
 #include <check.h>
 #include <math.h>
 
-#include <options.h>
+#include <gnss-converters/options.h>
 #include <rtcm3_utils.h>
 #include "check_suites.h"
 #include <rtcm3/messages.h>
@@ -37,9 +37,9 @@ START_TEST(test_msm_glo_fcn_bias) {
   }
 
   for (size_t i = 0; i<CONSTELLATION_COUNT; i++) {
-    
+
     header.msg_num = to_msm_msg_num(i, MSM5);
-    
+
     for (size_t j=0; j<CODE_COUNT; j++) {
         double code = 3.0;
         double phase = 2.0;
