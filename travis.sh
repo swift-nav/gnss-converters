@@ -17,8 +17,9 @@ function build_c() {
     cd c
     mkdir build
     cd build
-    cmake ../
+    cmake -DCMAKE_INSTALL_PREFIX=./test_install ../
     make -j8 VERBOSE=1
+    make install
     cd ../
     cd ../
 }
