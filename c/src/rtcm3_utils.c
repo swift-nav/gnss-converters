@@ -782,9 +782,8 @@ u32 rtcm3_decode_fit_interval_gps(u8 fit_interval_flag, u16 iodc) {
  * \return the curve fit interval flag
  */
 u8 rtcm3_encode_fit_interval_gps(u32 fit_interval) {
-
   /* 4 hours in seconds */
-  if(fit_interval == 4 * 60 * 60) { 
+  if (fit_interval == 4 * 60 * 60) {
     return false;
   }
   return true;
@@ -810,13 +809,17 @@ float convert_sisa_to_meters(const uint8_t sisa) {
 uint8_t convert_meters_to_sisa(const float ura) {
   /* Convert between meters and GAL SISA index.*/
   if (ura <= FIRST_SISA_MAX_METERS) {
-    return (uint8_t)(((ura - FIRST_SISA_MIN_METERS) / FIRST_SISA_RESOLUTION) + 0.5);
+    return (uint8_t)(((ura - FIRST_SISA_MIN_METERS) / FIRST_SISA_RESOLUTION) +
+                     0.5);
   } else if (ura <= SECOND_SISA_MAX_METERS) {
-    return (uint8_t)(((ura - SECOND_SISA_MIN_METERS) / SECOND_SISA_RESOLUTION) + FIRST_SISA_STEP + 0.5);
+    return (uint8_t)(((ura - SECOND_SISA_MIN_METERS) / SECOND_SISA_RESOLUTION) +
+                     FIRST_SISA_STEP + 0.5);
   } else if (ura <= THIRD_SISA_MAX_METERS) {
-    return (uint8_t)(((ura - THIRD_SISA_MIN_METERS) / THIRD_SISA_RESOLUTION) + SECOND_SISA_STEP + 0.5);
+    return (uint8_t)(((ura - THIRD_SISA_MIN_METERS) / THIRD_SISA_RESOLUTION) +
+                     SECOND_SISA_STEP + 0.5);
   } else if (ura <= FOURTH_SISA_MAX_METERS) {
-    return (uint8_t)(((ura - FOURTH_SISA_MIN_METERS) / FOURTH_SISA_RESOLUTION) + THIRD_SISA_STEP + 0.5);
+    return (uint8_t)(((ura - FOURTH_SISA_MIN_METERS) / FOURTH_SISA_RESOLUTION) +
+                     THIRD_SISA_STEP + 0.5);
   }
   return -1;
 }

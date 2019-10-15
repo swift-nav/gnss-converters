@@ -12,15 +12,14 @@
 #ifndef _OPTIONS_H
 #define _OPTIONS_H
 
-#include <swiftnav/signal.h>
 #include <rtcm3/messages.h>
+#include <swiftnav/signal.h>
 
 typedef enum verbosity_level_e {
-    VERB_NORMAL = 0,
-    VERB_HIGH,
-    VERB_HIGHEST
+  VERB_NORMAL = 0,
+  VERB_HIGH,
+  VERB_HIGHEST
 } verbosity_level_t;
-
 
 extern float sbp_signal_biases[CODE_COUNT];
 extern float sbp_glo_code_bias[2];

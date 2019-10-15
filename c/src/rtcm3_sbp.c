@@ -35,8 +35,8 @@
 
 #include <gnss-converters/options.h>
 #include <gnss-converters/rtcm3_sbp.h>
-#include "rtcm3_utils.h"
 #include "rtcm3_sbp_internal.h"
+#include "rtcm3_utils.h"
 
 #define SBP_GLO_FCN_OFFSET 8
 #define SBP_GLO_FCN_UNKNOWN 0
@@ -837,14 +837,15 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
         }
 
         if (verbosity_level > VERB_HIGH) {
-          fprintf(stderr, "OBS: %3d %8s %14.3lf %14.3lf %14.3lf %2d 0x%02x\n",
-            sbp_freq->sid.sat,
-            code_to_string(sbp_freq->sid.code),
-            sbp_freq->P / MSG_OBS_P_MULTIPLIER,
-            sbp_freq->L.i + sbp_freq->L.f / MSG_OBS_LF_MULTIPLIER,
-            sbp_freq->cn0 / MSG_OBS_CN0_MULTIPLIER,
-            sbp_freq->lock,
-            sbp_freq->flags);
+          fprintf(stderr,
+                  "OBS: %3d %8s %14.3lf %14.3lf %14.3lf %2d 0x%02x\n",
+                  sbp_freq->sid.sat,
+                  code_to_string(sbp_freq->sid.code),
+                  sbp_freq->P / MSG_OBS_P_MULTIPLIER,
+                  sbp_freq->L.i + sbp_freq->L.f / MSG_OBS_LF_MULTIPLIER,
+                  sbp_freq->cn0 / MSG_OBS_CN0_MULTIPLIER,
+                  sbp_freq->lock,
+                  sbp_freq->flags);
         }
 
         new_sbp_obs->header.n_obs++;
@@ -1349,17 +1350,17 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
   /* Find the buffer of obs to be sent */
   msg_obs_t *sbp_obs_buffer = (msg_obs_t *)state->obs_buffer;
 
-  /* We see some receivers output observations with TOW = 0 on startup, but this can
-   * cause a large time jump when the actual time is decoded. As such, ignore TOW = 0
-   * if these are the first time stamps we see */
-  if(!gps_time_valid(&state->last_gps_time) && fabs(obs_time.tow) <= FLOAT_EQUALITY_EPS ) {
+  /* We see some receivers output observations with TOW = 0 on startup, but this
+   * can cause a large time jump when the actual time is decoded. As such,
+   * ignore TOW = 0 if these are the first time stamps we see */
+  if (!gps_time_valid(&state->last_gps_time) &&
+      fabs(obs_time.tow) <= FLOAT_EQUALITY_EPS) {
     return;
   }
 
-
   if (!is_msm_active(&obs_time, state) && sbp_obs_buffer->header.n_obs > 0) {
     /* This is the first MSM observation, so clear the already decoded legacy
-      * messages from the observation buffer to avoid duplicates */
+     * messages from the observation buffer to avoid duplicates */
     memset(state->obs_buffer, 0, OBS_BUFFER_SIZE);
   }
 
@@ -1382,8 +1383,8 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
   /* Check if the buffer already has obs of the same time */
   if (sbp_obs_buffer->header.n_obs != 0 &&
       (sbp_obs_buffer->header.t.tow != new_sbp_obs->header.t.tow ||
-        state->sender_id !=
-            rtcm_stn_to_sbp_sender_id(new_rtcm_obs->header.stn_id))) {
+       state->sender_id !=
+           rtcm_stn_to_sbp_sender_id(new_rtcm_obs->header.stn_id))) {
     /* We either have missed a message, or we have a new station. Either way,
       send through the current buffer and clear before adding new obs */
     send_buffer_not_empty_warning(state);
@@ -1400,7 +1401,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
     }
 
     assert(SBP_HDR_SIZE + (obs_index_buffer + 1) * SBP_OBS_SIZE <=
-            OBS_BUFFER_SIZE);
+           OBS_BUFFER_SIZE);
 
     sbp_obs_buffer->obs[obs_index_buffer] = new_sbp_obs->obs[obs_count];
     obs_index_buffer++;
@@ -1470,7 +1471,8 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
         sbp_gnss_signal_t sid = {CODE_INVALID, 0};
         const rtcm_msm_signal_data *data = &msg->signals[cell_index];
         bool sid_valid = get_sid_from_msm(&msg->header, sat, sig, &sid, state);
-        bool constel_valid = sid_valid && !constellation_mask[code_to_constellation(sid.code)];
+        bool constel_valid =
+            sid_valid && !constellation_mask[code_to_constellation(sid.code)];
         bool supported = sid_valid && !unsupported_signal(&sid);
         if (sid_valid && constel_valid && supported && data->flags.valid_pr &&
             data->flags.valid_cp) {
@@ -1559,14 +1561,15 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
           }
 
           if (verbosity_level > VERB_HIGH) {
-            fprintf(stderr, "OBS: %3d %8s %14.3lf %14.3lf %14.3lf %2d 0x%02x\n",
-              sbp_freq->sid.sat,
-              code_to_string(sbp_freq->sid.code),
-              sbp_freq->P / MSG_OBS_P_MULTIPLIER,
-              sbp_freq->L.i + sbp_freq->L.f / MSG_OBS_LF_MULTIPLIER,
-              sbp_freq->cn0 / MSG_OBS_CN0_MULTIPLIER,
-              sbp_freq->lock,
-              sbp_freq->flags);
+            fprintf(stderr,
+                    "OBS: %3d %8s %14.3lf %14.3lf %14.3lf %2d 0x%02x\n",
+                    sbp_freq->sid.sat,
+                    code_to_string(sbp_freq->sid.code),
+                    sbp_freq->P / MSG_OBS_P_MULTIPLIER,
+                    sbp_freq->L.i + sbp_freq->L.f / MSG_OBS_LF_MULTIPLIER,
+                    sbp_freq->cn0 / MSG_OBS_CN0_MULTIPLIER,
+                    sbp_freq->lock,
+                    sbp_freq->flags);
           }
 
           new_sbp_obs->header.n_obs++;

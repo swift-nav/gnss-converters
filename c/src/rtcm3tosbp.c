@@ -17,6 +17,7 @@
    the current system time, which may not be suitable for pre-recorded
    data.  */
 #include <assert.h>
+#include <getopt.h>
 #include <gnss-converters/options.h>
 #include <gnss-converters/rtcm3_sbp.h>
 #include <libsbp/edc.h>
@@ -29,7 +30,6 @@
 #include <swiftnav/gnss_time.h>
 #include <time.h>
 #include <unistd.h>
-#include <getopt.h>
 
 #define SBP_PREAMBLE 0x55
 #define STRCMP_EQ 0
@@ -43,9 +43,9 @@ static void update_obs_time(const msg_obs_t *msg) {
   gps_time_t obs_time;
   obs_time.tow = msg[0].header.t.tow / 1000.0; /* ms to sec */
   obs_time.wn = msg[0].header.t.wn;
-  /* Some receivers output a TOW 0 whenever it's in a denied environment (teseoV)
-   * This stops us updating that as a valid observation time */
-  if(fabs(obs_time.tow) > FLOAT_EQUALITY_EPS) {
+  /* Some receivers output a TOW 0 whenever it's in a denied environment
+   * (teseoV) This stops us updating that as a valid observation time */
+  if (fabs(obs_time.tow) > FLOAT_EQUALITY_EPS) {
     rtcm2sbp_set_gps_time(&obs_time, &state);
   }
 }
@@ -107,10 +107,8 @@ static int read_stdin(uint8_t *buf, size_t len, void *context) {
 
 static void help(char *arg) {
   fprintf(stderr, "Usage: %s [options]\n", arg);
-  fprintf(stderr,
-          "  -h this message\n");
-  fprintf(stderr,
-          "  -b CODE:BIAS adds `bias` to signals with code `code`\n");
+  fprintf(stderr, "  -h this message\n");
+  fprintf(stderr, "  -b CODE:BIAS adds `bias` to signals with code `code`\n");
   fprintf(stderr,
           "  -c CODE:BIAS applies a liner pseudorange bias to Glonass signals "
           "with code CODE_GLO_L1OF or CODE_GLO_L2OF\n");
@@ -118,11 +116,15 @@ static void help(char *arg) {
           "  -l CODE:BIAS applies a liner phase bias to Glonass signals with "
           "code CODE_GLO_L1OF or CODE_GLO_L2OF\n");
   fprintf(stderr,
-          "  -w GPS WN:GPS TOW passes time to the converter, needs to be accurate to within a half "
-          "week for GPS only and within a half day for glonass, TOW is in seconds\n");
+          "  -w GPS WN:GPS TOW passes time to the converter, needs to be "
+          "accurate to within a half "
+          "week for GPS only and within a half day for glonass, TOW is in "
+          "seconds\n");
   fprintf(stderr,
-          "  -d YEAR:MONTH:DAY:HOUR passes time to the nearest hour of the beginning of the data to "
-          "the converter, needs to be accurate to within a half week for GPS only and within a half day "
+          "  -d YEAR:MONTH:DAY:HOUR passes time to the nearest hour of the "
+          "beginning of the data to "
+          "the converter, needs to be accurate to within a half week for GPS "
+          "only and within a half day "
           "for glonass\n");
   fprintf(stderr, "  -[GREICJS] disables a constellation\n");
   fprintf(stderr, "  -v for stderr verbosity\n");
@@ -155,20 +157,20 @@ int main(int argc, char **argv) {
           fprintf(stderr, "expecting GPS week number and time of week\n");
           help(argv[0]);
           return -1;
-        } else if (gps_time_valid(&(gps_time_t){time_of_week,week_num})) {
-          ct_utc_unix = gps2time(&(gps_time_t){time_of_week,week_num});
+        } else if (gps_time_valid(&(gps_time_t){time_of_week, week_num})) {
+          ct_utc_unix = gps2time(&(gps_time_t){time_of_week, week_num});
         }
         break;
       }
       case 'd': {
-        int year,month,day,hour;
+        int year, month, day, hour;
         int n = sscanf(optarg, "%d:%d:%d:%d", &year, &month, &day, &hour);
         if (n != 4) {
           fprintf(stderr, "expecting [year:month:day:hour]\n");
           help(argv[0]);
           return -1;
         } else {
-          gps_time_t gps_time = date2gps(year,month,day,hour,0,0);
+          gps_time_t gps_time = date2gps(year, month, day, hour, 0, 0);
           if (gps_time_valid(&gps_time)) {
             ct_utc_unix = gps2time(&gps_time);
           }
@@ -230,7 +232,7 @@ int main(int argc, char **argv) {
 }
 
 static void parse_biases(char *arg) {
-  int n,code;
+  int n, code;
   float bias;
   char *tok = strtok(arg, ",");
   while (NULL != tok) {

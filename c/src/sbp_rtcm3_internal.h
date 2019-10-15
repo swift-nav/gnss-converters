@@ -145,12 +145,12 @@ void sbp_to_rtcm3_1230(const msg_glo_biases_t *sbp_glo_bias,
                        const struct rtcm3_out_state *state);
 
 void sbp_to_rtcm3_gps_eph(const msg_ephemeris_gps_t *sbp_gps_eph,
-                       rtcm_msg_eph *msg_eph,
-                       const struct rtcm3_out_state *state);
+                          rtcm_msg_eph *msg_eph,
+                          const struct rtcm3_out_state *state);
 
 void sbp_to_rtcm3_gal_eph(const msg_ephemeris_gal_t *sbp_gps_eph,
-                            rtcm_msg_eph *msg_eph,
-                            const struct rtcm3_out_state *state);
+                          rtcm_msg_eph *msg_eph,
+                          const struct rtcm3_out_state *state);
 
 u16 encode_rtcm3_frame(const void *rtcm_msg, u16 message_type, u8 *frame);
 

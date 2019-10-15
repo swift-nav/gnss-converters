@@ -377,8 +377,10 @@ void sbp2rtcm_set_rcv_ant_descriptors(const char *ant_descriptor,
                                       const char *rcv_descriptor,
                                       struct rtcm3_out_state *state) {
   // -1 to account for NULL terminator
-  strncpy(state->ant_descriptor, ant_descriptor, sizeof(state->ant_descriptor) - 1);
-  strncpy(state->rcv_descriptor, rcv_descriptor, sizeof(state->rcv_descriptor) - 1);
+  strncpy(
+      state->ant_descriptor, ant_descriptor, sizeof(state->ant_descriptor) - 1);
+  strncpy(
+      state->rcv_descriptor, rcv_descriptor, sizeof(state->rcv_descriptor) - 1);
   state->ant_known = true;
 };
 
@@ -554,11 +556,8 @@ static void sbp_obs_to_msm_signal_data(const packed_obs_content_t *sbp_obs,
   }
 
   double freq;
-  bool freq_valid =
-      msm_signal_frequency(&msg->header,
-                           signal_index,
-                           sat_data->glo_fcn,
-                           &freq);
+  bool freq_valid = msm_signal_frequency(
+      &msg->header, signal_index, sat_data->glo_fcn, &freq);
 
   if (freq_valid && (0 != (sbp_flags & MSG_OBS_FLAGS_PHASE_VALID))) {
     double carrier_cyc = sbp_obs->L.i + sbp_obs->L.f / MSG_OBS_LF_MULTIPLIER;
@@ -1017,9 +1016,9 @@ void sbp2rtcm_sbp_gps_eph_cb(const u16 sender_id,
   (void)len;
   (void)sender_id;
   msg_ephemeris_gps_t *sbp_gps_eph = (msg_ephemeris_gps_t *)msg;
-  
+
   rtcm_msg_eph msg_gps_eph;
-  u8 frame[RTCM3_MAX_MSG_LEN]; // Max RTCM message length is 1023 Bytes
+  u8 frame[RTCM3_MAX_MSG_LEN];  // Max RTCM message length is 1023 Bytes
 
   /* generate and send the gps ephemeris message */
   sbp_to_rtcm3_gps_eph(sbp_gps_eph, &msg_gps_eph, state);
@@ -1034,13 +1033,14 @@ void sbp2rtcm_sbp_gal_eph_cb(const u16 sender_id,
   (void)len;
   (void)sender_id;
   msg_ephemeris_gal_t *sbp_gal_eph = (msg_ephemeris_gal_t *)msg;
-  
-  rtcm_msg_eph msg_gal_eph;
-  u8 frame[RTCM3_MAX_MSG_LEN]; // Max RTCM message length is 1023 Bytes
 
-  /* generate and send the gal ephemeris message - message type depends on source */
-  sbp_to_rtcm3_gal_eph(sbp_gal_eph, &msg_gal_eph, state);  
-  
+  rtcm_msg_eph msg_gal_eph;
+  u8 frame[RTCM3_MAX_MSG_LEN];  // Max RTCM message length is 1023 Bytes
+
+  /* generate and send the gal ephemeris message - message type depends on
+   * source */
+  sbp_to_rtcm3_gal_eph(sbp_gal_eph, &msg_gal_eph, state);
+
   u16 message_type = sbp_gal_eph->source == EPH_SOURCE_GAL_INAV ? 1046 : 1045;
   u16 frame_size = encode_rtcm3_frame(&msg_gal_eph, message_type, frame);
   state->cb_sbp_to_rtcm(frame, frame_size, state->context);
