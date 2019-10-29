@@ -17,7 +17,6 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-            - check
       env: GCCVER=6 TESTENV=gcc6
     - os: linux
       addons:
@@ -28,7 +27,6 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-            - check
             - lcov
       env: GCCVER=6 TESTENV=codecov
     - os: linux
