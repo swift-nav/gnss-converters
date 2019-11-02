@@ -125,7 +125,6 @@ u32 rtcm3_decode_fit_interval_glo(const u8 p1) {
   }
 }
 
-
 static void gps_time_sec_match_weeks(gps_time_sec_t *t, const gps_time_t *ref) {
   gps_time_t t_u = {.wn = t->wn, .tow = t->tow};
   gps_time_match_weeks(&t_u, ref);
@@ -142,7 +141,8 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gps_eph->common.toe.wn =
       gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
   sbp_gps_eph->common.toe.tow = msg_eph->toe * GPS_TOE_RESOLUTION;
-  gps_time_sec_match_weeks(&sbp_gps_eph->common.toe, &state->time_from_rover_obs);
+  gps_time_sec_match_weeks(&sbp_gps_eph->common.toe,
+                           &state->time_from_rover_obs);
   sbp_gps_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gps_eph->common.sid.code = CODE_GPS_L1CA;
   sbp_gps_eph->common.ura = convert_ura_to_uri(msg_eph->ura);
@@ -284,7 +284,8 @@ void rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
                                          GPS_WEEK_REFERENCE);
   sbp_gal_eph->common.toe.wn = week;
   sbp_gal_eph->common.toe.tow = msg_eph->toe * GALILEO_TOE_RESOLUTION;
-  gps_time_sec_match_weeks(&sbp_gal_eph->common.toe, &state->time_from_rover_obs);
+  gps_time_sec_match_weeks(&sbp_gal_eph->common.toe,
+                           &state->time_from_rover_obs);
 
   sbp_gal_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gal_eph->common.sid.code = CODE_GAL_E1B;

@@ -15,6 +15,7 @@ int main(void) {
   srunner_add_suite(sr, rtcm3_suite());
   srunner_add_suite(sr, rtcm3_ssr_suite());
   srunner_add_suite(sr, nmea_suite());
+  srunner_add_suite(sr, ubx_suite());
   srunner_add_suite(sr, options_suite());
 
   srunner_set_fork_status(sr, CK_NOFORK);

@@ -22,6 +22,9 @@ include(TestTargets)
 option(librtcm_ENABLE_TESTS "" OFF)
 find_package(Rtcm REQUIRED)
 
+option(libubx_ENABLE_TESTS "" OFF)
+find_package(Ubx REQUIRED)
+
 option(libsbp_ENABLE_TESTS "" OFF)
 option(libsbp_ENABLE_DOCS "" OFF)
 find_package(Sbp REQUIRED)
