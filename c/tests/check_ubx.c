@@ -28,6 +28,7 @@
 #include "config.h"
 
 uint16_t rxm_rawx_crc[] = {14708, 41438};
+FILE *fp;
 static void ubx_sbp_callback_rxm_rawx(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
@@ -66,6 +67,11 @@ static void ubx_sbp_callback_nav_pvt(
   crc = crc16_ccitt(buff, length, crc);
   ck_assert(crc == nav_pvt_crc);
 }
+  
+int read_file_check_ubx(uint8_t * buf, size_t len, void *ctx) {
+    (void)ctx;
+    return fread(buf, sizeof(uint8_t), len, fp);
+  }
 
 void test_UBX(const char *filename,
               void (*cb_ubx_to_sbp)(
@@ -73,22 +79,17 @@ void test_UBX(const char *filename,
               void *context) {
   static struct ubx_sbp_state state;
 
-  FILE *fp = fopen(filename, "rb");
+  fp = fopen(filename, "rb");
   if (fp == NULL) {
     fprintf(stderr, "Can't open input file! %s\n", filename);
     exit(1);
-  }
-
-  int read_file(uint8_t * buf, size_t len, void *ctx) {
-    (void)ctx;
-    return fread(buf, sizeof(uint8_t), len, fp);
   }
 
   ubx_sbp_init(&state, cb_ubx_to_sbp, context);
 
   int ret;
   do {
-    ret = ubx_sbp_process(&state, &read_file);
+    ret = ubx_sbp_process(&state, &read_file_check_ubx);
   } while (ret > 0);
 }
 
