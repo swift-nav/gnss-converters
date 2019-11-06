@@ -108,6 +108,15 @@ static int read_ubx_frame(u8 *frame, struct ubx_sbp_state *state) {
 
     /* First two bytes are class and msg ID */
     u16 payload_length = frame[2] + (frame[3] << 8);
+    /* Assume massive payload is due to corrupted message. 2 bytes for header, 2
+     * bytes for length, 2 bytes for checksum not counted in payload_length
+     */
+    if (payload_length > UBX_FRAME_SIZE - 6) {
+      fprintf(stderr,
+              "UBX payload_length too large: %d; possible corrupted frame\n",
+              payload_length);
+      continue;
+    }
 
     /* +2 for checksum bytes */
     ret = read_ubx_bytes(frame + 4, payload_length + 2, state);
