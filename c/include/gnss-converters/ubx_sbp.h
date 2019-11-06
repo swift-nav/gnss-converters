@@ -25,7 +25,7 @@ extern "C" {
 #endif
 
 #define UBX_BUFFER_SIZE 4096
-#define UBX_FRAME_SIZE 2048
+#define UBX_FRAME_SIZE 4096
 
 #define DEFAULT_UBX_SENDER_ID 61568
 

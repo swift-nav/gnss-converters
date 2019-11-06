@@ -113,7 +113,10 @@ static int read_ubx_frame(u8 *frame, struct ubx_sbp_state *state) {
      */
     if (payload_length > UBX_FRAME_SIZE - 6) {
       fprintf(stderr,
-              "UBX payload_length too large: %d; possible corrupted frame\n",
+              "UBX payload_length for class 0x%X and ID 0x%X too large: %d; "
+              "possible corrupted frame\n",
+              frame[0],
+              frame[1],
               payload_length);
       continue;
     }
