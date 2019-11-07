@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
   int ret;
   do {
     ret = ubx_sbp_process(&state, &read_stdin);
-  } while (ret > 0);
+  } while (ret >= 0);
 
   return 0;
 }
