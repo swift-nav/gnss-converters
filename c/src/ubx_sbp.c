@@ -37,10 +37,12 @@
  */
 #define SBP_MAX_NUM_OBS 14
 
-static void reload_ubx_buffer(struct ubx_sbp_state *state) {
+static int reload_ubx_buffer(struct ubx_sbp_state *state) {
   state->index = 0;
-  state->bytes_in_buffer =
-      state->read_stream_func(state->read_buffer, UBX_BUFFER_SIZE, NULL);
+  int bytes_read = state->read_stream_func(
+      state->read_buffer, UBX_BUFFER_SIZE, state->context);
+  state->bytes_in_buffer = bytes_read > 0 ? bytes_read : 0;
+  return bytes_read;
 }
 
 /** Attempts to read `length` bytes into `buf`, implemented as a memcpy from
@@ -49,29 +51,34 @@ static void reload_ubx_buffer(struct ubx_sbp_state *state) {
  * we assume EOF reached and return -1.
  */
 static int read_ubx_bytes(u8 *buf, size_t length, struct ubx_sbp_state *state) {
+  int bytes_read = 0;
   while (state->index + length > state->bytes_in_buffer) {
     if (state->bytes_in_buffer == 0) {
       /* Try again in case we perfectly aligned read */
-      reload_ubx_buffer(state);
-      if (state->bytes_in_buffer == 0) {
-        /* EOF reached */
-        return -1;
+      int reload_bytes = reload_ubx_buffer(state);
+      if (reload_bytes <= 0) {
+        return reload_bytes;
       } else {
         continue;
       }
     }
 
     size_t remaining_bytes = state->bytes_in_buffer - state->index;
-    memcpy(buf, &state->read_buffer[state->index], remaining_bytes);
+    memcpy(
+        buf + bytes_read, &state->read_buffer[state->index], remaining_bytes);
     length -= remaining_bytes;
-    buf += remaining_bytes;
-    reload_ubx_buffer(state);
+    bytes_read += remaining_bytes;
+    int reload_bytes = reload_ubx_buffer(state);
+    if (reload_bytes <= 0) {
+      return reload_bytes;
+    }
   }
 
-  memcpy(buf, &state->read_buffer[state->index], length);
+  memcpy(buf + bytes_read, &state->read_buffer[state->index], length);
   state->index += length;
+  bytes_read += length;
 
-  return 0;
+  return bytes_read;
 }
 
 /** UBX Frame:
@@ -82,8 +89,8 @@ static int read_ubx_frame(u8 *frame, struct ubx_sbp_state *state) {
   int ret;
   do {
     ret = read_ubx_bytes(frame, 1, state);
-    if (ret < 0) {
-      return -1;
+    if (ret <= 0) {
+      return ret == 0 ? -1 : ret;
     }
 
     if (frame[0] != UBX_SYNC_CHAR_1) {
@@ -92,8 +99,8 @@ static int read_ubx_frame(u8 *frame, struct ubx_sbp_state *state) {
 
     while (frame[0] == UBX_SYNC_CHAR_1) {
       ret = read_ubx_bytes(frame, 1, state);
-      if (ret == -1) {
-        return -1;
+      if (ret <= 0) {
+        return ret == 0 ? -1 : ret;
       }
     }
 
@@ -102,8 +109,8 @@ static int read_ubx_frame(u8 *frame, struct ubx_sbp_state *state) {
     }
 
     ret = read_ubx_bytes(frame, 4, state);
-    if (ret == -1) {
-      return -1;
+    if (ret <= 0) {
+      return ret == 0 ? -1 : ret;
     }
 
     /* First two bytes are class and msg ID */
@@ -123,8 +130,8 @@ static int read_ubx_frame(u8 *frame, struct ubx_sbp_state *state) {
 
     /* +2 for checksum bytes */
     ret = read_ubx_bytes(frame + 4, payload_length + 2, state);
-    if (ret == -1) {
-      return -1;
+    if (ret <= 0) {
+      return ret == 0 ? -1 : ret;
     }
 
     u8 checksum[2];
