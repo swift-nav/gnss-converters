@@ -17,9 +17,25 @@
 #define UBX_SBP_LAT_LON_SCALING (1e-7)
 #define UBX_SBP_HEIGHT_SCALING (1e-3)
 
+#define UBX_NAV_PVT_FIX_TYPE_NONE (0x00)
+#define UBX_NAV_PVT_FIX_TYPE_DEAD_RECKONING (0x01)
+#define UBX_NAV_PVT_FIX_TYPE_2D (0x02)
+#define UBX_NAV_PVT_FIX_TYPE_3D (0x03)
+#define UBX_NAV_PVT_FIX_TYPE_COMBINED (0x04)
+#define UBX_NAV_PVT_FIX_TYPE_TIME (0x05)
+
 #define UBX_NAV_PVT_DGNSS_MASK (0x02)
 #define UBX_NAV_PVT_INS_MASK (0x04)
 
+#define UBX_NAV_PVT_CARR_SOLN_MASK (0xC0)
+#define UBX_NAV_PVT_SOLN_NO_PHASE (0x00)
+#define UBX_NAV_PVT_SOLN_FLOAT_RTK (0x40)
+#define UBX_NAV_PVT_SOLN_FIXED_RTK (0xC0)
+
+#define SBP_LLH_INVALID_SOLN_MASK (0x00)
+#define SBP_LLH_FLOAT_RTK_MASK (0x03)
+#define SBP_LLH_FIXED_RTK_MASK (0x04)
+#define SBP_LLH_DEAD_RECKONING_MASK (0x05)
 #define SBP_LLH_DGNSS_MASK (0x02)
 #define SBP_LLH_SPP_MASK (0x01)
 #define SBP_LLH_INS_MASK (0x08)
@@ -311,18 +327,40 @@ static int fill_msg_pos_llh(const u8 buf[], msg_pos_llh_t *msg) {
   msg->n_sats = nav_pvt.num_sats;
 
   msg->flags = 0;
-  /* if valid fix */
-  if (nav_pvt.flags & UBX_NAV_PVT_DGNSS_MASK) {
-    /* if differential corrections */
-    if (nav_pvt.flags & UBX_NAV_PVT_DGNSS_MASK) {
-      msg->flags |= SBP_LLH_DGNSS_MASK;
-    } else {
+  if ((nav_pvt.fix_type == UBX_NAV_PVT_FIX_TYPE_NONE) ||
+      (nav_pvt.fix_type == UBX_NAV_PVT_FIX_TYPE_TIME)) {
+    msg->flags |= SBP_LLH_INVALID_SOLN_MASK;
+  } else if (nav_pvt.fix_type == UBX_NAV_PVT_FIX_TYPE_DEAD_RECKONING) {
+    msg->flags |= SBP_LLH_DEAD_RECKONING_MASK;
+  } else if ((nav_pvt.fix_type == UBX_NAV_PVT_FIX_TYPE_2D) ||
+             (nav_pvt.fix_type == UBX_NAV_PVT_FIX_TYPE_3D) ||
+             (nav_pvt.fix_type == UBX_NAV_PVT_FIX_TYPE_COMBINED)) {
+    if ((nav_pvt.flags & UBX_NAV_PVT_DGNSS_MASK) == 0) {
       msg->flags |= SBP_LLH_SPP_MASK;
+    } else {
+      u8 carr_soln = nav_pvt.flags & UBX_NAV_PVT_CARR_SOLN_MASK;
+      switch (carr_soln) {
+        case UBX_NAV_PVT_SOLN_NO_PHASE:
+          msg->flags |= SBP_LLH_DGNSS_MASK;
+          break;
+        case UBX_NAV_PVT_SOLN_FLOAT_RTK:
+          msg->flags |= SBP_LLH_FLOAT_RTK_MASK;
+          break;
+        case UBX_NAV_PVT_SOLN_FIXED_RTK:
+          msg->flags |= SBP_LLH_FIXED_RTK_MASK;
+          break;
+        default:
+          fprintf(stderr,
+                  "Invalid NAV_PVT.flags carrier solution value: %d",
+                  carr_soln);
+          break;
+      }
     }
-    /* check for INS. */
-    if (nav_pvt.flags == UBX_NAV_PVT_INS_MASK) {
-      msg->flags |= SBP_LLH_INS_MASK;
-    }
+  }
+
+  if ((nav_pvt.fix_type == UBX_NAV_PVT_FIX_TYPE_DEAD_RECKONING) ||
+      (nav_pvt.fix_type == UBX_NAV_PVT_FIX_TYPE_COMBINED)) {
+    msg->flags |= SBP_LLH_INS_MASK;
   }
 
   return 0;
