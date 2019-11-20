@@ -180,10 +180,10 @@ static code_t convert_ubx_gnssid_sigid(u8 gnss_id, u8 sig_id) {
     return CODE_GAL_E1B;
     /* Galileo E5 bI */
   } else if ((gnss_id == 2) && (sig_id == 5)) {
-    return CODE_GAL_E5I;
+    return CODE_GAL_E7I;
     /* Galileo E5 bQ */
   } else if ((gnss_id == 2) && (sig_id == 6)) {
-    return CODE_GAL_E5Q;
+    return CODE_GAL_E7Q;
     /* BeiDou B1I D1 */
   } else if ((gnss_id == 3) && (sig_id == 0)) {
     return CODE_BDS2_B1;
