@@ -192,10 +192,10 @@ static code_t convert_ubx_gnssid_sigid(u8 gnss_id, u8 sig_id) {
     return CODE_BDS2_B1;
     /* BeiDou B2I D1 */
   } else if ((gnss_id == 3) && (sig_id == 2)) {
-    return CODE_BDS2_B1;
+    return CODE_BDS2_B2;
     /* BeiDou B2I D2 */
   } else if ((gnss_id == 3) && (sig_id == 3)) {
-    return CODE_BDS2_B1;
+    return CODE_BDS2_B2;
     /* QZSS L1C/A */
   } else if ((gnss_id == 5) && (sig_id == 0)) {
     return CODE_QZS_L1CA;

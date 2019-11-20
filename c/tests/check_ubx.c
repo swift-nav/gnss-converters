@@ -27,7 +27,7 @@
 #include "check_ubx.h"
 #include "config.h"
 
-static const uint16_t rxm_rawx_crc[] = {14708, 41438, 2564, 5799, 10854};
+static const uint16_t rxm_rawx_crc[] = {14708, 41438, 2564, 52301, 10854};
 FILE *fp;
 static void ubx_sbp_callback_rxm_rawx(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
