@@ -23,7 +23,7 @@ static int read_stdin(uint8_t *buf, size_t len, void *context) {
 
 static s32 write_sbp_stdout(u8 *buff, u32 n, void *context) {
   (void)context;
-  return fwrite(buff, sizeof(u8), n, stdout);
+  return write(STDOUT_FILENO, buff, sizeof(u8) * n);
 }
 
 static void sbp_write(
