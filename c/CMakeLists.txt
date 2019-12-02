@@ -14,6 +14,13 @@ swift_create_project_options(
 
 include(ClangFormat)
 swift_setup_clang_format()
+include(ClangTidy)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU")
+  # clang-tidy doesn't like -Wno-psabi which it picks up from compile_commands.json
+  # when using a GNU compiler. Doesn't apply when using clang compiler.
+  set(clang_tidy_extra_args "EXTRA_ARGS" "-extra-arg=-Wno-unknown-warning-option")
+endif()
+swift_setup_clang_tidy(PATTERNS 'c/src/*.cc' ${clang_tidy_extra_args})
 include(CodeCoverage)
 add_code_coverage_all_targets()
 
