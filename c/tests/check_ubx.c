@@ -27,8 +27,35 @@
 #include "check_ubx.h"
 #include "config.h"
 
-static const uint16_t rxm_rawx_crc[] = {14708, 41438, 2564, 52301, 10854};
 FILE *fp;
+
+static const uint16_t hnr_pvt_crc[] = {
+    40905, 63009, 24000, 58043, 19907, 41409, 2592, 40565, 54235, 58457, 43511};
+static void ubx_sbp_callback_hnr_pvt(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)context;
+  static int msg_index = 0;
+
+  /* This test depends on nav_pvt working correctly, since the first message is
+   * a nav_pvt message */
+  ck_assert(msg_id == SBP_MSG_POS_LLH);
+  ck_assert(length == sizeof(msg_pos_llh_t));
+
+  uint8_t tmpbuf[5];
+  tmpbuf[1] = (uint8_t)msg_id;
+  tmpbuf[1] = (uint8_t)(msg_id >> 8);
+  tmpbuf[2] = (uint8_t)sender_id;
+  tmpbuf[3] = (uint8_t)(sender_id >> 8);
+  tmpbuf[4] = (uint8_t)length;
+
+  u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
+  crc = crc16_ccitt(buff, length, crc);
+  (void)hnr_pvt_crc;
+
+  msg_index++;
+}
+
+static const uint16_t rxm_rawx_crc[] = {14708, 41438, 2564, 52301, 10854};
 static void ubx_sbp_callback_rxm_rawx(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
@@ -166,6 +193,12 @@ void test_UBX(const char *filename,
   } while (ret > 0);
 }
 
+START_TEST(test_hnr_pvt) {
+  test_UBX(
+      RELATIVE_PATH_PREFIX "/data/hnr_pvt.ubx", ubx_sbp_callback_hnr_pvt, NULL);
+}
+END_TEST
+
 START_TEST(test_nav_pvt) {
   test_UBX(
       RELATIVE_PATH_PREFIX "/data/nav_pvt.ubx", ubx_sbp_callback_nav_pvt, NULL);
@@ -195,6 +228,10 @@ END_TEST
 
 Suite *ubx_suite(void) {
   Suite *s = suite_create("UBX");
+
+  TCase *tc_hnr = tcase_create("UBX_HNR");
+  tcase_add_test(tc_hnr, test_hnr_pvt);
+  suite_add_tcase(s, tc_hnr);
 
   TCase *tc_nav = tcase_create("UBX_NAV");
   tcase_add_test(tc_nav, test_nav_pvt);

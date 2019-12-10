@@ -17,6 +17,15 @@
 #define UBX_SBP_LAT_LON_SCALING (1e-7)
 #define UBX_SBP_HEIGHT_SCALING (1e-3)
 
+#define UBX_HNR_PVT_FIX_TYPE_NONE (0x00)
+#define UBX_HNR_PVT_FIX_TYPE_DEAD_RECKONING (0x01)
+#define UBX_HNR_PVT_FIX_TYPE_2D (0x02)
+#define UBX_HNR_PVT_FIX_TYPE_3D (0x03)
+#define UBX_HNR_PVT_FIX_TYPE_COMBINED (0x04)
+#define UBX_HNR_PVT_FIX_TYPE_TIME (0x05)
+
+#define UBX_HNR_PVT_DGNSS_MASK (0x02)
+
 #define UBX_NAV_PVT_FIX_TYPE_NONE (0x00)
 #define UBX_NAV_PVT_FIX_TYPE_DEAD_RECKONING (0x01)
 #define UBX_NAV_PVT_FIX_TYPE_2D (0x02)
@@ -52,6 +61,14 @@
  * floor((0xFF - sizeof(observation_header_t)) / sizeof(packed_obs_content_t))
  */
 #define SBP_MAX_NUM_OBS 14
+
+/* Syncs data between HNR_PVT and NAV_PVT */
+struct ubx_pvt_state {
+  u8 num_sats;
+  u8 flags;
+};
+
+static struct ubx_pvt_state pvt_state;
 
 static int reload_ubx_buffer(struct ubx_sbp_state *state) {
   state->index = 0;
@@ -325,6 +342,7 @@ static int fill_msg_pos_llh(const u8 buf[], msg_pos_llh_t *msg) {
                               ? max_accuracy
                               : nav_pvt.vertical_accuracy);
   msg->n_sats = nav_pvt.num_sats;
+  pvt_state.num_sats = nav_pvt.num_sats;
 
   msg->flags = 0;
   if ((nav_pvt.fix_type == UBX_NAV_PVT_FIX_TYPE_NONE) ||
@@ -363,7 +381,46 @@ static int fill_msg_pos_llh(const u8 buf[], msg_pos_llh_t *msg) {
     msg->flags |= SBP_LLH_INS_MASK;
   }
 
+  pvt_state.flags = msg->flags;
+
   return 0;
+}
+
+static int fill_msg_pos_llh_hnr(const u8 buf[], msg_pos_llh_t *msg) {
+  ubx_hnr_pvt hnr_pvt;
+  if (ubx_decode_hnr_pvt(buf, &hnr_pvt) != RC_OK) {
+    return -1;
+  }
+
+  msg->tow = hnr_pvt.i_tow;
+  msg->lat = UBX_SBP_LAT_LON_SCALING * hnr_pvt.lat;
+  msg->lon = UBX_SBP_LAT_LON_SCALING * hnr_pvt.lon;
+  /* convert from mm to m */
+  msg->height = UBX_SBP_HEIGHT_SCALING * hnr_pvt.height;
+  /* bounding u32 -> u16 conversion */
+  u16 max_accuracy = UINT16_MAX;
+  msg->h_accuracy = (u16)(hnr_pvt.horizontal_accuracy > max_accuracy
+                              ? max_accuracy
+                              : hnr_pvt.horizontal_accuracy);
+  msg->v_accuracy = (u16)(hnr_pvt.vertical_accuracy > max_accuracy
+                              ? max_accuracy
+                              : hnr_pvt.vertical_accuracy);
+
+  msg->n_sats = pvt_state.num_sats;
+  msg->flags = pvt_state.flags;
+
+  return 0;
+}
+
+static void handle_hnr_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
+  msg_pos_llh_t sbp_pos_llh;
+  if (fill_msg_pos_llh_hnr(inbuf, &sbp_pos_llh) == 0) {
+    state->cb_ubx_to_sbp(SBP_MSG_POS_LLH,
+                         sizeof(sbp_pos_llh),
+                         (u8 *)&sbp_pos_llh,
+                         state->sender_id,
+                         state->context);
+  }
 }
 
 static void handle_nav_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
@@ -423,14 +480,30 @@ static void handle_rxm_rawx(struct ubx_sbp_state *state,
 void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
   u8 class_id = frame[0];
   u8 msg_id = frame[1];
-  if (class_id == UBX_CLASS_NAV && msg_id == UBX_MSG_NAV_PVT) {
-    handle_nav_pvt(state, frame);
-  }
 
-  if (class_id == UBX_CLASS_RXM && msg_id == UBX_MSG_RXM_RAWX) {
-    u8 sbp_obs_buffer[sizeof(msg_obs_t) +
-                      sizeof(packed_obs_content_t) * UBX_MAX_NUM_OBS];
-    handle_rxm_rawx(state, frame, sbp_obs_buffer);
+  switch (class_id) {
+    case UBX_CLASS_HNR:
+      if (msg_id == UBX_MSG_HNR_PVT) {
+        handle_hnr_pvt(state, frame);
+      }
+      break;
+
+    case UBX_CLASS_NAV:
+      if (msg_id == UBX_MSG_NAV_PVT) {
+        handle_nav_pvt(state, frame);
+      }
+      break;
+
+    case UBX_CLASS_RXM:
+      if (msg_id == UBX_MSG_RXM_RAWX) {
+        u8 sbp_obs_buffer[sizeof(msg_obs_t) +
+                          sizeof(packed_obs_content_t) * UBX_MAX_NUM_OBS];
+        handle_rxm_rawx(state, frame, sbp_obs_buffer);
+      }
+      break;
+
+    default:
+      break;
   }
 }
 
