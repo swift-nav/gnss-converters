@@ -38,6 +38,7 @@ struct ubx_sbp_state {
   void (*cb_ubx_to_sbp)(
       u16 msg_id, u8 length, u8 *buf, u16 sender_id, void *ctx);
   void *context;
+  bool use_hnr;
 };
 
 void ubx_sbp_init(struct ubx_sbp_state *state,
@@ -49,6 +50,7 @@ void ubx_sbp_init(struct ubx_sbp_state *state,
                   void *context);
 void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state);
 void ubx_set_sender_id(struct ubx_sbp_state *state, u16 sender_id);
+void ubx_set_hnr_flag(struct ubx_sbp_state *state, bool use_hnr);
 int ubx_sbp_process(struct ubx_sbp_state *state,
                     int (*read_stream_func)(u8 *buff, size_t len, void *ctx));
 

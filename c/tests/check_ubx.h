@@ -21,9 +21,6 @@
 #define MAX_FILE_SIZE 1048576
 
 void ubx_setup_basic(void);
-void test_UBX(const char *filename,
-              void (*cb_ubx_to_sbp)(
-                  u16 msg_id, u8 length, u8 *buf, u16 sender_id, void *ctx),
-              void *context);
+void test_UBX(struct ubx_sbp_state state, const char *filename);
 
 #endif /* CHECK_UBX_H */

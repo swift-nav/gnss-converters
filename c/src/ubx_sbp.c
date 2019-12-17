@@ -415,22 +415,26 @@ static int fill_msg_pos_llh_hnr(const u8 buf[], msg_pos_llh_t *msg) {
 static void handle_hnr_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
   msg_pos_llh_t sbp_pos_llh;
   if (fill_msg_pos_llh_hnr(inbuf, &sbp_pos_llh) == 0) {
-    state->cb_ubx_to_sbp(SBP_MSG_POS_LLH,
-                         sizeof(sbp_pos_llh),
-                         (u8 *)&sbp_pos_llh,
-                         state->sender_id,
-                         state->context);
+    if (state->use_hnr) {
+      state->cb_ubx_to_sbp(SBP_MSG_POS_LLH,
+                           sizeof(sbp_pos_llh),
+                           (u8 *)&sbp_pos_llh,
+                           state->sender_id,
+                           state->context);
+    }
   }
 }
 
 static void handle_nav_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
   msg_pos_llh_t sbp_pos_llh;
   if (fill_msg_pos_llh(inbuf, &sbp_pos_llh) == 0) {
-    state->cb_ubx_to_sbp(SBP_MSG_POS_LLH,
-                         sizeof(sbp_pos_llh),
-                         (u8 *)&sbp_pos_llh,
-                         state->sender_id,
-                         state->context);
+    if (!state->use_hnr) {
+      state->cb_ubx_to_sbp(SBP_MSG_POS_LLH,
+                           sizeof(sbp_pos_llh),
+                           (u8 *)&sbp_pos_llh,
+                           state->sender_id,
+                           state->context);
+    }
   }
 }
 
@@ -519,10 +523,15 @@ void ubx_sbp_init(struct ubx_sbp_state *state,
   state->sender_id = DEFAULT_UBX_SENDER_ID;
   state->cb_ubx_to_sbp = cb_ubx_to_sbp;
   state->context = context;
+  state->use_hnr = false;
 }
 
 void ubx_set_sender_id(struct ubx_sbp_state *state, u16 sender_id) {
   state->sender_id = sender_id;
+}
+
+void ubx_set_hnr_flag(struct ubx_sbp_state *state, bool use_hnr) {
+  state->use_hnr = use_hnr;
 }
 
 /**

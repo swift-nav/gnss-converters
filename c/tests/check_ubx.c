@@ -29,8 +29,7 @@
 
 FILE *fp;
 
-static const uint16_t hnr_pvt_crc[] = {
-    40905, 63009, 24000, 58043, 19907, 41409, 2592, 40565, 54235, 58457, 43511};
+static const uint16_t hnr_pvt_crc[] = {57519};
 static void ubx_sbp_callback_hnr_pvt(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
@@ -42,7 +41,7 @@ static void ubx_sbp_callback_hnr_pvt(
   ck_assert(length == sizeof(msg_pos_llh_t));
 
   uint8_t tmpbuf[5];
-  tmpbuf[1] = (uint8_t)msg_id;
+  tmpbuf[0] = (uint8_t)msg_id;
   tmpbuf[1] = (uint8_t)(msg_id >> 8);
   tmpbuf[2] = (uint8_t)sender_id;
   tmpbuf[3] = (uint8_t)(sender_id >> 8);
@@ -50,7 +49,32 @@ static void ubx_sbp_callback_hnr_pvt(
 
   u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
   crc = crc16_ccitt(buff, length, crc);
-  (void)hnr_pvt_crc;
+  ck_assert(crc == hnr_pvt_crc[msg_index]);
+
+  msg_index++;
+}
+
+static const uint16_t hnr_pvt_disabled_crc[] = {41409};
+static void ubx_sbp_callback_hnr_pvt_disabled(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)context;
+  static int msg_index = 0;
+
+  /* This test depends on nav_pvt working correctly, since the first message is
+   * a nav_pvt message */
+  ck_assert(msg_id == SBP_MSG_POS_LLH);
+  ck_assert(length == sizeof(msg_pos_llh_t));
+
+  uint8_t tmpbuf[5];
+  tmpbuf[0] = (uint8_t)msg_id;
+  tmpbuf[1] = (uint8_t)(msg_id >> 8);
+  tmpbuf[2] = (uint8_t)sender_id;
+  tmpbuf[3] = (uint8_t)(sender_id >> 8);
+  tmpbuf[4] = (uint8_t)length;
+
+  u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
+  crc = crc16_ccitt(buff, length, crc);
+  ck_assert(crc == hnr_pvt_disabled_crc[msg_index]);
 
   msg_index++;
 }
@@ -111,7 +135,7 @@ static void ubx_sbp_callback_nav_pvt_corrupted(
   ck_assert(length == sizeof(msg_pos_llh_t));
 
   uint8_t tmpbuf[5];
-  tmpbuf[1] = (uint8_t)msg_id;
+  tmpbuf[0] = (uint8_t)msg_id;
   tmpbuf[1] = (uint8_t)(msg_id >> 8);
   tmpbuf[2] = (uint8_t)sender_id;
   tmpbuf[3] = (uint8_t)(sender_id >> 8);
@@ -154,7 +178,7 @@ static void ubx_sbp_callback_nav_pvt_fix_type(
   ck_assert(length == sizeof(msg_pos_llh_t));
 
   uint8_t tmpbuf[5];
-  tmpbuf[1] = (uint8_t)msg_id;
+  tmpbuf[0] = (uint8_t)msg_id;
   tmpbuf[1] = (uint8_t)(msg_id >> 8);
   tmpbuf[2] = (uint8_t)sender_id;
   tmpbuf[3] = (uint8_t)(sender_id >> 8);
@@ -168,24 +192,40 @@ static void ubx_sbp_callback_nav_pvt_fix_type(
   msg_index++;
 }
 
+static const uint16_t nav_pvt_set_sender_id_crc[] = {19827};
+static void ubx_sbp_callback_nav_pvt_set_sender_id(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)context;
+  static int msg_index = 0;
+
+  ck_assert(msg_id == SBP_MSG_POS_LLH);
+  ck_assert(length == sizeof(msg_pos_llh_t));
+
+  uint8_t tmpbuf[5];
+  tmpbuf[0] = (uint8_t)msg_id;
+  tmpbuf[1] = (uint8_t)(msg_id >> 8);
+  tmpbuf[2] = (uint8_t)sender_id;
+  tmpbuf[3] = (uint8_t)(sender_id >> 8);
+  tmpbuf[4] = (uint8_t)length;
+
+  u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
+  crc = crc16_ccitt(buff, length, crc);
+  ck_assert(crc == nav_pvt_set_sender_id_crc[msg_index]);
+
+  msg_index++;
+}
+
 int read_file_check_ubx(uint8_t *buf, size_t len, void *ctx) {
   (void)ctx;
   return fread(buf, sizeof(uint8_t), len, fp);
 }
 
-void test_UBX(const char *filename,
-              void (*cb_ubx_to_sbp)(
-                  u16 msg_id, u8 length, u8 *buf, u16 sender_id, void *ctx),
-              void *context) {
-  static struct ubx_sbp_state state;
-
+void test_UBX(struct ubx_sbp_state state, const char *filename) {
   fp = fopen(filename, "rb");
   if (fp == NULL) {
     fprintf(stderr, "Can't open input file! %s\n", filename);
     exit(1);
   }
-
-  ubx_sbp_init(&state, cb_ubx_to_sbp, context);
 
   int ret;
   do {
@@ -194,35 +234,61 @@ void test_UBX(const char *filename,
 }
 
 START_TEST(test_hnr_pvt) {
-  test_UBX(
-      RELATIVE_PATH_PREFIX "/data/hnr_pvt.ubx", ubx_sbp_callback_hnr_pvt, NULL);
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_hnr_pvt, NULL);
+
+  ubx_set_hnr_flag(&state, true);
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/hnr_pvt.ubx");
+}
+END_TEST
+
+START_TEST(test_hnr_pvt_disabled) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_hnr_pvt_disabled, NULL);
+
+  ubx_set_hnr_flag(&state, false);
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/hnr_pvt.ubx");
 }
 END_TEST
 
 START_TEST(test_nav_pvt) {
-  test_UBX(
-      RELATIVE_PATH_PREFIX "/data/nav_pvt.ubx", ubx_sbp_callback_nav_pvt, NULL);
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_nav_pvt, NULL);
+
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_pvt.ubx");
 }
 END_TEST
 
 START_TEST(test_nav_pvt_corrupted) {
-  test_UBX(RELATIVE_PATH_PREFIX "/data/nav_pvt_corrupted.ubx",
-           ubx_sbp_callback_nav_pvt_corrupted,
-           NULL);
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_nav_pvt_corrupted, NULL);
+
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_pvt_corrupted.ubx");
 }
 END_TEST
 
 START_TEST(test_nav_pvt_fix_type) {
-  test_UBX(RELATIVE_PATH_PREFIX "/data/nav_pvt_fix_type.ubx",
-           ubx_sbp_callback_nav_pvt_fix_type,
-           NULL);
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_nav_pvt_fix_type, NULL);
+
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_pvt_fix_type.ubx");
+}
+END_TEST
+
+START_TEST(test_nav_pvt_set_sender_id) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_nav_pvt_set_sender_id, NULL);
+
+  ubx_set_sender_id(&state, 12345);
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_pvt.ubx");
 }
 END_TEST
 
 START_TEST(test_rxm_rawx) {
-  test_UBX(RELATIVE_PATH_PREFIX "/data/rxm_rawx.ubx",
-           ubx_sbp_callback_rxm_rawx,
-           NULL);
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_rxm_rawx, NULL);
+
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_rawx.ubx");
 }
 END_TEST
 
@@ -231,12 +297,14 @@ Suite *ubx_suite(void) {
 
   TCase *tc_hnr = tcase_create("UBX_HNR");
   tcase_add_test(tc_hnr, test_hnr_pvt);
+  tcase_add_test(tc_hnr, test_hnr_pvt_disabled);
   suite_add_tcase(s, tc_hnr);
 
   TCase *tc_nav = tcase_create("UBX_NAV");
   tcase_add_test(tc_nav, test_nav_pvt);
   tcase_add_test(tc_nav, test_nav_pvt_corrupted);
   tcase_add_test(tc_nav, test_nav_pvt_fix_type);
+  tcase_add_test(tc_nav, test_nav_pvt_set_sender_id);
   suite_add_tcase(s, tc_nav);
 
   TCase *tc_rxm = tcase_create("UBX_RXM");
