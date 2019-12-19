@@ -215,6 +215,38 @@ static void ubx_sbp_callback_nav_pvt_set_sender_id(
   msg_index++;
 }
 
+static const uint16_t nav_vel_ecef_crc[] = {57757, 36858};
+static void ubx_sbp_callback_nav_vel_ecef(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)context;
+  static int msg_index = 0;
+
+  /* This test depends on nav_pvt working correctly, since the first message is
+   * a nav_pvt message */
+  if (msg_index == 0) {
+    ck_assert(msg_id == SBP_MSG_POS_LLH);
+    ck_assert(length == sizeof(msg_pos_llh_t));
+  } else if (msg_index == 1) {
+    ck_assert(msg_id == SBP_MSG_VEL_ECEF);
+    ck_assert(length == sizeof(msg_vel_ecef_t));
+  } else {
+    ck_assert(false && "unexpected message");
+  }
+
+  uint8_t tmpbuf[5];
+  tmpbuf[0] = (uint8_t)msg_id;
+  tmpbuf[1] = (uint8_t)(msg_id >> 8);
+  tmpbuf[2] = (uint8_t)sender_id;
+  tmpbuf[3] = (uint8_t)(sender_id >> 8);
+  tmpbuf[4] = (uint8_t)length;
+
+  u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
+  crc = crc16_ccitt(buff, length, crc);
+  ck_assert(crc == nav_vel_ecef_crc[msg_index]);
+
+  msg_index++;
+}
+
 int read_file_check_ubx(uint8_t *buf, size_t len, void *ctx) {
   (void)ctx;
   return fread(buf, sizeof(uint8_t), len, fp);
@@ -284,6 +316,14 @@ START_TEST(test_nav_pvt_set_sender_id) {
 }
 END_TEST
 
+START_TEST(test_nav_vel_ecef) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_nav_vel_ecef, NULL);
+
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_velecef.ubx");
+}
+END_TEST
+
 START_TEST(test_rxm_rawx) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_rxm_rawx, NULL);
@@ -305,6 +345,7 @@ Suite *ubx_suite(void) {
   tcase_add_test(tc_nav, test_nav_pvt_corrupted);
   tcase_add_test(tc_nav, test_nav_pvt_fix_type);
   tcase_add_test(tc_nav, test_nav_pvt_set_sender_id);
+  tcase_add_test(tc_nav, test_nav_vel_ecef);
   suite_add_tcase(s, tc_nav);
 
   TCase *tc_rxm = tcase_create("UBX_RXM");

@@ -41,6 +41,8 @@
 #define UBX_NAV_PVT_SOLN_FLOAT_RTK (0x40)
 #define UBX_NAV_PVT_SOLN_FIXED_RTK (0xC0)
 
+#define UBX_NAV_VELECEF_SCALING (10) /* cm->mm */
+
 #define SBP_LLH_INVALID_SOLN_MASK (0x00)
 #define SBP_LLH_FLOAT_RTK_MASK (0x03)
 #define SBP_LLH_FIXED_RTK_MASK (0x04)
@@ -66,6 +68,7 @@
 struct ubx_pvt_state {
   u8 num_sats;
   u8 flags;
+  u8 fix_type;
 };
 
 static struct ubx_pvt_state pvt_state;
@@ -382,6 +385,31 @@ static int fill_msg_pos_llh(const u8 buf[], msg_pos_llh_t *msg) {
   }
 
   pvt_state.flags = msg->flags;
+  pvt_state.fix_type = nav_pvt.fix_type;
+
+  return 0;
+}
+
+static int fill_msg_vel_ecef(const u8 buf[], msg_vel_ecef_t *msg) {
+  ubx_nav_velecef nav_velecef;
+  if (ubx_decode_nav_velecef(buf, &nav_velecef) != RC_OK) {
+    return -1;
+  }
+
+  msg->tow = nav_velecef.i_tow;
+  msg->x = nav_velecef.ecefVX * UBX_NAV_VELECEF_SCALING;
+  msg->y = nav_velecef.ecefVY * UBX_NAV_VELECEF_SCALING;
+  msg->z = nav_velecef.ecefVZ * UBX_NAV_VELECEF_SCALING;
+  msg->accuracy = nav_velecef.speed_acc;
+  msg->n_sats = pvt_state.num_sats;
+  /* Assume either invalid or dead reckoning. Temp. hack */
+  if (pvt_state.fix_type > 0) {
+    msg->flags |= 0x5;
+  } else {
+    msg->flags = 0;
+  }
+  /* Assume INS always used */
+  msg->flags |= 0x01 << 3;
 
   return 0;
 }
@@ -435,6 +463,17 @@ static void handle_nav_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
                            state->sender_id,
                            state->context);
     }
+  }
+}
+
+static void handle_nav_velecef(struct ubx_sbp_state *state, u8 *inbuf) {
+  msg_vel_ecef_t sbp_vel_ecef;
+  if (fill_msg_vel_ecef(inbuf, &sbp_vel_ecef) == 0) {
+    state->cb_ubx_to_sbp(SBP_MSG_VEL_ECEF,
+                         sizeof(sbp_vel_ecef),
+                         (u8 *)&sbp_vel_ecef,
+                         state->sender_id,
+                         state->context);
   }
 }
 
@@ -495,6 +534,9 @@ void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
     case UBX_CLASS_NAV:
       if (msg_id == UBX_MSG_NAV_PVT) {
         handle_nav_pvt(state, frame);
+      }
+      if (msg_id == UBX_MSG_NAV_VELECEF) {
+        handle_nav_velecef(state, frame);
       }
       break;
 
