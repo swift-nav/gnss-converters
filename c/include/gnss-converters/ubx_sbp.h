@@ -37,6 +37,15 @@ struct gps_sat_data {
   unsigned vmask;
 };
 
+/* Stores state for ESF-* messages */
+typedef struct ubx_esf_state {
+  double time_since_startup_tow_offset;
+  bool tow_offset_set;
+  u32 last_sync_msss;
+  u32 imu_raw_msgs_sent;
+  double last_imu_temp;
+} ubx_esf_state_t;
+
 struct ubx_sbp_state {
   u8 read_buffer[UBX_BUFFER_SIZE];
   size_t index;
@@ -47,9 +56,11 @@ struct ubx_sbp_state {
       u16 msg_id, u8 length, u8 *buf, u16 sender_id, void *ctx);
   void *context;
   bool use_hnr;
-
+  ubx_esf_state_t esf_state;
   struct gps_sat_data gps_sat[NUM_SATS_GPS];
 };
+
+double ubx_convert_msss_to_tow(u32 msss, const ubx_esf_state_t *state);
 
 void ubx_sbp_init(struct ubx_sbp_state *state,
                   void (*cb_ubx_to_sbp)(u16 msg_id,
