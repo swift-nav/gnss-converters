@@ -4,6 +4,8 @@
 
 #include <gnss-converters/ubx_sbp.h>
 
+#include <libsbp/orientation.h>
+
 #include <swiftnav/nav_meas.h>
 #include <swiftnav/signal.h>
 
@@ -25,6 +27,11 @@
 #define UBX_HNR_PVT_FIX_TYPE_TIME (0x05)
 
 #define UBX_HNR_PVT_DGNSS_MASK (0x02)
+
+#define UBX_NAV_ATT_SCALING (10)       /* 1e-5->1e-6 degrees */
+#define UBX_NAV_ATT_ACC_SCALING (1e-5) /* 1e-5->1 degrees */
+
+#define SBP_ORIENT_EULER_INS_MASK (0x01)
 
 #define UBX_NAV_PVT_FIX_TYPE_NONE (0x00)
 #define UBX_NAV_PVT_FIX_TYPE_DEAD_RECKONING (0x01)
@@ -325,6 +332,30 @@ static int fill_msg_obs(const u8 buf[], msg_obs_t *msg) {
   return 0;
 }
 
+static int fill_msg_orient_euler(const u8 buf[], msg_orient_euler_t *msg) {
+  ubx_nav_att nav_att;
+  if (ubx_decode_nav_att(buf, &nav_att) != RC_OK) {
+    return -1;
+  }
+
+  msg->tow = nav_att.i_tow;
+
+  msg->roll = nav_att.roll * UBX_NAV_ATT_SCALING;
+  msg->pitch = nav_att.pitch * UBX_NAV_ATT_SCALING;
+  msg->yaw = nav_att.heading * UBX_NAV_ATT_SCALING;
+  msg->roll_accuracy = (float)(nav_att.acc_roll * UBX_NAV_ATT_ACC_SCALING);
+  msg->pitch_accuracy = (float)(nav_att.acc_pitch * UBX_NAV_ATT_ACC_SCALING);
+  msg->yaw_accuracy = (float)(nav_att.acc_heading * UBX_NAV_ATT_ACC_SCALING);
+
+  msg->flags = 0;
+  if ((pvt_state.fix_type == UBX_NAV_PVT_FIX_TYPE_DEAD_RECKONING) ||
+      (pvt_state.fix_type == UBX_NAV_PVT_FIX_TYPE_COMBINED)) {
+    msg->flags |= SBP_ORIENT_EULER_INS_MASK;
+  }
+
+  return 0;
+}
+
 static int fill_msg_pos_llh(const u8 buf[], msg_pos_llh_t *msg) {
   ubx_nav_pvt nav_pvt;
   if (ubx_decode_nav_pvt(buf, &nav_pvt) != RC_OK) {
@@ -402,14 +433,15 @@ static int fill_msg_vel_ecef(const u8 buf[], msg_vel_ecef_t *msg) {
   msg->z = nav_velecef.ecefVZ * UBX_NAV_VELECEF_SCALING;
   msg->accuracy = nav_velecef.speed_acc;
   msg->n_sats = pvt_state.num_sats;
+  msg->flags = 0;
   /* Assume either invalid or dead reckoning. Temp. hack */
   if (pvt_state.fix_type > 0) {
-    msg->flags |= 0x5;
+    msg->flags |= SBP_LLH_DEAD_RECKONING_MASK;
   } else {
     msg->flags = 0;
   }
   /* Assume INS always used */
-  msg->flags |= 0x01 << 3;
+  msg->flags |= SBP_LLH_INS_MASK;
 
   return 0;
 }
@@ -450,6 +482,17 @@ static void handle_hnr_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
                            state->sender_id,
                            state->context);
     }
+  }
+}
+
+static void handle_nav_att(struct ubx_sbp_state *state, u8 *inbuf) {
+  msg_orient_euler_t sbp_orient_euler;
+  if (fill_msg_orient_euler(inbuf, &sbp_orient_euler) == 0) {
+    state->cb_ubx_to_sbp(SBP_MSG_ORIENT_EULER,
+                         sizeof(sbp_orient_euler),
+                         (u8 *)&sbp_orient_euler,
+                         state->sender_id,
+                         state->context);
   }
 }
 
@@ -532,6 +575,9 @@ void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
       break;
 
     case UBX_CLASS_NAV:
+      if (msg_id == UBX_MSG_NAV_ATT) {
+        handle_nav_att(state, frame);
+      }
       if (msg_id == UBX_MSG_NAV_PVT) {
         handle_nav_pvt(state, frame);
       }

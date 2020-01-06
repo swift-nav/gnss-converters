@@ -20,6 +20,7 @@
 #include <swiftnav/signal.h>
 
 #include <libsbp/edc.h>
+#include <libsbp/orientation.h>
 
 #include <gnss-converters/ubx_sbp.h>
 
@@ -97,6 +98,35 @@ static void ubx_sbp_callback_rxm_rawx(
   u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
   crc = crc16_ccitt(buff, length, crc);
   ck_assert(crc == rxm_rawx_crc[msg_index]);
+  msg_index++;
+}
+
+static const uint16_t nav_att_crc[] = {63972, 57794};
+static void ubx_sbp_callback_nav_att(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)context;
+  static int msg_index = 0;
+
+  /* This test depends on nav_pvt working correctly, since the first message is
+   * a nav_pvt message */
+  if (msg_index == 0) {
+    ck_assert(msg_id == SBP_MSG_POS_LLH);
+    ck_assert(length == sizeof(msg_pos_llh_t));
+  } else {
+    ck_assert(msg_id == SBP_MSG_ORIENT_EULER);
+    ck_assert(length == sizeof(msg_orient_euler_t));
+  }
+
+  uint8_t tmpbuf[5];
+  tmpbuf[0] = (uint8_t)msg_id;
+  tmpbuf[1] = (uint8_t)(msg_id >> 8);
+  tmpbuf[2] = (uint8_t)sender_id;
+  tmpbuf[3] = (uint8_t)(sender_id >> 8);
+  tmpbuf[4] = (uint8_t)length;
+
+  u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
+  crc = crc16_ccitt(buff, length, crc);
+  ck_assert(crc == nav_att_crc[msg_index]);
   msg_index++;
 }
 
@@ -283,6 +313,14 @@ START_TEST(test_hnr_pvt_disabled) {
 }
 END_TEST
 
+START_TEST(test_nav_att) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_nav_att, NULL);
+
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_att.ubx");
+}
+END_TEST
+
 START_TEST(test_nav_pvt) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_nav_pvt, NULL);
@@ -341,6 +379,7 @@ Suite *ubx_suite(void) {
   suite_add_tcase(s, tc_hnr);
 
   TCase *tc_nav = tcase_create("UBX_NAV");
+  tcase_add_test(tc_nav, test_nav_att);
   tcase_add_test(tc_nav, test_nav_pvt);
   tcase_add_test(tc_nav, test_nav_pvt_corrupted);
   tcase_add_test(tc_nav, test_nav_pvt_fix_type);
