@@ -1,0 +1,33 @@
+/*
+ * Copyright (C) 2020 Swift Navigation Inc.
+ * Contact: Swift Navigation <dev@swift-nav.com>
+ *
+ * This source is subject to the license found in the file 'LICENSE' which must
+ * be be distributed together with this source. All other rights reserved.
+ *
+ * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
+ * EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+ */
+
+#include "common.h"
+
+sbp_gnss_signal_t sid_to_sbp(const gnss_signal_t from) {
+  sbp_gnss_signal_t sbp_sid = {
+      .code = from.code,
+      .sat = from.sat,
+  };
+
+  return sbp_sid;
+}
+
+void pack_ephemeris_common(const ephemeris_t *e,
+                           ephemeris_common_content_t *common) {
+  common->toe.tow = (u32)round(e->toe.tow);
+  common->toe.wn = e->toe.wn;
+  common->valid = e->valid;
+  common->health_bits = e->health_bits;
+  common->sid = sid_to_sbp(e->sid);
+  common->fit_interval = e->fit_interval;
+  common->ura = e->ura;
+}

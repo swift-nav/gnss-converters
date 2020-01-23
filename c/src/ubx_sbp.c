@@ -1,16 +1,15 @@
+#include <gnss-converters/ubx_sbp.h>
+#include <libsbp/orientation.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
-
-#include <gnss-converters/ubx_sbp.h>
-
-#include <libsbp/orientation.h>
-
 #include <swiftnav/nav_meas.h>
 #include <swiftnav/signal.h>
-
 #include <ubx/decode.h>
 #include <ubx/ubx_messages.h>
+
+#include "swiftnav/common.h"
+#include "ubx_ephe.h"
 
 /* TODO(STAR-918) should probably consolidate these into central .h file */
 #define SBP_OBS_LF_MULTIPLIER 256
@@ -591,6 +590,8 @@ void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
         u8 sbp_obs_buffer[sizeof(msg_obs_t) +
                           sizeof(packed_obs_content_t) * UBX_MAX_NUM_OBS];
         handle_rxm_rawx(state, frame, sbp_obs_buffer);
+      } else if (msg_id == UBX_MSG_RXM_SFRBX) {
+        ubx_ephe_handle_rxm_sfrbx(state, frame, UBX_FRAME_SIZE);
       }
       break;
 
@@ -612,6 +613,8 @@ void ubx_sbp_init(struct ubx_sbp_state *state,
   state->cb_ubx_to_sbp = cb_ubx_to_sbp;
   state->context = context;
   state->use_hnr = false;
+
+  ubx_ephe_init(state);
 }
 
 void ubx_set_sender_id(struct ubx_sbp_state *state, u16 sender_id) {

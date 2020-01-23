@@ -101,6 +101,28 @@ static void ubx_sbp_callback_rxm_rawx(
   msg_index++;
 }
 
+static void ubx_sbp_callback_rxm_sfrbx(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  ck_assert(context);
+
+  int *cnt = (int *)context;
+  if ((msg_id != SBP_MSG_EPHEMERIS_GPS) || (*cnt > 0)) {
+    return;
+  }
+  (*cnt)++;
+
+  uint8_t tmpbuf[5];
+  tmpbuf[0] = (uint8_t)msg_id;
+  tmpbuf[1] = (uint8_t)(msg_id >> 8);
+  tmpbuf[2] = (uint8_t)sender_id;
+  tmpbuf[3] = (uint8_t)(sender_id >> 8);
+  tmpbuf[4] = (uint8_t)length;
+
+  u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
+  crc = crc16_ccitt(buff, length, crc);
+  ck_assert(crc == 0xC13A);
+}
+
 static const uint16_t nav_att_crc[] = {63972, 57794};
 static void ubx_sbp_callback_nav_att(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
@@ -370,6 +392,16 @@ START_TEST(test_rxm_rawx) {
 }
 END_TEST
 
+START_TEST(test_rxm_sfrbx) {
+  struct ubx_sbp_state state;
+  int cnt = 0;
+  ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx, &cnt);
+
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx.ubx");
+  ck_assert(1 == cnt);
+}
+END_TEST
+
 Suite *ubx_suite(void) {
   Suite *s = suite_create("UBX");
 
@@ -389,6 +421,7 @@ Suite *ubx_suite(void) {
 
   TCase *tc_rxm = tcase_create("UBX_RXM");
   tcase_add_test(tc_rxm, test_rxm_rawx);
+  tcase_add_test(tc_rxm, test_rxm_sfrbx);
   suite_add_tcase(s, tc_rxm);
 
   return s;
