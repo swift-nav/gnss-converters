@@ -14,8 +14,7 @@ add_library(
   rtcm3_sbp_ephemeris.c
   rtcm3_sbp_ssr.c
   ubx_sbp.c
-  ${PROJECT_SOURCE_DIR}/src/ubx_ephe/ubx_ephe.c
-  ${PROJECT_SOURCE_DIR}/src/ubx_ephe/gps_l1ca.c
+  ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/gps.c
   sbp_nmea.c
   nmea.c
   rtcm3_utils.c
@@ -28,7 +27,7 @@ add_library(
 target_link_libraries(gnss_converters PUBLIC m swiftnav sbp rtcm ubx)
 target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/src)
-target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/src/ubx_ephe)
+target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris)
 target_code_coverage(gnss_converters AUTO ALL)
 
 add_executable(rtcm3tosbp rtcm3tosbp.c)

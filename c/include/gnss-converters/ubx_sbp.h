@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Swift Navigation Inc.
+ * Copyright (C) 2019,2020 Swift Navigation Inc.
  * Contact: Swift Navigation <dev@swiftnav.com>
  *
  * This source is subject to the license found in the file 'LICENSE' which must
@@ -13,12 +13,13 @@
 #ifndef GNSS_CONVERTERS_UBX_SBP_INTERFACE_H
 #define GNSS_CONVERTERS_UBX_SBP_INTERFACE_H
 
-#include <unistd.h>
-
 #include <libsbp/gnss.h>
 #include <libsbp/navigation.h>
 #include <libsbp/observation.h>
 #include <libsbp/sbp.h>
+#include <unistd.h>
+
+#include "swiftnav/signal.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,6 +29,13 @@ extern "C" {
 #define UBX_FRAME_SIZE 4096
 
 #define DEFAULT_UBX_SENDER_ID 61568
+
+struct gps_sat_data {
+  struct subframe {
+    u32 words[10];
+  } sf[3];
+  unsigned vmask;
+};
 
 struct ubx_sbp_state {
   u8 read_buffer[UBX_BUFFER_SIZE];
@@ -39,6 +47,8 @@ struct ubx_sbp_state {
       u16 msg_id, u8 length, u8 *buf, u16 sender_id, void *ctx);
   void *context;
   bool use_hnr;
+
+  struct gps_sat_data gps_sat[NUM_SATS_GPS];
 };
 
 void ubx_sbp_init(struct ubx_sbp_state *state,

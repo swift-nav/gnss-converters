@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Swift Navigation Inc.
+ * Copyright (C) 2019,2020 Swift Navigation Inc.
  * Contact: Swift Navigation <dev@swiftnav.com>
  *
  * This source is subject to the license found in the file 'LICENSE' which must
@@ -101,15 +101,12 @@ static void ubx_sbp_callback_rxm_rawx(
   msg_index++;
 }
 
+static const u16 rxm_sfrbx_crc = 0xC040;
 static void ubx_sbp_callback_rxm_sfrbx(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
-  ck_assert(context);
+  (void)context;
 
-  int *cnt = (int *)context;
-  if ((msg_id != SBP_MSG_EPHEMERIS_GPS) || (*cnt > 0)) {
-    return;
-  }
-  (*cnt)++;
+  ck_assert(msg_id == SBP_MSG_EPHEMERIS_GPS);
 
   uint8_t tmpbuf[5];
   tmpbuf[0] = (uint8_t)msg_id;
@@ -120,7 +117,7 @@ static void ubx_sbp_callback_rxm_sfrbx(
 
   u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
   crc = crc16_ccitt(buff, length, crc);
-  ck_assert(crc == 0xC13A);
+  ck_assert(crc == rxm_sfrbx_crc);
 }
 
 static const uint16_t nav_att_crc[] = {63972, 57794};
@@ -394,11 +391,9 @@ END_TEST
 
 START_TEST(test_rxm_sfrbx) {
   struct ubx_sbp_state state;
-  int cnt = 0;
-  ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx, &cnt);
+  ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx.ubx");
-  ck_assert(1 == cnt);
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_gps_sfrbx.ubx");
 }
 END_TEST
 

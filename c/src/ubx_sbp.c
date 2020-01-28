@@ -9,7 +9,7 @@
 #include <ubx/ubx_messages.h>
 
 #include "swiftnav/common.h"
-#include "ubx_ephe.h"
+#include "ubx_ephemeris/gps.h"
 
 /* TODO(STAR-918) should probably consolidate these into central .h file */
 #define SBP_OBS_LF_MULTIPLIER 256
@@ -562,6 +562,22 @@ static void handle_rxm_rawx(struct ubx_sbp_state *state,
   }
 }
 
+static void handle_rxm_sfrbx(struct ubx_sbp_state *state, u8 *buf, int sz) {
+  assert(state);
+  assert(buf);
+  assert(sz > 0);
+
+  ubx_rxm_sfrbx sfrbx;
+  if (ubx_decode_rxm_sfrbx(buf, &sfrbx) != RC_OK) {
+    return;
+  }
+
+  if (UBX_GNSS_ID_GPS == sfrbx.gnss_id) {
+    u8 prn = sfrbx.sat_id;
+    gps_decode_subframe(state, prn, sfrbx.data_words, sfrbx.num_words);
+  }
+}
+
 void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
   u8 class_id = frame[0];
   u8 msg_id = frame[1];
@@ -591,7 +607,7 @@ void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
                           sizeof(packed_obs_content_t) * UBX_MAX_NUM_OBS];
         handle_rxm_rawx(state, frame, sbp_obs_buffer);
       } else if (msg_id == UBX_MSG_RXM_SFRBX) {
-        ubx_ephe_handle_rxm_sfrbx(state, frame, UBX_FRAME_SIZE);
+        handle_rxm_sfrbx(state, frame, UBX_FRAME_SIZE);
       }
       break;
 
@@ -607,14 +623,13 @@ void ubx_sbp_init(struct ubx_sbp_state *state,
                                         u16 sender_id,
                                         void *context),
                   void *context) {
+  memset(state, 0, sizeof(*state));
   state->index = 0;
   state->bytes_in_buffer = 0;
   state->sender_id = DEFAULT_UBX_SENDER_ID;
   state->cb_ubx_to_sbp = cb_ubx_to_sbp;
   state->context = context;
   state->use_hnr = false;
-
-  ubx_ephe_init(state);
 }
 
 void ubx_set_sender_id(struct ubx_sbp_state *state, u16 sender_id) {

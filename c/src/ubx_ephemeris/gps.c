@@ -10,6 +10,7 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <gnss-converters/ubx_sbp.h>
 #include <string.h>
 
 #include "common.h"
@@ -21,26 +22,7 @@
 
 #define GPS_L1CA_PREAMBLE 0x8b
 
-struct subframe {
-  u32 words[10];
-};
-
-struct sat {
-  struct subframe sf[3];
-  unsigned vmask;
-};
-
-struct gps_l1ca_data {
-  struct sat sat[NUM_SATS_GPS];
-  void *context;
-  void (*cb_ubx_to_sbp)(
-      u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context);
-  u16 sender_id;
-};
-
-static struct gps_l1ca_data m_data;
-
-static void invalidate_subframes(struct sat *sat) {
+static void invalidate_subframes(struct gps_sat_data *sat) {
   assert(sat);
   sat->vmask &= ~0x7U;
 }
@@ -74,31 +56,24 @@ static void pack_ephemeris_gps(const ephemeris_t *e, msg_ephemeris_t *m) {
   msg->iodc = k->iodc;
 }
 
-void gps_l1ca_init(void (*cb_ubx_to_sbp)(u16 msg_id,
-                                         u8 length,
-                                         u8 *buff,
-                                         u16 sender_id,
-                                         void *context),
-                   void *context,
-                   u16 sender_id) {
-  m_data.context = context;
-  m_data.cb_ubx_to_sbp = cb_ubx_to_sbp;
-  m_data.sender_id = sender_id;
-}
-
 /**
  * Decodes GPS L1CA subframes.
  * Reference: ICD IS-GPS-200H
+ * @param data context data
  * @param prn transmitter's PRN
  * @param subframe the array of full subframe (30 bit words)
  * @param sz must be 10 (number of 30 bit words per one GPS L1CA subframe)
  */
-void gps_l1ca_decode_subframe(int prn, const u32 words[], int sz) {
+void gps_decode_subframe(struct ubx_sbp_state *data,
+                         int prn,
+                         const u32 words[],
+                         int sz) {
+  assert(data);
   assert(prn >= GPS_FIRST_PRN);
   assert(prn < (GPS_FIRST_PRN + NUM_SATS_GPS));
   assert(10 == sz);
 
-  /* we have to figure out ourselves if the provided subframe is
+  /* we have to figure out if the provided subframe is
      from GPS L1CA or L2C by looking at the preamble
      (https://portal.u-blox.com/s/question/0D52p00008fxLLxCAM/why-is-there-no-signal-identifier-in-the-ubxrawsfrbx-message)
    */
@@ -113,7 +88,7 @@ void gps_l1ca_decode_subframe(int prn, const u32 words[], int sz) {
     return;
   }
 
-  struct sat *sat = &m_data.sat[prn - 1];
+  struct gps_sat_data *sat = &data->gps_sat[prn - 1];
   sat->vmask |= 1U << sf_idx;
   memcpy(&sat->sf[sf_idx].words, words, sz * 4);
   if (0x7 != (sat->vmask & 0x7U)) {
@@ -157,11 +132,11 @@ void gps_l1ca_decode_subframe(int prn, const u32 words[], int sz) {
   msg_ephemeris_t msg;
   pack_ephemeris_gps(&e, &msg);
 
-  assert(m_data.cb_ubx_to_sbp);
-  m_data.cb_ubx_to_sbp(SBP_MSG_EPHEMERIS_GPS,
-                       (u8)sizeof(msg.gps),
-                       (u8 *)&msg.gps,
-                       m_data.sender_id,
-                       m_data.context);
+  assert(data->cb_ubx_to_sbp);
+  data->cb_ubx_to_sbp(SBP_MSG_EPHEMERIS_GPS,
+                      (u8)sizeof(msg.gps),
+                      (u8 *)&msg.gps,
+                      data->sender_id,
+                      data->context);
   invalidate_subframes(sat);
 }

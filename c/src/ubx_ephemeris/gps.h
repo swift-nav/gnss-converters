@@ -10,12 +10,12 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef GNSS_CONVERTERS_UBX_EPHE_H
-#define GNSS_CONVERTERS_UBX_EPHE_H
+#ifndef GNSS_CONVERTERS_GPS_H
+#define GNSS_CONVERTERS_GPS_H
 
-void ubx_ephe_init(const struct ubx_sbp_state *state);
-void ubx_ephe_handle_rxm_sfrbx(const struct ubx_sbp_state *state,
-                               u8 *buf,
-                               int sz);
+void gps_decode_subframe(struct ubx_sbp_state *data,
+                         int prn,
+                         const u32 words[],
+                         int sz);
 
-#endif /* #ifndef GNSS_CONVERTERS_UBX_EPHE_H */
+#endif /* #ifndef GNSS_CONVERTERS_GPS_H */
