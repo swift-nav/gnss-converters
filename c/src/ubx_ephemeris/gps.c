@@ -30,7 +30,7 @@ static void invalidate_subframes(struct gps_sat_data *sat) {
 static void pack_ephemeris_gps(const ephemeris_t *e, msg_ephemeris_t *m) {
   const ephemeris_kepler_t *k = &e->kepler;
   msg_ephemeris_gps_t *msg = &m->gps;
-  pack_ephemeris_common(e, &msg->common);
+  pack_ephemeris_common_content(e, &msg->common);
   msg->tgd = k->tgd.gps_s[0];
   msg->c_rs = (float)k->crs;
   msg->c_rc = (float)k->crc;
@@ -121,7 +121,8 @@ void gps_decode_subframe(struct ubx_sbp_state *data,
   for (int i = 0; i < 3; i++) {
     memcpy(&frame_words[i][0], &sat->sf[i].words[2], 8 * sizeof(u32));
   }
-  ephemeris_t e = {0};
+  ephemeris_t e;
+  memset(&e, 0, sizeof(e));
   e.sid.sat = prn;
   e.sid.code = CODE_GPS_L1CA;
   decode_ephemeris(frame_words, &e, tot_tow_s);

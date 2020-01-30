@@ -12,22 +12,14 @@
 
 #include "common.h"
 
-sbp_gnss_signal_t sid_to_sbp(const gnss_signal_t from) {
-  sbp_gnss_signal_t sbp_sid = {
-      .code = from.code,
-      .sat = from.sat,
-  };
-
-  return sbp_sid;
-}
-
-void pack_ephemeris_common(const ephemeris_t *e,
-                           ephemeris_common_content_t *common) {
+void pack_ephemeris_common_content(const ephemeris_t *e,
+                                   ephemeris_common_content_t *common) {
   common->toe.tow = (u32)round(e->toe.tow);
   common->toe.wn = e->toe.wn;
   common->valid = e->valid;
   common->health_bits = e->health_bits;
-  common->sid = sid_to_sbp(e->sid);
+  common->sid.code = e->sid.code;
+  common->sid.sat = e->sid.sat;
   common->fit_interval = e->fit_interval;
   common->ura = e->ura;
 }
