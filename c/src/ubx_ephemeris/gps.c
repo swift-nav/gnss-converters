@@ -121,7 +121,8 @@ void gps_decode_subframe(struct ubx_sbp_state *data,
   for (int i = 0; i < 3; i++) {
     memcpy(&frame_words[i][0], &sat->sf[i].words[2], 8 * sizeof(u32));
   }
-  ephemeris_t e = {0};
+  ephemeris_t e;
+  memset(&e, 0, sizeof(e));
   e.sid.sat = prn;
   e.sid.code = CODE_GPS_L1CA;
   decode_ephemeris(frame_words, &e, tot_tow_s);
