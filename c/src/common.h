@@ -28,8 +28,7 @@ typedef union {
   msg_ephemeris_qzss_t qzss;
 } msg_ephemeris_t;
 
-sbp_gnss_signal_t sid_to_sbp(const gnss_signal_t from);
-void pack_ephemeris_common(const ephemeris_t *e,
-                           ephemeris_common_content_t *common);
+void pack_ephemeris_common_content(const ephemeris_t *e,
+                                   ephemeris_common_content_t *common);
 
 #endif /* #ifndef GNSS_CONVERTERS_COMMON_H */

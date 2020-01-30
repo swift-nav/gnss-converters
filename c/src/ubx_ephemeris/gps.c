@@ -30,7 +30,7 @@ static void invalidate_subframes(struct gps_sat_data *sat) {
 static void pack_ephemeris_gps(const ephemeris_t *e, msg_ephemeris_t *m) {
   const ephemeris_kepler_t *k = &e->kepler;
   msg_ephemeris_gps_t *msg = &m->gps;
-  pack_ephemeris_common(e, &msg->common);
+  pack_ephemeris_common_content(e, &msg->common);
   msg->tgd = k->tgd.gps_s[0];
   msg->c_rs = (float)k->crs;
   msg->c_rc = (float)k->crc;
