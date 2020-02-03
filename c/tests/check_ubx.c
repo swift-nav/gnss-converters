@@ -305,8 +305,7 @@ static void ubx_sbp_callback_nav_pvt_corrupted(
 
   u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
   crc = crc16_ccitt(buff, length, crc);
-  //  ck_assert(crc == nav_pvt_corrupted_crc);
-  (void)nav_pvt_corrupted_crc;
+  ck_assert(crc == nav_pvt_corrupted_crc);
 
   msg_index++;
 }
@@ -323,9 +322,9 @@ static const uint16_t nav_pvt_fix_type_crc[] = {32103,
                                                 52236,
                                                 32103,
                                                 44234,
-                                                15843,
-                                                15843,
-                                                48363,
+                                                32103,
+                                                32103,
+                                                64623,
                                                 27974};
 static void ubx_sbp_callback_nav_pvt_fix_type(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
@@ -348,8 +347,7 @@ static void ubx_sbp_callback_nav_pvt_fix_type(
 
   u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
   crc = crc16_ccitt(buff, length, crc);
-  //  ck_assert(crc == nav_pvt_fix_type_crc[msg_index]);
-  (void)nav_pvt_fix_type_crc;
+  ck_assert(crc == nav_pvt_fix_type_crc[msg_index]);
 
   msg_index++;
 }
