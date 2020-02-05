@@ -1,5 +1,7 @@
 #include <gnss-converters/ubx_sbp.h>
+#include <libsbp/imu.h>
 #include <libsbp/orientation.h>
+#include <libsbp/vehicle.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -64,6 +66,13 @@
 
 #define SBP_OBS_DOPPLER_MASK (1 << 3)
 #define SBP_OBS_TRACK_STATE_MASK (0x07)
+
+/* Scale factor to go from ESF-RAW sensor time tags to seconds.
+ * This value is not specified in the UBX protocol spec and has been derived
+ * from the Bosch BMI 160 datasheet, so it might only be valid for the M8L,
+ * which we know uses this IMU.
+ */
+static const double ubx_sensortime_scale = 39.0625e-6;
 
 /* A single SBP message can only fit a maximum number of observations in it
  * floor((0xFF - sizeof(observation_header_t)) / sizeof(packed_obs_content_t))
@@ -281,6 +290,25 @@ static bool pack_doppler(double D_in, doppler_t *D_out) {
   return true;
 }
 
+s32 convert24b(u32 value) {
+  const int MODULO = 1 << 24;
+  const int MAX_VALUE = (1 << 23) - 1;
+  s32 result = *(s32 *)&(value);
+  if (result > MAX_VALUE) {
+    result -= MODULO;
+  }
+  return result;
+}
+
+void check_overflow(s32 *value) {
+  if (*value > INT16_MAX) {
+    *value = INT16_MAX;
+  }
+  if (*value < INT16_MIN) {
+    *value = INT16_MIN;
+  }
+}
+
 static int fill_msg_obs(const u8 buf[], msg_obs_t *msg) {
   ubx_rxm_rawx rxm_rawx;
   if (ubx_decode_rxm_rawx(buf, &rxm_rawx) != RC_OK) {
@@ -318,7 +346,8 @@ static int fill_msg_obs(const u8 buf[], msg_obs_t *msg) {
     /* TODO(STAR-919) converts from u32 ms, to double s; encode_lock_time
      * internally converts back to u32 ms.
      */
-    msg->obs[i].lock = encode_lock_time((double)rxm_rawx.lock_time[i] / 1000.0);
+    msg->obs[i].lock =
+        encode_lock_time((double)rxm_rawx.lock_time[i] / SECS_MS);
     msg->obs[i].flags = 0;
     /* currently assumes all doppler are valid */
     msg->obs[i].flags |= SBP_OBS_DOPPLER_MASK;
@@ -402,7 +431,7 @@ static int fill_msg_pos_llh(const u8 buf[], msg_pos_llh_t *msg) {
           break;
         default:
           fprintf(stderr,
-                  "Invalid NAV_PVT.flags carrier solution value: %d",
+                  "Invalid NAV_PVT.flags carrier solution value: %d\n",
                   carr_soln);
           break;
       }
@@ -471,6 +500,302 @@ static int fill_msg_pos_llh_hnr(const u8 buf[], msg_pos_llh_t *msg) {
   return 0;
 }
 
+static bool is_odo(u8 data_type) {
+  return (ESF_REAR_LEFT_WHEEL_TICKS == data_type) ||
+         (ESF_REAR_RIGHT_WHEEL_TICKS == data_type) ||
+         (ESF_FRONT_LEFT_WHEEL_TICKS == data_type) ||
+         (ESF_FRONT_RIGHT_WHEEL_TICKS == data_type) ||
+         (ESF_SINGLE_TICK == data_type) || (ESF_SPEED == data_type);
+}
+
+static u8 get_odo_velocity_source(u8 data_type) {
+  switch (data_type) {
+    case ESF_REAR_LEFT_WHEEL_TICKS:
+      return 1;
+    case ESF_REAR_RIGHT_WHEEL_TICKS:
+      return 0;
+    case ESF_FRONT_LEFT_WHEEL_TICKS:
+      return 2;
+    case ESF_FRONT_RIGHT_WHEEL_TICKS:
+      return 3;
+    case ESF_SINGLE_TICK:
+      return 0;
+    case ESF_SPEED:
+      return 3;
+    default:
+      assert(false && "Unsupported data type");
+      return 0;
+  }
+}
+
+static void set_odo_time(u32 msss,
+                         const struct ubx_esf_state *esf_state,
+                         msg_odometry_t *msg_odo) {
+  if (esf_state->tow_offset_set) {
+    double tow_s = ubx_convert_msss_to_tow(msss, esf_state);
+    const u8 time_source_gps = 1;
+    msg_odo->flags = time_source_gps;
+    msg_odo->tow = (u32)(tow_s * SECS_MS);
+  } else {
+    const u8 time_source_invalid = 0;
+    msg_odo->flags = time_source_invalid;
+    msg_odo->tow = msss;
+  }
+}
+
+static void handle_esf_meas(struct ubx_sbp_state *state, u8 *inbuf) {
+  ubx_esf_meas esf_meas;
+  if (ubx_decode_esf_meas(inbuf, &esf_meas) != RC_OK) {
+    return;
+  }
+  u8 num_meas = (esf_meas.flags >> 11) & 0x1F;
+
+  int idx;
+  for (idx = 0; idx < num_meas; idx++) {
+    u32 data_type = ((u32)esf_meas.data[idx] & 0x3F000000) >> 24;
+    u32 data_value = ((u32)esf_meas.data[idx] & 0xFFFFFF);
+
+    if (is_odo(data_type)) {
+      msg_odometry_t msg_odo;
+      set_odo_time(esf_meas.calib_tag, &state->esf_state, &msg_odo);
+      u8 velocity_source = get_odo_velocity_source(data_type);
+      u32 tick_count = data_value & 0x3FFFFF;
+      u32 direction = (data_value & 0x800000) >> 23;
+      msg_odo.flags |= direction << 5;
+      msg_odo.flags |= velocity_source << 3;
+      if (ESF_SPEED == data_type) {
+        msg_odo.velocity = data_value;
+      } else {
+        msg_odo.velocity = tick_count;
+      }
+
+      state->cb_ubx_to_sbp(SBP_MSG_ODOMETRY,
+                           sizeof(msg_odo),
+                           (u8 *)&msg_odo,
+                           state->sender_id,
+                           state->context);
+    }
+  }
+}
+
+double ubx_convert_msss_to_tow(u32 msss, const struct ubx_esf_state *state) {
+  const double MS_SECS = 1. / SECS_MS;
+  double tow = MS_SECS * msss + state->time_since_startup_tow_offset;
+  if (!state->tow_offset_set) {
+    return -1;
+  } else if (msss < state->last_sync_msss - 100) {
+    /* Rollover occured since last sync */
+    const u32 msss_max = UINT32_MAX;
+    const double time_since_startup_rollover = MS_SECS * msss_max + MS_SECS;
+    tow += time_since_startup_rollover;
+  }
+
+  return tow;
+}
+
+struct sbp_imuraw_timespec {
+  u32 tow;
+  u8 tow_f;
+};
+
+static struct sbp_imuraw_timespec convert_tow_to_imuraw_time(double tow) {
+  struct sbp_imuraw_timespec ret;
+  double tow_in_ms = tow * SECS_MS;
+  ret.tow = (u32)tow_in_ms;
+  ret.tow_f = (u32)((tow_in_ms - ret.tow) * 256.0);
+  return ret;
+}
+
+static s16 float_to_s16_clamped(float val) {
+  s16 ret;
+  if (val < INT16_MIN) {
+    ret = INT16_MIN;
+  } else if (val > INT16_MAX) {
+    ret = INT16_MAX;
+  } else {
+    ret = lroundf(val);
+  }
+  return ret;
+}
+
+static void maybe_parse_imu_data(u32 data,
+                                 u8 data_type,
+                                 msg_imu_raw_t *msg,
+                                 struct ubx_esf_state *esf_state) {
+  s32 parsed_value = convert24b(data);
+  if (data_type == ESF_X_AXIS_GYRO_ANG_RATE ||
+      data_type == ESF_Y_AXIS_GYRO_ANG_RATE ||
+      data_type == ESF_Z_AXIS_GYRO_ANG_RATE) {
+    const float ubx_scale_angular_rate = ldexpf(1, -12);
+    const float angular_rate_degs = ubx_scale_angular_rate * parsed_value;
+    const float sbp_scale_rate_125degs = (float)(125.0 / 32768.0);
+    s16 sbp_scaled_rate =
+        float_to_s16_clamped(angular_rate_degs / sbp_scale_rate_125degs);
+    switch (data_type) {
+      case ESF_X_AXIS_GYRO_ANG_RATE:
+        msg->gyr_x = sbp_scaled_rate;
+        break;
+      case ESF_Y_AXIS_GYRO_ANG_RATE:
+        msg->gyr_y = sbp_scaled_rate;
+        break;
+      case ESF_Z_AXIS_GYRO_ANG_RATE:
+        msg->gyr_z = sbp_scaled_rate;
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (data_type == ESF_X_AXIS_ACCEL_SPECIFIC_FORCE ||
+      data_type == ESF_Y_AXIS_ACCEL_SPECIFIC_FORCE ||
+      data_type == ESF_Z_AXIS_ACCEL_SPECIFIC_FORCE) {
+    const float ubx_scale_acc = ldexpf(1, -10);
+    const float specforce_ms2 = ubx_scale_acc * parsed_value;
+    const float sbp_scale_acc_4g = (float)(4.0 * 9.80665 / 32768.0);
+    s16 sbp_scaled_specforce =
+        float_to_s16_clamped(specforce_ms2 / sbp_scale_acc_4g);
+    switch (data_type) {
+      case ESF_X_AXIS_ACCEL_SPECIFIC_FORCE:
+        msg->acc_x = sbp_scaled_specforce;
+        break;
+      case ESF_Y_AXIS_ACCEL_SPECIFIC_FORCE:
+        msg->acc_y = sbp_scaled_specforce;
+        break;
+      case ESF_Z_AXIS_ACCEL_SPECIFIC_FORCE:
+        msg->acc_z = sbp_scaled_specforce;
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (data_type == ESF_GYRO_TEMP) {
+    const double ubx_scale_temp = 0.01;
+    esf_state->last_imu_temp = ubx_scale_temp * data;
+  }
+}
+
+static void set_sbp_imu_time(u32 sensortime_this_message,
+                             u32 sensortime_first_message,
+                             u32 msss,
+                             msg_imu_raw_t *msg,
+                             struct ubx_esf_state *esf_state) {
+  const double first_msg_tow = ubx_convert_msss_to_tow(msss, esf_state);
+  const double first_msg_tss = 0.001 * msss;
+
+  s32 sensor_time_diff = sensortime_this_message - sensortime_first_message;
+  while (sensor_time_diff < 0) {
+    sensor_time_diff += (1 << 24); /* unwrap 24 bit overflow */
+  }
+
+  double sensor_tow_s = ubx_sensortime_scale * sensor_time_diff + first_msg_tow;
+  double sensor_tss_s = ubx_sensortime_scale * sensor_time_diff + first_msg_tss;
+
+  double sensortime;
+  if (!esf_state->tow_offset_set) {
+    sensortime = sensor_tss_s;
+  } else {
+    sensortime = sensor_tow_s;
+  }
+
+  struct sbp_imuraw_timespec timespec = convert_tow_to_imuraw_time(sensortime);
+  msg->tow = timespec.tow;
+  msg->tow_f = timespec.tow_f;
+
+  if (!esf_state->tow_offset_set) {
+    const u32 time_invalid_bit = (1 << 31);
+    msg->tow |= time_invalid_bit;
+  }
+}
+
+static bool check_imu_message_complete(const s16 *received_number_msgs,
+                                       s16 current_msg_number) {
+  return (received_number_msgs[ESF_X_AXIS_GYRO_ANG_RATE] ==
+              current_msg_number + 1 &&
+          received_number_msgs[ESF_Y_AXIS_GYRO_ANG_RATE] ==
+              current_msg_number + 1 &&
+          received_number_msgs[ESF_Z_AXIS_GYRO_ANG_RATE] ==
+              current_msg_number + 1 &&
+          received_number_msgs[ESF_X_AXIS_ACCEL_SPECIFIC_FORCE] ==
+              current_msg_number + 1 &&
+          received_number_msgs[ESF_Y_AXIS_ACCEL_SPECIFIC_FORCE] ==
+              current_msg_number + 1 &&
+          received_number_msgs[ESF_Z_AXIS_ACCEL_SPECIFIC_FORCE] ==
+              current_msg_number + 1);
+}
+
+static void send_imu_aux(struct ubx_sbp_state *state) {
+  msg_imu_aux_t msg;
+  memset(&msg, 0, sizeof(msg));
+  const u8 imu_type_bmi160 = 0;
+  msg.imu_type = imu_type_bmi160;
+  const u8 gyro_range_125degs = 4;
+  const u8 acc_range_4g = 1;
+  msg.imu_conf = (gyro_range_125degs << 4) | acc_range_4g;
+  double imu_temp_bmi160_scaled =
+      (state->esf_state.last_imu_temp - 23.0) / 512.0;
+  msg.temp = (s16)imu_temp_bmi160_scaled;
+  state->cb_ubx_to_sbp(SBP_MSG_IMU_AUX,
+                       sizeof(msg),
+                       (u8 *)&msg,
+                       state->sender_id,
+                       state->context);
+}
+
+static bool is_imu_data(u8 data_type) {
+  return (ESF_X_AXIS_GYRO_ANG_RATE == data_type) ||
+         (ESF_Y_AXIS_GYRO_ANG_RATE == data_type) ||
+         (ESF_Z_AXIS_GYRO_ANG_RATE == data_type) ||
+         (ESF_X_AXIS_ACCEL_SPECIFIC_FORCE == data_type) ||
+         (ESF_Y_AXIS_ACCEL_SPECIFIC_FORCE == data_type) ||
+         (ESF_Z_AXIS_ACCEL_SPECIFIC_FORCE == data_type);
+}
+
+static void handle_esf_raw(struct ubx_sbp_state *state, u8 *inbuf) {
+  ubx_esf_raw esf_raw;
+  msg_imu_raw_t msg;
+  memset(&msg, 0, sizeof(msg));
+  if (ubx_decode_esf_raw(inbuf, &esf_raw) != RC_OK) {
+    return;
+  }
+
+  u8 num_raw = (esf_raw.length - 4) / 8;
+
+  const size_t MAX_MESSAGES = ESF_Z_AXIS_ACCEL_SPECIFIC_FORCE + 1;
+  s16 received_number_msgs[MAX_MESSAGES];
+  memset(received_number_msgs, 0, sizeof(s16) * MAX_MESSAGES);
+  s16 current_msg_number = 0;
+  for (int i = 0; i < num_raw; i++) {
+    u8 data_type = (esf_raw.data[i] >> 24) & 0xFF;
+    u32 data = esf_raw.data[i] & 0xFFFFFF;
+    set_sbp_imu_time(esf_raw.sensor_time_tag[i],
+                     esf_raw.sensor_time_tag[0],
+                     esf_raw.msss,
+                     &msg,
+                     &state->esf_state);
+    maybe_parse_imu_data(data, data_type, &msg, &state->esf_state);
+    if (is_imu_data(data_type)) {
+      received_number_msgs[data_type]++;
+      assert((received_number_msgs[data_type] == current_msg_number + 1) &&
+             "Assumption of no missing IMU data violated");
+    }
+
+    if (check_imu_message_complete(received_number_msgs, current_msg_number)) {
+      if (state->esf_state.imu_raw_msgs_sent % 100 == 0) {
+        send_imu_aux(state);
+        state->esf_state.imu_raw_msgs_sent = 0;
+      }
+      state->cb_ubx_to_sbp(SBP_MSG_IMU_RAW,
+                           sizeof(msg),
+                           (u8 *)&msg,
+                           state->sender_id,
+                           state->context);
+      current_msg_number++;
+      state->esf_state.imu_raw_msgs_sent++;
+    }
+  }
+}
+
 static void handle_hnr_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
   msg_pos_llh_t sbp_pos_llh;
   if (fill_msg_pos_llh_hnr(inbuf, &sbp_pos_llh) == 0) {
@@ -519,6 +844,30 @@ static void handle_nav_velecef(struct ubx_sbp_state *state, u8 *inbuf) {
   }
 }
 
+static void handle_nav_status(struct ubx_sbp_state *state, u8 *inbuf) {
+  ubx_nav_status nav_status;
+  if (ubx_decode_nav_status(inbuf, &nav_status) != RC_OK) {
+    return;
+  }
+  const u8 fix_type_3d = 0x03;
+  const u8 fix_type_gnss_dr = 0x04;
+  const u8 gps_fix_ok = 0b0001;
+  bool gnss_fix_good = ((nav_status.fix_type == fix_type_3d) ||
+                        (nav_status.fix_type == fix_type_gnss_dr)) &&
+                       (nav_status.status_flags & gps_fix_ok);
+
+  const u8 weeknumber_ok = 0b0100;
+  const u8 tow_ok = 0b0100;
+  bool time_good = (nav_status.status_flags & weeknumber_ok) &&
+                   (nav_status.status_flags & tow_ok);
+
+  if (gnss_fix_good && time_good) {
+    state->esf_state.time_since_startup_tow_offset =
+        0.001 * nav_status.i_tow - 0.001 * nav_status.msss;
+    state->esf_state.tow_offset_set = true;
+  }
+}
+
 static void handle_rxm_rawx(struct ubx_sbp_state *state,
                             u8 *inbuf,
                             u8 *sbp_obs_buffer) {
@@ -563,6 +912,7 @@ static void handle_rxm_rawx(struct ubx_sbp_state *state,
 }
 
 static void handle_rxm_sfrbx(struct ubx_sbp_state *state, u8 *buf, int sz) {
+  (void)sz;
   assert(state);
   assert(buf);
   assert(sz > 0);
@@ -583,6 +933,17 @@ void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
   u8 msg_id = frame[1];
 
   switch (class_id) {
+    case UBX_CLASS_ESF:
+      switch (msg_id) {
+        case UBX_MSG_ESF_RAW:
+          handle_esf_raw(state, frame);
+          break;
+        case UBX_MSG_ESF_MEAS:
+          handle_esf_meas(state, frame);
+        default:
+          break;
+      }
+
     case UBX_CLASS_HNR:
       if (msg_id == UBX_MSG_HNR_PVT) {
         handle_hnr_pvt(state, frame);
@@ -590,14 +951,21 @@ void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
       break;
 
     case UBX_CLASS_NAV:
-      if (msg_id == UBX_MSG_NAV_ATT) {
-        handle_nav_att(state, frame);
-      }
-      if (msg_id == UBX_MSG_NAV_PVT) {
-        handle_nav_pvt(state, frame);
-      }
-      if (msg_id == UBX_MSG_NAV_VELECEF) {
-        handle_nav_velecef(state, frame);
+      switch (msg_id) {
+        case UBX_MSG_NAV_ATT:
+          handle_nav_att(state, frame);
+          break;
+        case UBX_MSG_NAV_PVT:
+          handle_nav_pvt(state, frame);
+          break;
+        case UBX_MSG_NAV_VELECEF:
+          handle_nav_velecef(state, frame);
+          break;
+        case UBX_MSG_NAV_STATUS:
+          handle_nav_status(state, frame);
+          break;
+        default:
+          break;
       }
       break;
 
