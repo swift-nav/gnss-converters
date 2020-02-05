@@ -742,6 +742,15 @@ static void send_imu_aux(struct ubx_sbp_state *state) {
                        state->context);
 }
 
+static bool is_imu_data(u8 data_type) {
+  return (ESF_X_AXIS_GYRO_ANG_RATE == data_type) ||
+         (ESF_Y_AXIS_GYRO_ANG_RATE == data_type) ||
+         (ESF_Z_AXIS_GYRO_ANG_RATE == data_type) ||
+         (ESF_X_AXIS_ACCEL_SPECIFIC_FORCE == data_type) ||
+         (ESF_Y_AXIS_ACCEL_SPECIFIC_FORCE == data_type) ||
+         (ESF_Z_AXIS_ACCEL_SPECIFIC_FORCE == data_type);
+}
+
 static void handle_esf_raw(struct ubx_sbp_state *state, u8 *inbuf) {
   ubx_esf_raw esf_raw;
   msg_imu_raw_t msg;
@@ -765,8 +774,10 @@ static void handle_esf_raw(struct ubx_sbp_state *state, u8 *inbuf) {
                      &msg,
                      &state->esf_state);
     maybe_parse_imu_data(data, data_type, &msg, &state->esf_state);
-    if (data_type < MAX_MESSAGES) {
+    if (is_imu_data(data_type)) {
       received_number_msgs[data_type]++;
+      assert((received_number_msgs[data_type] == current_msg_number + 1) &&
+             "Assumption of no missing IMU data violated");
     }
 
     if (check_imu_message_complete(received_number_msgs, current_msg_number)) {
