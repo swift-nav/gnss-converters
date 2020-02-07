@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2020 Swift Navigation Inc.
+ * Contact: Swift Navigation <dev@swiftnav.com>
+ *
+ * This source is subject to the license found in the file 'LICENSE' which must
+ * be be distributed together with this source. All other rights reserved.
+ *
+ * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
+ * EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+ */
+
 #include <gnss-converters/ubx_sbp.h>
 #include <libsbp/imu.h>
 #include <libsbp/orientation.h>
@@ -940,9 +952,11 @@ void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
           break;
         case UBX_MSG_ESF_MEAS:
           handle_esf_meas(state, frame);
+          break;
         default:
           break;
       }
+      break;
 
     case UBX_CLASS_HNR:
       if (msg_id == UBX_MSG_HNR_PVT) {
