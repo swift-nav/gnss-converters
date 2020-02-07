@@ -5,13 +5,13 @@
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
+#include <swiftnav/common.h>
 #include <swiftnav/nav_meas.h>
 #include <swiftnav/signal.h>
 #include <ubx/decode.h>
 #include <ubx/ubx_messages.h>
-
-#include "swiftnav/common.h"
-#include "ubx_ephemeris/gps.h"
+#include <ubx_ephemeris/bds.h>
+#include <ubx_ephemeris/gps.h>
 
 /* TODO(STAR-918) should probably consolidate these into central .h file */
 #define SBP_OBS_LF_MULTIPLIER 256
@@ -922,9 +922,11 @@ static void handle_rxm_sfrbx(struct ubx_sbp_state *state, u8 *buf, int sz) {
     return;
   }
 
+  u8 prn = sfrbx.sat_id;
   if (UBX_GNSS_ID_GPS == sfrbx.gnss_id) {
-    u8 prn = sfrbx.sat_id;
     gps_decode_subframe(state, prn, sfrbx.data_words, sfrbx.num_words);
+  } else if (UBX_GNSS_ID_BDS == sfrbx.gnss_id) {
+    bds_decode_subframe(state, prn, sfrbx.data_words, sfrbx.num_words);
   }
 }
 
