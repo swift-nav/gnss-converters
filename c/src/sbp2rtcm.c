@@ -27,7 +27,7 @@
 #include "gnss-converters/sbp_rtcm3.h"
 
 /* Write the RTCM frame to STDOUT. */
-static void cb_sbp_to_rtcm(u8 *buffer, u16 n, void *context) {
+static s32 cb_sbp_to_rtcm(u8 *buffer, u16 n, void *context) {
   (void)(context);
 
   ssize_t numwritten = write(STDOUT_FILENO, buffer, n);
@@ -35,6 +35,8 @@ static void cb_sbp_to_rtcm(u8 *buffer, u16 n, void *context) {
     fprintf(stderr, "Write failure at %d, %s. Aborting!\n", __LINE__, __FILE__);
     exit(EXIT_FAILURE);
   }
+
+  return numwritten;
 }
 
 static s32 sbp_read_stdin(u8 *buff, u32 n, void *context) {

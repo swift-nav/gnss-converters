@@ -42,7 +42,7 @@ struct rtcm3_out_state {
   s8 leap_seconds;
   bool leap_second_known;
   bool ant_known;
-  void (*cb_sbp_to_rtcm)(u8 *buffer, u16 length, void *context);
+  s32 (*cb_sbp_to_rtcm)(u8 *buffer, u16 length, void *context);
   u16 sender_id;
   observation_header_t sbp_header;
   packed_obs_content_t sbp_obs_buffer[MAX_OBS_PER_EPOCH];
@@ -65,9 +65,7 @@ struct rtcm3_out_state {
 };
 
 void sbp2rtcm_init(struct rtcm3_out_state *state,
-                   void (*cb_sbp_to_rtcm)(u8 *buffer,
-                                          u16 length,
-                                          void *context),
+                   s32 (*cb_sbp_to_rtcm)(u8 *buffer, u16 length, void *context),
                    void *context);
 
 void sbp2rtcm_set_leap_second(s8 leap_seconds, struct rtcm3_out_state *state);

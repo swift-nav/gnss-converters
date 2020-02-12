@@ -26,10 +26,10 @@ struct sbp_conv_s {
   uint8_t buf[2048];
 };
 
-static void sbp_conv_cb(uint8_t *buf, uint16_t len, void *context) {
+static s32 sbp_conv_cb(uint8_t *buf, uint16_t len, void *context) {
   fifo_t *fifo = context;
   assert(fifo != NULL);
-  fifo_write(fifo, buf, len);
+  return fifo_write(fifo, buf, len);
 }
 
 sbp_conv_t sbp_conv_new() {

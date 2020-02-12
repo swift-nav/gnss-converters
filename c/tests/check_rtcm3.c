@@ -761,9 +761,9 @@ static void ephemeris_glo_callback(u16 sender_id,
 }
 
 static void test_SBP(const char *filename,
-                     void (*cb_sbp_to_rtcm)(u8 *buffer,
-                                            u16 length,
-                                            void *context),
+                     s32 (*cb_sbp_to_rtcm)(u8 *buffer,
+                                           u16 length,
+                                           void *context),
                      gps_time_t current_time_,
                      msm_enum msm_type) {
   (void)current_time_;
@@ -836,7 +836,7 @@ static void test_SBP(const char *filename,
   fclose(fp);
 }
 
-static void rtcm_sanity_check_cb(u8 *buffer, u16 length, void *context) {
+static s32 rtcm_sanity_check_cb(u8 *buffer, u16 length, void *context) {
   (void)context;
 
   u16 byte = 0;
@@ -844,9 +844,10 @@ static void rtcm_sanity_check_cb(u8 *buffer, u16 length, void *context) {
   byte = 1;
   u16 message_size = ((buffer[byte] & 0x3) << 8) | buffer[byte + 1];
   ck_assert_uint_eq(message_size, length - RTCM3_MSG_OVERHEAD);
+  return message_size;
 }
 
-static void rtcm_gps_eph_cb(u8 *buffer, u16 length, void *context) {
+static s32 rtcm_gps_eph_cb(u8 *buffer, u16 length, void *context) {
   (void)context;
   size_t buffer_index = 0;
 
@@ -899,9 +900,10 @@ static void rtcm_gps_eph_cb(u8 *buffer, u16 length, void *context) {
     ck_assert_uint_eq(msg_eph.kepler.L2_data_bit, 1);
     ck_assert_uint_eq(msg_eph.fit_interval, 0);
   }
+  return message_size;
 }
 
-static void rtcm_gal_fnav_eph_cb(u8 *buffer, u16 length, void *context) {
+static s32 rtcm_gal_fnav_eph_cb(u8 *buffer, u16 length, void *context) {
   (void)context;
   size_t buffer_index = 0;
 
@@ -953,9 +955,10 @@ static void rtcm_gal_fnav_eph_cb(u8 *buffer, u16 length, void *context) {
     ck_assert_uint_eq(msg_eph.health_bits, 0);
     ck_assert_uint_eq(msg_eph.fit_interval, 0);
   }
+  return message_size;
 }
 
-static void rtcm_gal_inav_eph_cb(u8 *buffer, u16 length, void *context) {
+static s32 rtcm_gal_inav_eph_cb(u8 *buffer, u16 length, void *context) {
   (void)context;
   size_t buffer_index = 0;
 
@@ -1007,6 +1010,7 @@ static void rtcm_gal_inav_eph_cb(u8 *buffer, u16 length, void *context) {
     ck_assert_uint_eq(msg_eph.health_bits, 0);
     ck_assert_uint_eq(msg_eph.fit_interval, 0);
   }
+  return message_size;
 }
 
 void set_expected_bias(double L1CA_bias,
@@ -1422,7 +1426,7 @@ START_TEST(tc_rtcm_eph_wn_rollover2) {
 }
 END_TEST
 
-static void rtcm_roundtrip_cb(u8 *buffer, u16 length, void *context) {
+static s32 rtcm_roundtrip_cb(u8 *buffer, u16 length, void *context) {
   (void)context;
 
   u16 byte = 0;
@@ -1433,6 +1437,7 @@ static void rtcm_roundtrip_cb(u8 *buffer, u16 length, void *context) {
 
   /* feed the received RTCM frame back to decoder */
   rtcm2sbp_decode_frame(buffer, length, &state);
+  return message_size;
 }
 
 static void sbp_roundtrip_cb(

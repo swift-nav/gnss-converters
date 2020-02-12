@@ -44,9 +44,7 @@
 #define RTCM3_MAX_MSG_LEN 0x3FF
 
 void sbp2rtcm_init(struct rtcm3_out_state *state,
-                   void (*cb_sbp_to_rtcm)(u8 *buffer,
-                                          u16 length,
-                                          void *context),
+                   s32 (*cb_sbp_to_rtcm)(u8 *buffer, u16 length, void *context),
                    void *context) {
   state->leap_seconds = 0;
   state->leap_second_known = false;
