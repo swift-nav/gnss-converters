@@ -715,13 +715,11 @@ static void set_sbp_imu_time(u32 sensortime_this_message,
   const double ubx_gnss_time_error = 0.05;
   sensortime -= ubx_gnss_time_error;
 
-  const double kSecondsInOneWeek = 7. * 24. * 3600.;
-  while (sensortime > kSecondsInOneWeek) {
-    sensortime -= kSecondsInOneWeek;
-  }
-  while (sensortime < 0) {
-    sensortime += kSecondsInOneWeek;
-  }
+  gps_time_t gps_sensortime;
+  gps_sensortime.tow = sensortime;
+  gps_sensortime.wn = 0;
+  unsafe_normalize_gps_time(&gps_sensortime);
+  sensortime = gps_sensortime.tow;
 
   struct sbp_imuraw_timespec timespec = convert_tow_to_imuraw_time(sensortime);
   msg->tow = timespec.tow;
