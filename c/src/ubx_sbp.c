@@ -889,6 +889,7 @@ static void handle_nav_status(struct ubx_sbp_state *state, u8 *inbuf) {
   if (gnss_fix_good && time_good) {
     state->esf_state.time_since_startup_tow_offset =
         0.001 * nav_status.i_tow - 0.001 * nav_status.msss;
+    state->esf_state.last_sync_msss = nav_status.msss;
     state->esf_state.tow_offset_set = true;
   }
 }
