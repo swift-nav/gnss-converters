@@ -712,8 +712,8 @@ static void set_sbp_imu_time(u32 sensortime_this_message,
 
   // This constant has been found empirically by comparing the M8L IMU angular
   // rate with a properly time stamped reference.
-  const double ubx_gnss_time_error = 0.05;
-  sensortime -= ubx_gnss_time_error;
+  const double ubx_imu_gnss_time_offset = 0.05;
+  sensortime -= ubx_imu_gnss_time_offset;
 
   gps_time_t gps_sensortime;
   gps_sensortime.tow = sensortime;
