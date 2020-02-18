@@ -710,6 +710,19 @@ static void set_sbp_imu_time(u32 sensortime_this_message,
     sensortime = sensor_tow_s;
   }
 
+  // This constant has been found empirically by comparing the M8L IMU angular
+  // rate with a properly time stamped reference.
+  const double ubx_gnss_time_error = 0.05;
+  sensortime -= ubx_gnss_time_error;
+
+  const double kSecondsInOneWeek = 7. * 24. * 3600.;
+  while (sensortime > kSecondsInOneWeek) {
+    sensortime -= kSecondsInOneWeek;
+  }
+  while (sensortime < 0) {
+    sensortime += kSecondsInOneWeek;
+  }
+
   struct sbp_imuraw_timespec timespec = convert_tow_to_imuraw_time(sensortime);
   msg->tow = timespec.tow;
   msg->tow_f = timespec.tow_f;
