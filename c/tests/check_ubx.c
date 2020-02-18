@@ -181,16 +181,16 @@ static void ubx_sbp_callback_esf_meas(
 }
 
 static const u16 esf_raw_crc[] = {0x598C,
-                                  0x0DC7,
-                                  0xB087,
-                                  0x6878,
-                                  0xE042,
-                                  0x1660,
-                                  0xEB46,
-                                  0x5D01,
-                                  0x794B,
-                                  0x0EAB,
-                                  0xE394};
+                                  0x4A06,
+                                  0x2DDF,
+                                  0x13BB,
+                                  0xE40B,
+                                  0x51A1,
+                                  0x2C19,
+                                  0xEAC8,
+                                  0x8D0A,
+                                  0x8560,
+                                  0x8EC4};
 static void ubx_sbp_callback_esf_raw(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
@@ -213,8 +213,8 @@ static void ubx_sbp_callback_esf_raw(
   } else {
     ck_assert(msg_id == SBP_MSG_IMU_RAW);
     msg_imu_raw_t *msg = (msg_imu_raw_t *)buff;
-    ck_assert_int_ge(msg->tow, 325305159);
-    ck_assert_int_le(msg->tow, 325305248);
+    ck_assert_int_ge(msg->tow, 325305109);
+    ck_assert_int_le(msg->tow, 325305198);
   }
 
   /* Check that we won't receive more than 11 messages from this test file */
