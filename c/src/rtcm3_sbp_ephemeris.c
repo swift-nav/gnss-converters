@@ -68,11 +68,11 @@ decimal place i.e. 2.8, 5.7 and 11.3) , N=
 7-15:use 2^(N-2), 8192 specifies use at own
 risk) */
   if (ura >= ARRAY_SIZE(g_bds_ura_table)) {
-      return -1;
+    return -1;
   }
   float m = g_bds_ura_table[ura];
   if (INVALID_URA_VALUE == m) {
-      return 8192.0f;
+    return 8192.0f;
   }
   return m;
 }
