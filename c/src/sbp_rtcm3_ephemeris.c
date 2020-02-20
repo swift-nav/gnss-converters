@@ -29,6 +29,7 @@ void sbp_to_rtcm3_gps_eph(const msg_ephemeris_gps_t *sbp_gps_eph,
   msg_eph->wn = sbp_gps_eph->common.toe.wn % 1024;
   msg_eph->toe = sbp_gps_eph->common.toe.tow / GPS_TOE_RESOLUTION;
   msg_eph->sat_id = sbp_gps_eph->common.sid.sat;
+  msg_eph->constellation = RTCM_CONSTELLATION_GPS;
   msg_eph->ura = convert_gps_uri_to_ura(sbp_gps_eph->common.ura);
   msg_eph->fit_interval =
       rtcm3_encode_fit_interval_gps(sbp_gps_eph->common.fit_interval);
@@ -98,7 +99,7 @@ void sbp_to_rtcm3_glo_eph(const msg_ephemeris_glo_t *sbp_glo_eph,
   assert(is_glo(sbp_glo_eph->common.sid.code));
 
   msg_eph->sat_id = sbp_glo_eph->common.sid.sat;
-  msg_eph->constellation = CONSTELLATION_GLO;
+  msg_eph->constellation = RTCM_CONSTELLATION_GLO;
   msg_eph->wn = sbp_glo_eph->common.toe.wn;
   msg_eph->toe = sbp_glo_eph->common.toe.tow;
   msg_eph->ura = convert_glo_uri_to_ura(sbp_glo_eph->common.ura);
@@ -158,7 +159,7 @@ void sbp_to_rtcm3_bds_eph(const msg_ephemeris_bds_t *sbp_bds_eph,
   assert(is_bds2(sbp_bds_eph->common.sid.code));
 
   msg_eph->sat_id = sbp_bds_eph->common.sid.sat;
-  msg_eph->constellation = CONSTELLATION_BDS;
+  msg_eph->constellation = RTCM_CONSTELLATION_BDS;
   gps_time_t input_time;
   input_time.wn = sbp_bds_eph->common.toe.wn;
   input_time.tow = sbp_bds_eph->common.toe.tow;
@@ -222,7 +223,7 @@ void sbp_to_rtcm3_gal_eph(const msg_ephemeris_gal_t *sbp_gal_eph,
   msg_eph->toe = sbp_gal_eph->common.toe.tow / GALILEO_TOE_RESOLUTION;
 
   msg_eph->sat_id = sbp_gal_eph->common.sid.sat;
-  msg_eph->constellation = CONSTELLATION_GAL;
+  msg_eph->constellation = RTCM_CONSTELLATION_GAL;
   msg_eph->ura = convert_meters_to_sisa(sbp_gal_eph->common.ura);
 
   msg_eph->health_bits = sbp_gal_eph->common.health_bits;
