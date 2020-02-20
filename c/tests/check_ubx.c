@@ -103,8 +103,8 @@ static void ubx_sbp_callback_rxm_rawx(
   msg_index++;
 }
 
-static const u16 rxm_sfrbx_crc = 0xC040;
-static void ubx_sbp_callback_rxm_sfrbx(
+static const u16 rxm_sfrbx_gps_crc = 0xC040;
+static void ubx_sbp_callback_rxm_sfrbx_gps(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
 
@@ -119,7 +119,26 @@ static void ubx_sbp_callback_rxm_sfrbx(
 
   u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
   crc = crc16_ccitt(buff, length, crc);
-  ck_assert(crc == rxm_sfrbx_crc);
+  ck_assert(crc == rxm_sfrbx_gps_crc);
+}
+
+static const u16 rxm_sfrbx_bds_crc = 0x3EA4;
+static void ubx_sbp_callback_rxm_sfrbx_bds(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)context;
+
+  ck_assert(msg_id == SBP_MSG_EPHEMERIS_BDS);
+
+  uint8_t tmpbuf[5];
+  tmpbuf[0] = (uint8_t)msg_id;
+  tmpbuf[1] = (uint8_t)(msg_id >> 8);
+  tmpbuf[2] = (uint8_t)sender_id;
+  tmpbuf[3] = (uint8_t)(sender_id >> 8);
+  tmpbuf[4] = (uint8_t)length;
+
+  u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
+  crc = crc16_ccitt(buff, length, crc);
+  ck_assert(crc == rxm_sfrbx_bds_crc);
 }
 
 static void ubx_sbp_callback_nav_status(
@@ -500,11 +519,19 @@ START_TEST(test_rxm_rawx) {
 }
 END_TEST
 
-START_TEST(test_rxm_sfrbx) {
+START_TEST(test_rxm_sfrbx_gps) {
   struct ubx_sbp_state state;
-  ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx, NULL);
+  ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx_gps, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_gps_sfrbx.ubx");
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx_gps.ubx");
+}
+END_TEST
+
+START_TEST(test_rxm_sfrbx_bds) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx_bds, NULL);
+
+  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx_bds.ubx");
 }
 END_TEST
 
@@ -608,7 +635,8 @@ Suite *ubx_suite(void) {
 
   TCase *tc_rxm = tcase_create("UBX_RXM");
   tcase_add_test(tc_rxm, test_rxm_rawx);
-  tcase_add_test(tc_rxm, test_rxm_sfrbx);
+  tcase_add_test(tc_rxm, test_rxm_sfrbx_gps);
+  tcase_add_test(tc_rxm, test_rxm_sfrbx_bds);
   suite_add_tcase(s, tc_rxm);
 
   return s;

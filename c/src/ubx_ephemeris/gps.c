@@ -11,18 +11,18 @@
  */
 
 #include <gnss-converters/ubx_sbp.h>
+#include <libsbp/gnss.h>
+#include <libsbp/observation.h>
 #include <string.h>
+#include <swiftnav/common.h>
+#include <swiftnav/ephemeris.h>
+#include <swiftnav/signal.h>
 
 #include "common.h"
-#include "libsbp/gnss.h"
-#include "libsbp/observation.h"
-#include "swiftnav/common.h"
-#include "swiftnav/ephemeris.h"
-#include "swiftnav/signal.h"
 
 #define GPS_L1CA_PREAMBLE 0x8b
 
-static void invalidate_subframes(struct gps_sat_data *sat) {
+static void invalidate_subframes(struct sat_data *sat) {
   assert(sat);
   sat->vmask &= ~0x7U;
 }
@@ -88,7 +88,7 @@ void gps_decode_subframe(struct ubx_sbp_state *data,
     return;
   }
 
-  struct gps_sat_data *sat = &data->gps_sat[prn - 1];
+  struct sat_data *sat = &data->gps_sat[prn - 1];
   sat->vmask |= 1U << sf_idx;
   memcpy(&sat->sf[sf_idx].words, words, sz * 4);
   if (0x7 != (sat->vmask & 0x7U)) {

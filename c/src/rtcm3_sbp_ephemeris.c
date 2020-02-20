@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <math.h>
 #include <swiftnav/constants.h>
+#include <swiftnav/ephemeris.h>
 #include "rtcm3_sbp_internal.h"
 #include "rtcm3_utils.h"
 
@@ -66,42 +67,14 @@ values, N = 0-6: use 2^(1+N/2) (round to one
 decimal place i.e. 2.8, 5.7 and 11.3) , N=
 7-15:use 2^(N-2), 8192 specifies use at own
 risk) */
-  switch (ura) {
-    case 0:
-      return 2.0f;
-    case 1:
-      return 2.8f;
-    case 2:
-      return 4.0f;
-    case 3:
-      return 5.7f;
-    case 4:
-      return 8.0f;
-    case 5:
-      return 11.3f;
-    case 6:
-      return 16.0f;
-    case 7:
-      return 32.0f;
-    case 8:
-      return 64.0f;
-    case 9:
-      return 128.0f;
-    case 10:
-      return 256.0f;
-    case 11:
-      return 512.0f;
-    case 12:
-      return 1024.0f;
-    case 13:
-      return 2048.0f;
-    case 14:
-      return 4096.0f;
-    case 15:
-      return 8192.0f;
-    default:
-      return -1;
+  if (ura >= ARRAY_SIZE(g_bds_ura_table)) {
+    return -1;
   }
+  float m = g_bds_ura_table[ura];
+  if (INVALID_URA_VALUE == m) {
+    return 8192.0f;
+  }
+  return m;
 }
 
 /** Calculate the GLO ephemeris curve fit interval.
