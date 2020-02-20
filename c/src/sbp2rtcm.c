@@ -53,31 +53,6 @@ static s32 sbp_read_stdin(u8 *buff, u32 n, void *context) {
   return read_bytes;
 }
 
-static void ephemeris_gps_callback(u16 sender_id,
-                                   u8 len,
-                                   u8 msg[],
-                                   void *context) {
-  (void)context;
-  (void)sender_id;
-  (void)len;
-  msg_ephemeris_gps_t *e = (msg_ephemeris_gps_t *)msg;
-  (void)e;
-}
-
-static void ephemeris_glo_callback(u16 sender_id,
-                                   u8 len,
-                                   u8 msg[],
-                                   void *context) {
-  (void)context;
-  (void)sender_id;
-  (void)len;
-  msg_ephemeris_glo_t *e = (msg_ephemeris_glo_t *)msg;
-
-  /* extract just the FCN field */
-  sbp2rtcm_set_glo_fcn(
-      e->common.sid, e->fcn, (struct rtcm3_out_state *)context);
-}
-
 typedef struct {
   sbp_msg_callbacks_node_t base_pos;
   sbp_msg_callbacks_node_t glo_biases;
@@ -165,14 +140,24 @@ int main(int argc, char **argv) {
                         &sbp_nodes.ssr_stec_correction);
   sbp_register_callback(&sbp_state,
                         SBP_MSG_EPHEMERIS_GPS,
-                        (void *)&ephemeris_gps_callback,
+                        (void *)&sbp2rtcm_sbp_gps_eph_cb,
                         &state,
                         &sbp_nodes.ephemeris_gps);
   sbp_register_callback(&sbp_state,
                         SBP_MSG_EPHEMERIS_GLO,
-                        (void *)&ephemeris_glo_callback,
+                        (void *)&sbp2rtcm_sbp_glo_eph_cb,
                         &state,
                         &sbp_nodes.ephemeris_glo);
+  sbp_register_callback(&sbp_state,
+                        SBP_MSG_EPHEMERIS_BDS,
+                        (void *)&sbp2rtcm_sbp_bds_eph_cb,
+                        &state,
+                        &sbp_nodes.ephemeris_bds);
+  sbp_register_callback(&sbp_state,
+                        SBP_MSG_EPHEMERIS_GAL,
+                        (void *)&sbp2rtcm_sbp_gal_eph_cb,
+                        &state,
+                        &sbp_nodes.ephemeris_gal);
 
   while (!feof(stdin)) {
     sbp_process(&sbp_state, &sbp_read_stdin);

@@ -72,10 +72,13 @@ bool msm_add_to_header(rtcm_msm_header *header, code_t code, u8 prn);
 bool msm_add_to_cell_mask(rtcm_msm_header *header, code_t code, u8 prn);
 
 float convert_ura_to_uri(uint8_t ura);
-uint8_t convert_uri_to_ura(float uri);
+uint8_t convert_gps_uri_to_ura(float uri);
+uint8_t convert_glo_uri_to_ura(float uri);
+uint8_t convert_bds_uri_to_ura(float uri);
 
 u32 rtcm3_decode_fit_interval_gps(u8 fit_interval_flag, u16 iodc);
 u8 rtcm3_encode_fit_interval_gps(u32 sbp_fit_interval);
+u8 rtcm3_encode_fit_interval_glo(u32 fit_interval);
 
 float convert_sisa_to_meters(const uint8_t sisa);
 uint8_t convert_meters_to_sisa(const float ura);

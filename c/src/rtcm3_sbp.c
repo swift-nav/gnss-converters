@@ -261,7 +261,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
 
     case 1046: {
       rtcm_msg_eph msg_eph;
-      if (RC_OK == rtcm3_decode_gal_eph(&payload[byte], &msg_eph)) {
+      if (RC_OK == rtcm3_decode_gal_eph_inav(&payload[byte], &msg_eph)) {
         msg_ephemeris_gal_t sbp_gal_eph;
         rtcm3_gal_eph_to_sbp(
             &msg_eph, EPH_SOURCE_GAL_INAV, &sbp_gal_eph, state);

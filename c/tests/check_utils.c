@@ -333,7 +333,7 @@ START_TEST(test_ura_uri_convertor) {
   uint8_t output_ura;
   for (int i = 0; i < 15; i++) {
     float uri = convert_ura_to_uri(i);
-    output_ura = convert_uri_to_ura(uri);
+    output_ura = convert_gps_uri_to_ura(uri);
     ck_assert_uint_eq(i, output_ura);
   }
 }

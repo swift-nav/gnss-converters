@@ -31,4 +31,6 @@ typedef union {
 void pack_ephemeris_common_content(const ephemeris_t *e,
                                    ephemeris_common_content_t *common);
 
+gps_time_t sbp_gps_time_2_gps_time(const gps_time_sec_t *s);
+
 #endif /* #ifndef GNSS_CONVERTERS_COMMON_H */

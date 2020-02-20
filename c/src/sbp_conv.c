@@ -96,6 +96,14 @@ size_t sbp_conv(sbp_conv_t conv,
       sbp2rtcm_sbp_gps_eph_cb(sender, rlen, rbuf, &conv->state);
       break;
     }
+    case SBP_MSG_EPHEMERIS_GLO: {
+      sbp2rtcm_sbp_glo_eph_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
+    case SBP_MSG_EPHEMERIS_BDS: {
+      sbp2rtcm_sbp_bds_eph_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
     case SBP_MSG_EPHEMERIS_GAL: {
       sbp2rtcm_sbp_gal_eph_cb(sender, rlen, rbuf, &conv->state);
       break;

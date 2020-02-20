@@ -714,7 +714,7 @@ float convert_ura_to_uri(uint8_t ura) {
   return -1;
 }
 
-uint8_t convert_uri_to_ura(float uri) {
+uint8_t convert_gps_uri_to_ura(float uri) {
   /* Convert between RTCM/GPS URA ("User Range Accuracy") number in
    * meters to the encoded index.
    * See section 2.5.3, "User Range Accuracy", in the GPS signal specification.
@@ -736,6 +736,96 @@ uint8_t convert_uri_to_ura(float uri) {
   } else if (fabs(uri - 16.0f) < FLOAT_EQUALITY_EPS) {
     ura = 6;
   } else if (fabs(uri - 6144.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 15;
+  } else {
+    ura = (uint8_t)(log2f(uri) + 2.0);
+  }
+  return ura;
+}
+
+uint8_t convert_glo_uri_to_ura(float uri) {
+  /* Convert between RTCM/GLO FT ("GLONASS-M predicted satellite user range
+   * accuracy") index to a number in meters.
+   * See table 4.4 in GLO signal specification.
+   * Indices 1, 3, and 5 are hard-coded according to spec, and 15 is hard-coded
+   * according to SBP/Piksi convention. */
+  uint8_t ura;
+  if (fabs(uri - 1.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 0;
+  } else if (fabs(uri - 2.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 1;
+  } else if (fabs(uri - 2.5f) < FLOAT_EQUALITY_EPS) {
+    ura = 2;
+  } else if (fabs(uri - 4.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 3;
+  } else if (fabs(uri - 5.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 4;
+  } else if (fabs(uri - 7.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 5;
+  } else if (fabs(uri - 10.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 6;
+  } else if (fabs(uri - 12.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 7;
+  } else if (fabs(uri - 14.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 8;
+  } else if (fabs(uri - 16.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 9;
+  } else if (fabs(uri - 32.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 10;
+  } else if (fabs(uri - 64.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 11;
+  } else if (fabs(uri - 128.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 12;
+  } else if (fabs(uri - 256.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 13;
+  } else if (fabs(uri - 512.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 14;
+  } else if (fabs(uri - 6144.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 15;
+  } else {
+    ura = (uint8_t)(log2f(uri) + 2.0);
+  }
+  return ura;
+}
+
+uint8_t convert_bds_uri_to_ura(float uri) {
+  /* (meters See: BDS ICD Section 5.2.4.: to define nominal
+  values, N = 0-6: use 2^(1+N/2) (round to one
+  decimal place i.e. 2.8, 5.7 and 11.3) , N=
+  7-15:use 2^(N-2), 8192 specifies use at own
+  risk) */
+  uint8_t ura;
+  if (fabs(uri - 2.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 0;
+  } else if (fabs(uri - 2.8f) < FLOAT_EQUALITY_EPS) {
+    ura = 1;
+  } else if (fabs(uri - 4.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 2;
+  } else if (fabs(uri - 5.7f) < FLOAT_EQUALITY_EPS) {
+    ura = 3;
+  } else if (fabs(uri - 8.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 4;
+  } else if (fabs(uri - 11.3f) < FLOAT_EQUALITY_EPS) {
+    ura = 5;
+  } else if (fabs(uri - 16.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 6;
+  } else if (fabs(uri - 32.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 7;
+  } else if (fabs(uri - 64.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 8;
+  } else if (fabs(uri - 128.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 9;
+  } else if (fabs(uri - 256.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 10;
+  } else if (fabs(uri - 512.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 11;
+  } else if (fabs(uri - 1024.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 12;
+  } else if (fabs(uri - 2048.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 13;
+  } else if (fabs(uri - 4096.0f) < FLOAT_EQUALITY_EPS) {
+    ura = 14;
+  } else if (fabs(uri - 8196.0f) < FLOAT_EQUALITY_EPS) {
     ura = 15;
   } else {
     ura = (uint8_t)(log2f(uri) + 2.0);
@@ -778,7 +868,6 @@ u32 rtcm3_decode_fit_interval_gps(u8 fit_interval_flag, u16 iodc) {
 /** Calculate the GPS ephemeris curve fit interval.
  *
  * \param fit_interval The curve fit interval in seconds
- * \param iodc The IODC value.
  * \return the curve fit interval flag
  */
 u8 rtcm3_encode_fit_interval_gps(u32 fit_interval) {
@@ -787,6 +876,24 @@ u8 rtcm3_encode_fit_interval_gps(u32 fit_interval) {
     return false;
   }
   return true;
+}
+
+/** Calculate the GLO ephemeris curve fit interval.
+ *
+ * \param fit_interval The curve fit interval in seconds
+ * \return the curve fit interval flag
+ */
+u8 rtcm3_encode_fit_interval_glo(u32 fit_interval) {
+  // Return the flag based on the curve fit in minutes
+  switch (fit_interval / 60) {
+    case (30 + 10):
+      return 1;
+    case (45 + 10):
+      return 2;
+    case (60 + 10):
+    default:
+      return 0;
+  }
 }
 
 float convert_sisa_to_meters(const uint8_t sisa) {

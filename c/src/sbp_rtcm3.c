@@ -113,9 +113,17 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
       rtcm_msg_eph *msg_1019 = (rtcm_msg_eph *)rtcm_msg;
       return rtcm3_encode_gps_eph(msg_1019, buff);
     }
+    case 1020: {
+      rtcm_msg_eph *msg_1020 = (rtcm_msg_eph *)rtcm_msg;
+      return rtcm3_encode_glo_eph(msg_1020, buff);
+    }
     case 1033: {
       rtcm_msg_1033 *msg_1033 = (rtcm_msg_1033 *)rtcm_msg;
       return rtcm3_encode_1033(msg_1033, buff);
+    }
+    case 1042: {
+      rtcm_msg_eph *msg_1042 = (rtcm_msg_eph *)rtcm_msg;
+      return rtcm3_encode_bds_eph(msg_1042, buff);
     }
     case 1045: {
       rtcm_msg_eph *msg_1045 = (rtcm_msg_eph *)rtcm_msg;
@@ -1021,6 +1029,42 @@ void sbp2rtcm_sbp_gps_eph_cb(const u16 sender_id,
   /* generate and send the gps ephemeris message */
   sbp_to_rtcm3_gps_eph(sbp_gps_eph, &msg_gps_eph, state);
   u16 frame_size = encode_rtcm3_frame(&msg_gps_eph, 1019, frame);
+  state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+}
+
+void sbp2rtcm_sbp_glo_eph_cb(const u16 sender_id,
+                             const u8 len,
+                             const u8 msg[],
+                             struct rtcm3_out_state *state) {
+  (void)len;
+  (void)sender_id;
+  msg_ephemeris_glo_t *sbp_glo_eph = (msg_ephemeris_glo_t *)msg;
+
+  rtcm_msg_eph msg_glo_eph;
+  u8 frame[RTCM3_MAX_MSG_LEN];  // Max RTCM message length is 1023 Bytes
+
+  /* generate and send the glo ephemeris message */
+  sbp_to_rtcm3_glo_eph(sbp_glo_eph, &msg_glo_eph, state);
+  u16 frame_size = encode_rtcm3_frame(&msg_glo_eph, 1020, frame);
+  state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+}
+
+void sbp2rtcm_sbp_bds_eph_cb(const u16 sender_id,
+                             const u8 len,
+                             const u8 msg[],
+                             struct rtcm3_out_state *state) {
+  (void)len;
+  (void)sender_id;
+  msg_ephemeris_bds_t *sbp_bds_eph = (msg_ephemeris_bds_t *)msg;
+
+  rtcm_msg_eph msg_bds_eph;
+  u8 frame[RTCM3_MAX_MSG_LEN];  // Max RTCM message length is 1023 Bytes
+
+  /* generate and send the bds ephemeris message - message type depends on
+   * source */
+  sbp_to_rtcm3_bds_eph(sbp_bds_eph, &msg_bds_eph, state);
+
+  u16 frame_size = encode_rtcm3_frame(&msg_bds_eph, 1042, frame);
   state->cb_sbp_to_rtcm(frame, frame_size, state->context);
 }
 

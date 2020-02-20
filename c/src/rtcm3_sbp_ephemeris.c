@@ -148,7 +148,8 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gps_eph->common.ura = convert_ura_to_uri(msg_eph->ura);
   sbp_gps_eph->common.fit_interval = rtcm3_decode_fit_interval_gps(
       msg_eph->fit_interval, msg_eph->kepler.iodc);
-  sbp_gps_eph->common.valid = msg_eph->kepler.iodc == msg_eph->kepler.iode;
+  sbp_gps_eph->common.valid =
+      (msg_eph->kepler.iodc & 0xFF) == msg_eph->kepler.iode;
   sbp_gps_eph->common.health_bits = msg_eph->health_bits;
 
   sbp_gps_eph->tgd = (float)(msg_eph->kepler.tgd_gps_s * C_1_2P31);
@@ -329,6 +330,19 @@ void rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
   sbp_gal_eph->source = source;
 }
 
+static void get_time_from_bds_wn_tow(const u32 time_resolution,
+                                     const uint16_t bds_wn,
+                                     const uint32_t bds_tow,
+                                     uint16_t *wn,
+                                     uint32_t *tow) {
+  gps_time_t time;
+  time.wn = bds_wn + BDS_WEEK_TO_GPS_WEEK;
+  time.tow = (bds_tow * time_resolution) + BDS_SECOND_TO_GPS_SECOND;
+  normalize_gps_time(&time);
+  *wn = gps_adjust_week_cycle(time.wn, GPS_WEEK_REFERENCE);
+  *tow = (u32)rint(time.tow);
+}
+
 void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_bds_t *sbp_bds_eph,
                           struct rtcm3_sbp_state *state) {
@@ -337,14 +351,12 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
   assert(sbp_bds_eph);
   assert(RTCM_CONSTELLATION_BDS == msg_eph->constellation);
 
-  gps_time_t toe;
   /* Beidou week is 13 bit (DF489) and starts from GPS WN 1356 */
-  toe.wn = msg_eph->wn + BDS_WEEK_TO_GPS_WEEK;
-  toe.tow = (msg_eph->toe * BEIDOU_TOE_RESOLUTION) + BDS_SECOND_TO_GPS_SECOND;
-  normalize_gps_time(&toe);
-  sbp_bds_eph->common.toe.wn =
-      gps_adjust_week_cycle(toe.wn, GPS_WEEK_REFERENCE);
-  sbp_bds_eph->common.toe.tow = (u32)rint(toe.tow);
+  get_time_from_bds_wn_tow(BEIDOU_TOE_RESOLUTION,
+                           msg_eph->wn,
+                           msg_eph->toe,
+                           &sbp_bds_eph->common.toe.wn,
+                           &sbp_bds_eph->common.toe.tow);
   sbp_bds_eph->common.sid.sat = msg_eph->sat_id;
   sbp_bds_eph->common.sid.code = CODE_BDS2_B1;
   sbp_bds_eph->common.ura = convert_bds_ura_to_meters(msg_eph->ura);
@@ -380,11 +392,10 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_bds_eph->iode = msg_eph->kepler.iode;
   sbp_bds_eph->iodc = msg_eph->kepler.iodc;
 
-  gps_time_t toc;
-  toc.wn = msg_eph->wn + BDS_WEEK_TO_GPS_WEEK;
-  toc.tow =
-      (msg_eph->kepler.toc * BEIDOU_TOC_RESOLUTION) + BDS_SECOND_TO_GPS_SECOND;
-  normalize_gps_time(&toc);
-  sbp_bds_eph->toc.wn = gps_adjust_week_cycle(toc.wn, GPS_WEEK_REFERENCE);
-  sbp_bds_eph->toc.tow = (u32)rint(toc.tow);
+  // What happens if toc and toe straddle the week boundary?
+  get_time_from_bds_wn_tow(BEIDOU_TOC_RESOLUTION,
+                           msg_eph->wn,
+                           msg_eph->kepler.toc,
+                           &sbp_bds_eph->toc.wn,
+                           &sbp_bds_eph->toc.tow);
 }

@@ -136,6 +136,14 @@ void sbp2rtcm_sbp_gps_eph_cb(const u16 sender_id,
                              const u8 len,
                              const u8 msg[],
                              struct rtcm3_out_state *state);
+void sbp2rtcm_sbp_glo_eph_cb(const u16 sender_id,
+                             const u8 len,
+                             const u8 msg[],
+                             struct rtcm3_out_state *state);
+void sbp2rtcm_sbp_bds_eph_cb(const u16 sender_id,
+                             const u8 len,
+                             const u8 msg[],
+                             struct rtcm3_out_state *state);
 void sbp2rtcm_sbp_gal_eph_cb(const u16 sender_id,
                              const u8 len,
                              const u8 msg[],

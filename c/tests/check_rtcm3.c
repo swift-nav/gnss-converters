@@ -22,6 +22,7 @@
 #include <rtcm3/encode.h>
 #include <rtcm3/eph_decode.h>
 #include <rtcm3/eph_encode.h>
+#include <swiftnav/ephemeris.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/sid_set.h>
 
@@ -787,6 +788,7 @@ static void test_SBP(const char *filename,
   sbp_msg_callbacks_node_t sbp_obs_callback_node;
   sbp_msg_callbacks_node_t sbp_osr_callback_node;
   sbp_msg_callbacks_node_t sbp_ephemeris_glo_callback_node;
+  sbp_msg_callbacks_node_t sbp_ephemeris_bds_callback_node;
   sbp_msg_callbacks_node_t sbp_ephemeris_gps_callback_node;
   sbp_msg_callbacks_node_t sbp_ephemeris_gal_callback_node;
 
@@ -823,6 +825,16 @@ static void test_SBP(const char *filename,
                         (void *)&sbp2rtcm_sbp_gps_eph_cb,
                         &out_state,
                         &sbp_ephemeris_gps_callback_node);
+  sbp_register_callback(&s,
+                        SBP_MSG_EPHEMERIS_GLO,
+                        (void *)&sbp2rtcm_sbp_glo_eph_cb,
+                        &out_state,
+                        &sbp_ephemeris_glo_callback_node);
+  sbp_register_callback(&s,
+                        SBP_MSG_EPHEMERIS_BDS,
+                        (void *)&sbp2rtcm_sbp_bds_eph_cb,
+                        &out_state,
+                        &sbp_ephemeris_bds_callback_node);
   sbp_register_callback(&s,
                         SBP_MSG_EPHEMERIS_GAL,
                         (void *)&sbp2rtcm_sbp_gal_eph_cb,
@@ -978,7 +990,7 @@ static s32 rtcm_gal_inav_eph_cb(u8 *buffer, u16 length, void *context) {
     printf("GAL INAV Eph checked\n");
     checked_eph_gal_inav = true;
     rtcm_msg_eph msg_eph;
-    rtcm3_decode_gal_eph(&buffer[byte], &msg_eph);
+    rtcm3_decode_gal_eph_inav(&buffer[byte], &msg_eph);
 
     ck_assert(msg_eph.constellation == RTCM_CONSTELLATION_GAL);
     ck_assert_uint_eq(msg_eph.sat_id, 1);
@@ -1502,6 +1514,390 @@ START_TEST(test_sbp_to_msm_roundtrip) {
 }
 END_TEST
 
+// Get an example GPS orbit for testing
+static msg_ephemeris_gps_t get_example_gps_eph() {
+  msg_ephemeris_gps_t ret;
+  ret.common.sid.sat = 25;
+  ret.common.sid.code = CODE_GPS_L1CA;
+  ret.common.toe.wn = 2022;
+  ret.common.toe.tow = 460800;
+  ret.common.ura = (float)2.8;
+  ret.common.fit_interval = 14400;
+  ret.common.valid = 1;
+  ret.common.health_bits = 0;
+  ret.tgd = (float)(-3 * 1e-10);
+  ret.c_rc = 167.140625;
+  ret.c_rs = -18.828125;
+  ret.c_uc = -9.0105459094047546e-07;
+  ret.c_us = 9.4850547611713409e-06;
+  ret.c_ic = -4.0978193283081055e-08;
+  ret.c_is = 1.0104849934577942e-07;
+  ret.dn = 3.9023054038264214e-09;
+  ret.m0 = 0.39869951815527438;
+  ret.ecc = 0.00043709692545235157;
+  ret.sqrta = 5282.6194686889648;
+  ret.omega0 = 2.2431156200949509;
+  ret.omegadot = -6.6892072037584707e-09;
+  ret.w = 0.39590413040186828;
+  ret.inc = 0.95448398903792575;
+  ret.inc_dot = -6.2716898124832475e-10;
+  ret.af0 = -0.00050763087347149849;
+  ret.af1 = -1.3019807454384136e-11;
+  ret.af2 = 0.000000;
+  ret.toc.wn = 2022;
+  ret.toc.tow = 460800;
+  ret.iodc = 250;
+  ret.iode = 250;
+  return ret;
+}
+
+// Compare two GPS orbits to make sure they are the same
+static void compare_gps_ephs(const msg_ephemeris_gps_t *first,
+                             const msg_ephemeris_gps_t *second) {
+  assert(first->common.sid.sat == second->common.sid.sat);
+  assert(first->common.sid.code == second->common.sid.code);
+  assert(first->common.toe.wn == second->common.toe.wn);
+  assert(fabs(first->common.toe.tow - second->common.toe.tow) <= 8);
+  assert(fabs(first->common.ura - second->common.ura) < 1e-12);
+  assert(first->common.fit_interval == second->common.fit_interval);
+  assert(first->common.health_bits == second->common.health_bits);
+  assert(first->common.valid == second->common.valid);
+
+  assert(fabs(first->tgd - second->tgd) <= C_1_2P31 / 2);
+  assert(fabs(first->c_rs - second->c_rs) <= C_1_2P5 / 2);
+  assert(fabs(first->c_rc - second->c_rc) <= C_1_2P5 / 2);
+  assert(fabs(first->c_uc - second->c_uc) <= C_1_2P29 / 2);
+  assert(fabs(first->c_us - second->c_us) <= C_1_2P29 / 2);
+  assert(fabs(first->c_ic - second->c_ic) <= C_1_2P29 / 2);
+  assert(fabs(first->c_is - second->c_is) <= C_1_2P29 / 2);
+  assert(fabs(first->dn - second->dn) <= C_1_2P43 * M_PI / 2);
+  assert(fabs(first->m0 - second->m0) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->ecc - second->ecc) <= C_1_2P33 / 2);
+  assert(fabs(first->sqrta - second->sqrta) <= C_1_2P19 / 2);
+  assert(fabs(first->omega0 - second->omega0) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->omegadot - second->omegadot) <= C_1_2P43 * M_PI / 2);
+  assert(fabs(first->w - second->w) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->inc - second->inc) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->inc_dot - second->inc_dot) <= C_1_2P43 * M_PI / 2);
+  assert(fabs(first->af0 - second->af0) <= C_1_2P31 / 2);
+  assert(fabs(first->af1 - second->af1) <= C_1_2P43 / 2);
+  assert(fabs(first->af2 - second->af2) <= C_1_2P55 / 2);
+  assert(first->toc.wn == second->toc.wn);
+  assert(fabs(first->toc.tow - second->toc.tow) <= 8);
+  assert(first->iode == second->iode);
+  assert(first->iodc == second->iodc);
+}
+
+// Get an example GLO orbit for testing
+static msg_ephemeris_glo_t get_example_glo_eph() {
+  msg_ephemeris_glo_t ret;
+  ret.common.sid.sat = 25;
+  ret.common.sid.code = CODE_GLO_L1OF;
+  ret.common.toe.wn = 2022;
+  ret.common.toe.tow = 220518;
+  ret.common.fit_interval = 2400;
+  ret.common.valid = 1;
+  ret.common.health_bits = 1;
+  ret.common.ura = (float)10.0;
+  ret.gamma = (float)(2.4 * 1e-31);
+  ret.tau = (float)(1.38 * 1e-10);
+  ret.d_tau = (float)(2.56 * 1e-10);
+  ret.pos[0] = 647838.345;
+  ret.pos[1] = 875308.747;
+  ret.pos[2] = 234597.325;
+  ret.vel[0] = 24.435;
+  ret.vel[1] = 72.7643;
+  ret.vel[2] = 55.876;
+  ret.acc[0] = (float)(1.3425 * 1e-6);
+  ret.acc[1] = (float)(1.765 * 1e-6);
+  ret.acc[2] = (float)(2.23 * 1e-6);
+  ret.fcn = 15;
+  ret.iod = 4;
+  return ret;
+}
+
+// Compare two GLO orbits to make sure they are the same
+static void compare_glo_ephs(const msg_ephemeris_glo_t *first,
+                             const msg_ephemeris_glo_t *second) {
+  assert(first->common.sid.sat == second->common.sid.sat);
+  assert(first->common.sid.code == second->common.sid.code);
+  assert(first->common.toe.wn == second->common.toe.wn);
+  assert(first->common.toe.tow == second->common.toe.tow);
+  assert((first->common.ura / second->common.ura < 2 &&
+          second->common.ura / first->common.ura < 2) ||
+         (first->common.ura > 512.0 && second->common.ura == 6144.0) ||
+         (second->common.ura > 512.0 && first->common.ura == 6144.0));
+  assert(first->common.fit_interval == second->common.fit_interval);
+  assert(first->common.health_bits == second->common.health_bits);
+  assert(first->common.valid == second->common.valid);
+
+  assert(fabs(first->gamma - second->gamma) <= C_1_2P40 / 2);
+  assert(fabs(first->tau - second->tau) <= C_1_2P30 / 2);
+  assert(fabs(first->d_tau - second->d_tau) <= C_1_2P30 / 2);
+  assert(fabs(first->pos[0] - second->pos[0]) <= C_1_2P11 * 1000 / 2);
+  assert(fabs(first->pos[1] - second->pos[1]) <= C_1_2P11 * 1000 / 2);
+  assert(fabs(first->pos[2] - second->pos[2]) <= C_1_2P11 * 1000 / 2);
+  assert(fabs(first->vel[0] - second->vel[0]) <= C_1_2P20 * 1000 / 2);
+  assert(fabs(first->vel[1] - second->vel[1]) <= C_1_2P20 * 1000 / 2);
+  assert(fabs(first->vel[2] - second->vel[2]) <= C_1_2P20 * 1000 / 2);
+  assert(fabs(first->acc[0] - second->acc[0]) <= C_1_2P30 * 1000 / 2);
+  assert(fabs(first->acc[1] - second->acc[1]) <= C_1_2P30 * 1000 / 2);
+  assert(fabs(first->acc[2] - second->acc[2]) <= C_1_2P30 * 1000 / 2);
+  assert(first->fcn == second->fcn);
+  assert(first->iod == second->iod);
+}
+
+// Get an example BDS orbit for testing
+static msg_ephemeris_bds_t get_example_bds_eph() {
+  msg_ephemeris_bds_t ret;
+  ret.common.sid.sat = 25;
+  ret.common.sid.code = CODE_BDS2_B1;
+  ret.common.toe.wn = 2022;
+  ret.common.toe.tow = 460800;
+  ret.common.ura = (float)2.8;
+  ret.common.fit_interval = 3 * SEC_IN_HOUR;
+  ret.common.valid = 1;
+  ret.common.health_bits = 0;
+  ret.tgd1 = (float)(-3 * 1e-10);
+  ret.tgd2 = (float)(-4 * 1e-10);
+  ret.c_rc = 167.140625;
+  ret.c_rs = -18.828125;
+  ret.c_uc = -9.0105459094047546e-07;
+  ret.c_us = 9.4850547611713409e-06;
+  ret.c_ic = -4.0978193283081055e-08;
+  ret.c_is = 1.0104849934577942e-07;
+  ret.dn = 3.9023054038264214e-09;
+  ret.m0 = 0.39869951815527438;
+  ret.ecc = 0.00043709692545235157;
+  ret.sqrta = 5282.6194686889648;
+  ret.omega0 = 2.2431156200949509;
+  ret.omegadot = -6.6892072037584707e-09;
+  ret.w = 0.39590413040186828;
+  ret.inc = 0.95448398903792575;
+  ret.inc_dot = -6.2716898124832475e-10;
+  ret.af0 = -0.00050763087347149849;
+  ret.af1 = -1.3019807454384136e-11;
+  ret.af2 = 0.000000;
+  ret.toc.wn = 2022;
+  ret.toc.tow = 460800;
+  ret.iodc = 954;
+  ret.iode = 250;
+  return ret;
+}
+
+// Compare two BDS orbits to make sure they are the same
+static void compare_bds_ephs(const msg_ephemeris_bds_t *first,
+                             const msg_ephemeris_bds_t *second) {
+  assert(first->common.sid.sat == second->common.sid.sat);
+  assert(first->common.sid.code == second->common.sid.code);
+  assert(first->common.toe.wn == second->common.toe.wn);
+  assert(fabs(first->common.toe.tow - second->common.toe.tow) <= 4);
+  assert(fabs(first->common.ura - second->common.ura) < 1e-12);
+  assert(first->common.fit_interval == second->common.fit_interval);
+  assert(first->common.health_bits == second->common.health_bits);
+  assert(first->common.valid == second->common.valid);
+
+  assert(fabs(first->tgd1 - second->tgd1) <= 1e-10 / 2);
+  assert(fabs(first->tgd2 - second->tgd2) <= 1e-10 / 2);
+  assert(fabs(first->c_rs - second->c_rs) <= C_1_2P6 / 2);
+  assert(fabs(first->c_rc - second->c_rc) <= C_1_2P6 / 2);
+  assert(fabs(first->c_uc - second->c_uc) <= C_1_2P31 / 2);
+  assert(fabs(first->c_us - second->c_us) <= C_1_2P31 / 2);
+  assert(fabs(first->c_ic - second->c_ic) <= C_1_2P31 / 2);
+  assert(fabs(first->c_is - second->c_is) <= C_1_2P31 / 2);
+  assert(fabs(first->dn - second->dn) <= C_1_2P43 * M_PI / 2);
+  assert(fabs(first->m0 - second->m0) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->ecc - second->ecc) <= C_1_2P33 / 2);
+  assert(fabs(first->sqrta - second->sqrta) <= C_1_2P19 / 2);
+  assert(fabs(first->omega0 - second->omega0) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->omegadot - second->omegadot) <= C_1_2P43 * M_PI / 2);
+  assert(fabs(first->w - second->w) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->inc - second->inc) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->inc_dot - second->inc_dot) < C_1_2P43 * M_PI / 2);
+  assert(fabs(first->af0 - second->af0) <= C_1_2P33 / 2);
+  assert(fabs(first->af1 - second->af1) <= C_1_2P50 / 2);
+  assert(fabs(first->af2 - second->af2) <= C_1_2P66 / 2);
+  assert(first->toc.wn == second->toc.wn);
+  assert(fabs(first->toc.tow - second->toc.tow) <= 4);
+  assert(first->iode == second->iode);
+  assert(first->iodc == second->iodc);
+}
+
+// Get an example GAL orbit for testing
+static msg_ephemeris_gal_t get_example_gal_eph() {
+  msg_ephemeris_gal_t ret;
+  ret.common.sid.sat = 25;
+  ret.common.sid.code = CODE_GAL_E1B;
+  ret.common.toe.wn = 2022;
+  ret.common.toe.tow = 460800;
+  ret.common.ura = (float)2.8;
+  ret.common.fit_interval = 4 * SEC_IN_HOUR;
+  ret.common.valid = 1;
+  ret.common.health_bits = 0;
+  ret.bgd_e1e5a = (float)(-3 * 1e-10);
+  ret.bgd_e1e5b = (float)(-2 * 1e-10);
+  ret.c_rc = 167.140625;
+  ret.c_rs = -18.828125;
+  ret.c_uc = -9.0105459094047546e-07;
+  ret.c_us = 9.4850547611713409e-06;
+  ret.c_ic = -4.0978193283081055e-08;
+  ret.c_is = 1.0104849934577942e-07;
+  ret.dn = 3.9023054038264214e-09;
+  ret.m0 = 0.39869951815527438;
+  ret.ecc = 0.00043709692545235157;
+  ret.sqrta = 5282.6194686889648;
+  ret.omega0 = 2.2431156200949509;
+  ret.omegadot = -6.6892072037584707e-09;
+  ret.w = 0.39590413040186828;
+  ret.inc = 0.95448398903792575;
+  ret.inc_dot = -6.2716898124832475e-10;
+  ret.af0 = -0.00050763087347149849;
+  ret.af1 = -1.3019807454384136e-11;
+  ret.af2 = 0.000000;
+  ret.toc.wn = 2022;
+  ret.toc.tow = 460800;
+  ret.iodc = 954;
+  ret.iode = 954;
+  return ret;
+}
+
+// Compare two GAL orbits to make sure they are the same
+static void compare_gal_ephs(const msg_ephemeris_gal_t *first,
+                             const msg_ephemeris_gal_t *second) {
+  assert(first->common.sid.sat == second->common.sid.sat);
+  assert(first->common.sid.code == second->common.sid.code);
+  assert(first->common.toe.wn == second->common.toe.wn);
+  assert(fabs(first->common.toe.tow - second->common.toe.tow) <= 30);
+  assert(fabs(first->common.ura - second->common.ura) < 1e-12);
+  assert(first->common.fit_interval == second->common.fit_interval);
+  assert(first->common.health_bits == second->common.health_bits);
+  assert(first->common.valid == second->common.valid);
+
+  assert(fabs(first->bgd_e1e5a - second->bgd_e1e5a) <= C_1_2P32 / 2);
+  assert(fabs(first->bgd_e1e5b - second->bgd_e1e5b) <= C_1_2P32 / 2);
+  assert(fabs(first->c_rs - second->c_rs) <= C_1_2P5 / 2);
+  assert(fabs(first->c_rc - second->c_rc) <= C_1_2P5 / 2);
+  assert(fabs(first->c_uc - second->c_uc) <= C_1_2P29 / 2);
+  assert(fabs(first->c_us - second->c_us) <= C_1_2P29 / 2);
+  assert(fabs(first->c_ic - second->c_ic) <= C_1_2P29 / 2);
+  assert(fabs(first->c_is - second->c_is) <= C_1_2P29 / 2);
+  assert(fabs(first->dn - second->dn) <= C_1_2P43 * M_PI / 2);
+  assert(fabs(first->m0 - second->m0) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->ecc - second->ecc) <= C_1_2P33 / 2);
+  assert(fabs(first->sqrta - second->sqrta) <= C_1_2P19 / 2);
+  assert(fabs(first->omega0 - second->omega0) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->omegadot - second->omegadot) <= C_1_2P43 * M_PI / 2);
+  assert(fabs(first->w - second->w) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->inc - second->inc) <= C_1_2P31 * M_PI / 2);
+  assert(fabs(first->inc_dot - second->inc_dot) < C_1_2P43 * M_PI / 2);
+  assert(fabs(first->af0 - second->af0) <= C_1_2P34 / 2);
+  assert(fabs(first->af1 - second->af1) <= C_1_2P46 / 2);
+  assert(fabs(first->af2 - second->af2) <= C_1_2P59 / 2);
+  assert(first->toc.wn == second->toc.wn);
+  assert(fabs(first->toc.tow - second->toc.tow) <= 30);
+  assert(first->iode == second->iode);
+  assert(first->iodc == second->iodc);
+}
+
+START_TEST(test_sbp_to_rtcm_1019_validity_decoding) {
+  // Test out the four cases which should return a valid ephemeris - when the
+  // 9th and 10th bits of the iodc are 00, 01, 10 and 11 but the other 8 bits
+  // are the same as the iode.
+  msg_ephemeris_gps_t msg_1019_in = get_example_gps_eph();
+  rtcm_msg_eph rtcm_msg_1019;
+  sbp_to_rtcm3_gps_eph(&msg_1019_in, &rtcm_msg_1019, &out_state);
+  msg_ephemeris_gps_t msg_1019_out;
+  rtcm_msg_1019.kepler.iodc = 250;
+  rtcm_msg_1019.kepler.iode = 250;
+  rtcm3_gps_eph_to_sbp(&rtcm_msg_1019, &msg_1019_out, &state);
+  assert(msg_1019_out.common.valid == 1);
+  rtcm_msg_1019.kepler.iodc = 506;
+  rtcm_msg_1019.kepler.iode = 250;
+  rtcm3_gps_eph_to_sbp(&rtcm_msg_1019, &msg_1019_out, &state);
+  assert(msg_1019_out.common.valid == 1);
+  rtcm_msg_1019.kepler.iodc = 1018;
+  rtcm_msg_1019.kepler.iode = 250;
+  rtcm3_gps_eph_to_sbp(&rtcm_msg_1019, &msg_1019_out, &state);
+  assert(msg_1019_out.common.valid == 1);
+  rtcm_msg_1019.kepler.iodc = 762;
+  rtcm_msg_1019.kepler.iode = 250;
+  rtcm3_gps_eph_to_sbp(&rtcm_msg_1019, &msg_1019_out, &state);
+  assert(msg_1019_out.common.valid == 1);
+
+  // Test out the four cases which should return an invalid ephemeris - when the
+  // 9th and 10th bits of the iodc are 00, 01, 10 and 11 but the other 8 bits
+  // are different to the iode.
+  rtcm_msg_1019.kepler.iodc = 250;
+  rtcm_msg_1019.kepler.iode = 251;
+  rtcm3_gps_eph_to_sbp(&rtcm_msg_1019, &msg_1019_out, &state);
+  assert(msg_1019_out.common.valid == 0);
+  rtcm_msg_1019.kepler.iodc = 506;
+  rtcm_msg_1019.kepler.iode = 251;
+  rtcm3_gps_eph_to_sbp(&rtcm_msg_1019, &msg_1019_out, &state);
+  assert(msg_1019_out.common.valid == 0);
+  rtcm_msg_1019.kepler.iodc = 1018;
+  rtcm_msg_1019.kepler.iode = 251;
+  rtcm3_gps_eph_to_sbp(&rtcm_msg_1019, &msg_1019_out, &state);
+  assert(msg_1019_out.common.valid == 0);
+  rtcm_msg_1019.kepler.iodc = 762;
+  rtcm_msg_1019.kepler.iode = 251;
+  rtcm3_gps_eph_to_sbp(&rtcm_msg_1019, &msg_1019_out, &state);
+  assert(msg_1019_out.common.valid == 0);
+}
+END_TEST
+
+START_TEST(test_sbp_to_rtcm_1019_roundtrip) {
+  msg_ephemeris_gps_t msg_1019_in = get_example_gps_eph();
+  rtcm_msg_eph rtcm_msg_1019;
+  sbp_to_rtcm3_gps_eph(&msg_1019_in, &rtcm_msg_1019, &out_state);
+  msg_ephemeris_gps_t msg_1019_out;
+  rtcm3_gps_eph_to_sbp(&rtcm_msg_1019, &msg_1019_out, &state);
+  compare_gps_ephs(&msg_1019_in, &msg_1019_out);
+}
+END_TEST
+
+START_TEST(test_sbp_to_rtcm_1020_roundtrip) {
+  msg_ephemeris_glo_t msg_1020_in = get_example_glo_eph();
+  rtcm_msg_eph rtcm_msg_1020;
+  sbp_to_rtcm3_glo_eph(&msg_1020_in, &rtcm_msg_1020, &out_state);
+  msg_ephemeris_glo_t msg_1020_out;
+  rtcm3_glo_eph_to_sbp(&rtcm_msg_1020, &msg_1020_out, &state);
+  compare_glo_ephs(&msg_1020_in, &msg_1020_out);
+}
+END_TEST
+
+START_TEST(test_sbp_to_rtcm_1042_roundtrip) {
+  msg_ephemeris_bds_t msg_1042_in = get_example_bds_eph();
+  rtcm_msg_eph rtcm_msg_1042;
+  sbp_to_rtcm3_bds_eph(&msg_1042_in, &rtcm_msg_1042, &out_state);
+  msg_ephemeris_bds_t msg_1042_out;
+  rtcm3_bds_eph_to_sbp(&rtcm_msg_1042, &msg_1042_out, &state);
+  compare_bds_ephs(&msg_1042_in, &msg_1042_out);
+}
+END_TEST
+
+START_TEST(test_sbp_to_rtcm_1045_roundtrip) {
+  msg_ephemeris_gal_t msg_1045_in = get_example_gal_eph();
+  rtcm_msg_eph rtcm_msg_1045;
+  sbp_to_rtcm3_gal_eph(&msg_1045_in, &rtcm_msg_1045, &out_state);
+  msg_ephemeris_gal_t msg_1045_out;
+  rtcm3_gal_eph_to_sbp(
+      &rtcm_msg_1045, EPH_SOURCE_GAL_FNAV, &msg_1045_out, &state);
+  compare_gal_ephs(&msg_1045_in, &msg_1045_out);
+}
+END_TEST
+
+START_TEST(test_sbp_to_rtcm_1046_roundtrip) {
+  msg_ephemeris_gal_t msg_1046_in = get_example_gal_eph();
+  rtcm_msg_eph rtcm_msg_1046;
+  sbp_to_rtcm3_gal_eph(&msg_1046_in, &rtcm_msg_1046, &out_state);
+  msg_ephemeris_gal_t msg_1046_out;
+  rtcm3_gal_eph_to_sbp(
+      &rtcm_msg_1046, EPH_SOURCE_GAL_INAV, &msg_1046_out, &state);
+  compare_gal_ephs(&msg_1046_in, &msg_1046_out);
+}
+END_TEST
+
 Suite *rtcm3_suite(void) {
   Suite *s = suite_create("RTCMv3");
 
@@ -1570,6 +1966,12 @@ Suite *rtcm3_suite(void) {
   tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_gps_eph);
   tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_gal_fnav_eph);
   tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_gal_inav_eph);
+  tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_1019_validity_decoding);
+  tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_1019_roundtrip);
+  tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_1020_roundtrip);
+  tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_1042_roundtrip);
+  tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_1045_roundtrip);
+  tcase_add_test(tc_sbp_to_rtcm, test_sbp_to_rtcm_1046_roundtrip);
   suite_add_tcase(s, tc_sbp_to_rtcm);
 
   return s;
