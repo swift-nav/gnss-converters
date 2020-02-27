@@ -126,6 +126,7 @@ void bds_decode_subframe(struct ubx_sbp_state *data,
   e.valid = 1;
 
   msg_ephemeris_t msg;
+  memset(&msg, 0, sizeof(msg));
   pack_ephemeris_bds(&e, &msg);
 
   assert(data->cb_ubx_to_sbp);

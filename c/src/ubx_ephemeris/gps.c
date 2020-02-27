@@ -131,6 +131,7 @@ void gps_decode_subframe(struct ubx_sbp_state *data,
     return;
   }
   msg_ephemeris_t msg;
+  memset(&msg, 0, sizeof(msg));
   pack_ephemeris_gps(&e, &msg);
 
   assert(data->cb_ubx_to_sbp);

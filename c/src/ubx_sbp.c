@@ -23,6 +23,7 @@
 #include <ubx/decode.h>
 #include <ubx/ubx_messages.h>
 #include <ubx_ephemeris/bds.h>
+#include <ubx_ephemeris/gal.h>
 #include <ubx_ephemeris/gps.h>
 
 /* TODO(STAR-918) should probably consolidate these into central .h file */
@@ -951,6 +952,8 @@ static void handle_rxm_sfrbx(struct ubx_sbp_state *state, u8 *buf, int sz) {
     gps_decode_subframe(state, prn, sfrbx.data_words, sfrbx.num_words);
   } else if (UBX_GNSS_ID_BDS == sfrbx.gnss_id) {
     bds_decode_subframe(state, prn, sfrbx.data_words, sfrbx.num_words);
+  } else if (UBX_GNSS_ID_GAL == sfrbx.gnss_id) {
+    gal_decode_page(state, prn, sfrbx.data_words, sfrbx.num_words);
   }
 }
 

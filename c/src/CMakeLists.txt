@@ -16,6 +16,8 @@ add_library(
   ubx_sbp.c
   ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/gps.c
   ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/bds.c
+  ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/gal.c
+  ${PROJECT_SOURCE_DIR}/third_party/libswiftnav/src/ephemeris.c
   sbp_nmea.c
   nmea.c
   rtcm3_utils.c

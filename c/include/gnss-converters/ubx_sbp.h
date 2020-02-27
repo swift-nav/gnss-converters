@@ -31,9 +31,14 @@ extern "C" {
 #define DEFAULT_UBX_SENDER_ID 61568
 
 struct sat_data {
-  struct subframe {
-    u32 words[10];
-  } sf[3];
+  union {
+    struct subframe {
+      u32 words[10];
+    } sf[3];
+    struct page {
+      u32 words[8];
+    } pg[5];
+  };
   unsigned vmask;
 };
 
@@ -60,6 +65,7 @@ struct ubx_sbp_state {
 
   struct sat_data gps_sat[NUM_SATS_GPS];
   struct sat_data bds_sat[NUM_SATS_BDS];
+  struct sat_data gal_sat[NUM_SATS_GAL];
 };
 
 double ubx_convert_msss_to_tow(u32 msss, const struct ubx_esf_state *state);
