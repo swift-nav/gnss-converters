@@ -27,7 +27,21 @@ static void invalidate_pages(struct sat_data *sat, unsigned mask) {
   sat->vmask &= ~mask;
 }
 
-static void pack_ephemeris_gal(const ephemeris_t *e, msg_ephemeris_t *m) {
+/**
+ * Packs Galileo ephemeris data.
+ * @param e the ephemeris to pack.
+ * @param m the packed ephemeris.
+ * @param src the GAL ephemeris source (0 - I/NAV, 1 - F/NAV)
+ */
+static void pack_ephemeris_gal(const ephemeris_t *e,
+                               msg_ephemeris_t *m,
+                               int src) {
+  assert(e);
+  assert(m);
+  assert((0 == src) || (1 == src));
+
+  memset(m, 0, sizeof(*m));
+
   const ephemeris_kepler_t *k = &e->kepler;
   msg_ephemeris_gal_t *msg = &m->gal;
   pack_ephemeris_common_content(e, &msg->common);
@@ -55,9 +69,7 @@ static void pack_ephemeris_gal(const ephemeris_t *e, msg_ephemeris_t *m) {
   msg->toc.wn = k->toc.wn;
   msg->iode = k->iode;
   msg->iodc = k->iodc;
-  /* I/NAV message as per UBX-13003221-R17
-     u-blox8 / u-blox M8 Receiver Description Manual */
-  msg->source = 0;
+  msg->source = (u8)src;
 }
 
 /** pages 1,2,3,4,5 are required */
@@ -155,8 +167,9 @@ void gal_decode_page(struct ubx_sbp_state *data,
   e.valid = 1;
 
   msg_ephemeris_t msg;
-  memset(&msg, 0, sizeof(msg));
-  pack_ephemeris_gal(&e, &msg);
+  /* I/NAV message as per UBX-13003221-R17
+     u-blox8 / u-blox M8 Receiver Description Manual */
+  pack_ephemeris_gal(&e, &msg, /*src=*/0);
 
   assert(data->cb_ubx_to_sbp);
   data->cb_ubx_to_sbp(SBP_MSG_EPHEMERIS_GAL,
