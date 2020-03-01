@@ -26,18 +26,18 @@ add_code_coverage_all_targets()
 
 include(TestTargets)
 
-option(librtcm_ENABLE_TESTS "" OFF)
-find_package(Rtcm REQUIRED)
-
-option(libubx_ENABLE_TESTS "" OFF)
-find_package(Ubx REQUIRED)
-
 option(libsbp_ENABLE_TESTS "" OFF)
 option(libsbp_ENABLE_DOCS "" OFF)
 find_package(Sbp REQUIRED)
 
 option(libswiftnav_ENABLE_TESTS "" OFF)
 find_package(Swiftnav REQUIRED)
+
+option(librtcm_ENABLE_TESTS "" OFF)
+find_package(Rtcm REQUIRED)
+
+option(libubx_ENABLE_TESTS "" OFF)
+find_package(Ubx REQUIRED)
 
 # If NDEBUG is defined, all asserts() will be knocked out, and
 # currently we rely on asserts() for correct behavior.
