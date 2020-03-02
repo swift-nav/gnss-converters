@@ -124,11 +124,9 @@ void gal_decode_page(struct ubx_sbp_state *data,
     iod[i] = (words[0] >> 14U) & 0x3FFU;
   }
 
-  for (int i = 0; i < (int)ARRAY_SIZE(iod); i++) {
-    for (int j = i + 1; j < (int)ARRAY_SIZE(iod); j++) {
-      if (iod[i] != iod[j]) {
-        return; /* received pages are not from the same batch */
-      }
+  for (int i = 1; i < (int)ARRAY_SIZE(iod); i++) {
+    if (iod[i] != iod[0]) {
+      return; /* received pages are not from the same batch */
     }
   }
 
