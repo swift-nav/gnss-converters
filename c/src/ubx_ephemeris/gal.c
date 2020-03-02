@@ -22,7 +22,7 @@
 
 #include "common.h"
 
-static void invalidate_pages(struct sat_data *sat, unsigned mask) {
+static void invalidate_pages(struct gal_sat_data *sat, unsigned mask) {
   assert(sat);
   sat->vmask &= ~mask;
 }
@@ -111,7 +111,7 @@ void gal_decode_page(struct ubx_sbp_state *data,
     return; /* only word types 1,2,3,4,5 contain ephemeris data, WN and TOW */
   }
 
-  struct sat_data *sat = &data->gal_sat[prn - 1];
+  struct gal_sat_data *sat = &data->gal_sat[prn - 1];
   sat->vmask |= 1U << (wtype - 1);
   assert(wtype <= (int)ARRAY_SIZE(sat->pg));
   memcpy(&sat->pg[wtype - 1].words, words, sizeof(sat->pg[wtype - 1].words));
@@ -121,8 +121,7 @@ void gal_decode_page(struct ubx_sbp_state *data,
 
   int iod[4];
   for (int i = 0; i < (int)ARRAY_SIZE(iod); i++) {
-    iod[i] = ((words[0] >> 16U) << 2) & 0x3FF;
-    iod[i] |= ((words[0] >> 14U) & 3);
+    iod[i] = (words[0] >> 14U) & 0x3FFU;
   }
 
   for (int i = 0; i < (int)ARRAY_SIZE(iod); i++) {
@@ -136,7 +135,7 @@ void gal_decode_page(struct ubx_sbp_state *data,
   /* Now let's actually decode the ephemeris... */
 
   u8 page[5][GAL_INAV_CONTENT_BYTE];
-  ASSERT_STATIC(ARRAY_SIZE(page) == ARRAY_SIZE(sat->pg));
+  assert(ARRAY_SIZE(page) == ARRAY_SIZE(sat->pg));
 
   for (int i = 0; i < (int)ARRAY_SIZE(page); i++) {
     u8 *p = &page[i][0];

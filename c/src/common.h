@@ -19,12 +19,6 @@
 #include "swiftnav/ephemeris.h"
 #include "swiftnav/signal.h"
 
-#if defined(__clang__) || defined(__GNUC__) || defined(__GNUG__)
-#define ASSERT_STATIC(expr) _Static_assert(expr, "")
-#else
-#error "Define ASSERT_STATIC()"
-#endif
-
 typedef union {
   msg_ephemeris_gps_t gps;
   msg_ephemeris_bds_t bds;
