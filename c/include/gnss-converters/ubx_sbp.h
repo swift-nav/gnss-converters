@@ -37,6 +37,13 @@ struct sat_data {
   unsigned vmask;
 };
 
+struct gal_sat_data {
+  struct page {
+    u32 words[8];
+  } pg[5];
+  unsigned vmask;
+};
+
 /* Stores state for ESF-* messages */
 struct ubx_esf_state {
   double time_since_startup_tow_offset;
@@ -60,6 +67,7 @@ struct ubx_sbp_state {
 
   struct sat_data gps_sat[NUM_SATS_GPS];
   struct sat_data bds_sat[NUM_SATS_BDS];
+  struct gal_sat_data gal_sat[NUM_SATS_GAL];
 };
 
 double ubx_convert_msss_to_tow(u32 msss, const struct ubx_esf_state *state);
