@@ -284,7 +284,9 @@ void sbp2nmea_init(sbp2nmea_t *state, void (*cb_sbp_to_nmea)(u8 msg_id[])) {
   state->cb_sbp_to_nmea = cb_sbp_to_nmea;
 }
 
-void sbp2nmea_ctx_init(sbp2nmea_t *state, void (*cb_sbp_to_nmea_ctx)(char *msg, void *ctx), void* ctx) {
+void sbp2nmea_ctx_init(sbp2nmea_t *state,
+                       void (*cb_sbp_to_nmea_ctx)(char *msg, void *ctx),
+                       void *ctx) {
   memset(state, 0, sizeof(*state));
   state->cb_sbp_to_nmea_ctx = cb_sbp_to_nmea_ctx;
   state->ctx = ctx;
