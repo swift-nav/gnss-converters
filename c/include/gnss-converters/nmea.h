@@ -19,6 +19,10 @@
 #include <swiftnav/common.h>
 #include <swiftnav/gnss_time.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The "QI" stands for "Quality Indicator" which is the terminology used
    for this field in the NMEA specification. */
 #define NMEA_GGA_QI_INVALID 0
@@ -56,4 +60,9 @@ void send_gsv(const sbp2nmea_t *state);
 char get_nmea_status(u8 flags);
 char get_nmea_mode_indicator(u8 flags);
 u8 get_nmea_quality_indicator(u8 flags);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* SWIFTNAV_NMEA_H */

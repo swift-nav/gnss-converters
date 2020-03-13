@@ -251,7 +251,12 @@ void sbp2nmea_obs(sbp2nmea_t *state,
 }
 
 void sbp2nmea_to_str(const sbp2nmea_t *state, char *sentence) {
-  state->cb_sbp_to_nmea(sentence);
+  if (state->cb_sbp_to_nmea) {
+    state->cb_sbp_to_nmea(sentence);
+  }
+  if (state->cb_sbp_to_nmea_ctx) {
+    state->cb_sbp_to_nmea_ctx(sentence, state->ctx);
+  }
 }
 
 void *sbp2nmea_msg_get(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id) {
@@ -277,4 +282,10 @@ void sbp2nmea_soln_freq_set(sbp2nmea_t *state, float soln_freq) {
 void sbp2nmea_init(sbp2nmea_t *state, void (*cb_sbp_to_nmea)(u8 msg_id[])) {
   memset(state, 0, sizeof(*state));
   state->cb_sbp_to_nmea = cb_sbp_to_nmea;
+}
+
+void sbp2nmea_ctx_init(sbp2nmea_t *state, void (*cb_sbp_to_nmea_ctx)(char *msg, void *ctx), void* ctx) {
+  memset(state, 0, sizeof(*state));
+  state->cb_sbp_to_nmea_ctx = cb_sbp_to_nmea_ctx;
+  state->ctx = ctx;
 }
