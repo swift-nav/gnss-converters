@@ -18,8 +18,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../src/sbp_nmea_internal.h"
 
+#include "../src/sbp_nmea_internal.h"
 #include "check_suites.h"
 #include "config.h"
 #include "nmea_truth.h"
@@ -45,21 +45,8 @@ static bool nmea_gsa_processed = false;
 static bool nmea_gpgst_processed = false;
 static bool nmea_gpgsv_processed = false;
 
-enum nmea_callback_index {
-  gpgga,
-  gprmc,
-  gpvtg,
-  gpgll,
-  gpzda,
-  gsa,
-  gpgst,
-  gpgsv,
-  //
-  nmea_callback_index_count
-};
-
-static int msg_count[nmea_callback_index_count];
-static bool start_count[nmea_callback_index_count];
+static int msg_count[SBP2NMEA_NMEA_CNT];
+static bool start_count[SBP2NMEA_NMEA_CNT];
 
 int32_t read_file(uint8_t *buff, uint32_t n, void *context) {
   FILE *f = (FILE *)context;
@@ -68,24 +55,26 @@ int32_t read_file(uint8_t *buff, uint32_t n, void *context) {
 
 void nmea_callback_gpgga(u8 msg[]) {
   if (strstr((char *)msg, "GGA")) {
-    if ((strstr((char *)msg, "193508.20") || start_count[gpgga]) &&
-        msg_count[gpgga] < 10) {
+    if ((strstr((char *)msg, "193508.20") || start_count[SBP2NMEA_NMEA_GGA]) &&
+        msg_count[SBP2NMEA_NMEA_GGA] < 10) {
       nmea_gpgga_processed = true;
-      start_count[gpgga] = true;
+      start_count[SBP2NMEA_NMEA_GGA] = true;
       msg[strcspn((char *)msg, "\r\n")] = '\0';
-      ck_assert(strcmp((char *)msg, gpgga_truth[msg_count[gpgga]++]) == 0);
+      ck_assert(strcmp((char *)msg,
+                       gpgga_truth[msg_count[SBP2NMEA_NMEA_GGA]++]) == 0);
     }
   }
 }
 
 void nmea_callback_gprmc(u8 msg[]) {
   if (strstr((char *)msg, "RMC")) {
-    if ((strstr((char *)msg, "193502.00") || start_count[gprmc]) &&
-        msg_count[gprmc] < 10) {
+    if ((strstr((char *)msg, "193502.00") || start_count[SBP2NMEA_NMEA_RMC]) &&
+        msg_count[SBP2NMEA_NMEA_RMC] < 10) {
       nmea_gprmc_processed = true;
-      start_count[gprmc] = true;
+      start_count[SBP2NMEA_NMEA_RMC] = true;
       msg[strcspn((char *)msg, "\r\n")] = '\0';
-      ck_assert(strcmp((char *)msg, gprmc_truth[msg_count[gprmc]++]) == 0);
+      ck_assert(strcmp((char *)msg,
+                       gprmc_truth[msg_count[SBP2NMEA_NMEA_RMC]++]) == 0);
     }
   }
 }
@@ -93,36 +82,39 @@ void nmea_callback_gprmc(u8 msg[]) {
 void nmea_callback_gpvtg(u8 msg[]) {
   if (strstr((char *)msg, "VTG")) {
     if ((strstr((char *)msg, "$GPVTG,,T,,M,0.02,N,0.04,K,A*25") ||
-         start_count[gpvtg]) &&
-        msg_count[gpvtg] < 10) {
+         start_count[SBP2NMEA_NMEA_VTG]) &&
+        msg_count[SBP2NMEA_NMEA_VTG] < 10) {
       nmea_gpvtg_processed = true;
-      start_count[gpvtg] = true;
+      start_count[SBP2NMEA_NMEA_VTG] = true;
       msg[strcspn((char *)msg, "\r\n")] = '\0';
-      ck_assert(strcmp((char *)msg, gpvtg_truth[msg_count[gpvtg]++]) == 0);
+      ck_assert(strcmp((char *)msg,
+                       gpvtg_truth[msg_count[SBP2NMEA_NMEA_VTG]++]) == 0);
     }
   }
 }
 
 void nmea_callback_gpgll(u8 msg[]) {
   if (strstr((char *)msg, "GLL")) {
-    if ((strstr((char *)msg, "193502.00") || start_count[gpgll]) &&
-        msg_count[gpgll] < 10) {
+    if ((strstr((char *)msg, "193502.00") || start_count[SBP2NMEA_NMEA_GLL]) &&
+        msg_count[SBP2NMEA_NMEA_GLL] < 10) {
       nmea_gpgll_processed = true;
-      start_count[gpgll] = true;
+      start_count[SBP2NMEA_NMEA_GLL] = true;
       msg[strcspn((char *)msg, "\r\n")] = '\0';
-      ck_assert(strcmp((char *)msg, gpgll_truth[msg_count[gpgll]++]) == 0);
+      ck_assert(strcmp((char *)msg,
+                       gpgll_truth[msg_count[SBP2NMEA_NMEA_GLL]++]) == 0);
     }
   }
 }
 
 void nmea_callback_gpzda(u8 msg[]) {
   if (strstr((char *)msg, "ZDA")) {
-    if ((strstr((char *)msg, "193502.00") || start_count[gpzda]) &&
-        msg_count[gpzda] < 10) {
+    if ((strstr((char *)msg, "193502.00") || start_count[SBP2NMEA_NMEA_ZDA]) &&
+        msg_count[SBP2NMEA_NMEA_ZDA] < 10) {
       nmea_gpzda_processed = true;
-      start_count[gpzda] = true;
+      start_count[SBP2NMEA_NMEA_ZDA] = true;
       msg[strcspn((char *)msg, "\r\n")] = '\0';
-      ck_assert(strcmp((char *)msg, gpzda_truth[msg_count[gpzda]++]) == 0);
+      ck_assert(strcmp((char *)msg,
+                       gpzda_truth[msg_count[SBP2NMEA_NMEA_ZDA]++]) == 0);
     }
   }
 }
@@ -145,34 +137,37 @@ void nmea_callback_gsa(u8 msg[]) {
   if (strstr((char *)msg, "GSA")) {
     if ((strstr((char *)msg,
                 "$GNGSA,A,3,414,421,426,429,435,436,,,,,,,1.8,0.9,1.6*21") ||
-         start_count[gsa]) &&
-        msg_count[gsa] < 10) {
+         start_count[SBP2NMEA_NMEA_GSA]) &&
+        msg_count[SBP2NMEA_NMEA_GSA] < 10) {
       nmea_gsa_processed = true;
-      start_count[gsa] = true;
+      start_count[SBP2NMEA_NMEA_GSA] = true;
       msg[strcspn((char *)msg, "\r\n")] = '\0';
-      ck_assert(strcmp((char *)msg, gsa_truth[msg_count[gsa]++]) == 0);
+      ck_assert(
+          strcmp((char *)msg, gsa_truth[msg_count[SBP2NMEA_NMEA_GSA]++]) == 0);
     }
   }
 }
 
 void nmea_callback_gpgst(u8 msg[]) {
   if (strstr((char *)msg, "GST")) {
-    if ((strstr((char *)msg, "193501.80") || start_count[gpgst]) &&
-        msg_count[gpgst] < 10) {
+    if ((strstr((char *)msg, "193501.80") || start_count[SBP2NMEA_NMEA_GST]) &&
+        msg_count[SBP2NMEA_NMEA_GST] < 10) {
       nmea_gpgst_processed = true;
-      start_count[gpgst] = true;
+      start_count[SBP2NMEA_NMEA_GST] = true;
       msg[strcspn((char *)msg, "\r\n")] = '\0';
-      ck_assert(strcmp((char *)msg, gst_truth[msg_count[gpgst]++]) == 0);
+      ck_assert(
+          strcmp((char *)msg, gst_truth[msg_count[SBP2NMEA_NMEA_GST]++]) == 0);
     }
   }
 }
 
 void nmea_callback_gpgsv(u8 msg[]) {
   if (strstr((char *)msg, "GSV")) {
-    if (msg_count[gpgsv] < 10) {
+    if (msg_count[SBP2NMEA_NMEA_GSV] < 10) {
       nmea_gpgsv_processed = true;
       msg[strcspn((char *)msg, "\r\n")] = '\0';
-      ck_assert(strcmp((char *)msg, gsv_truth[msg_count[gpgsv]++]) == 0);
+      ck_assert(
+          strcmp((char *)msg, gsv_truth[msg_count[SBP2NMEA_NMEA_GSV]++]) == 0);
     }
   }
 }
