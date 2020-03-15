@@ -53,7 +53,8 @@ int32_t read_file(uint8_t *buff, uint32_t n, void *context) {
   return (int32_t)(fread(buff, 1, n, f));
 }
 
-void nmea_callback_gpgga(u8 msg[]) {
+void nmea_callback_gpgga(char msg[], void* ctx) {
+  (void) ctx;
   if (strstr((char *)msg, "GGA")) {
     if ((strstr((char *)msg, "193508.20") || start_count[SBP2NMEA_NMEA_GGA]) &&
         msg_count[SBP2NMEA_NMEA_GGA] < 10) {
@@ -66,7 +67,8 @@ void nmea_callback_gpgga(u8 msg[]) {
   }
 }
 
-void nmea_callback_gprmc(u8 msg[]) {
+void nmea_callback_gprmc(char msg[], void* ctx) {
+  (void) ctx;
   if (strstr((char *)msg, "RMC")) {
     if ((strstr((char *)msg, "193502.00") || start_count[SBP2NMEA_NMEA_RMC]) &&
         msg_count[SBP2NMEA_NMEA_RMC] < 10) {
@@ -79,7 +81,8 @@ void nmea_callback_gprmc(u8 msg[]) {
   }
 }
 
-void nmea_callback_gpvtg(u8 msg[]) {
+void nmea_callback_gpvtg(char msg[], void* ctx) {
+  (void) ctx;
   if (strstr((char *)msg, "VTG")) {
     if ((strstr((char *)msg, "$GPVTG,,T,,M,0.02,N,0.04,K,A*25") ||
          start_count[SBP2NMEA_NMEA_VTG]) &&
@@ -93,7 +96,8 @@ void nmea_callback_gpvtg(u8 msg[]) {
   }
 }
 
-void nmea_callback_gpgll(u8 msg[]) {
+void nmea_callback_gpgll(char msg[], void* ctx) {
+  (void) ctx;
   if (strstr((char *)msg, "GLL")) {
     if ((strstr((char *)msg, "193502.00") || start_count[SBP2NMEA_NMEA_GLL]) &&
         msg_count[SBP2NMEA_NMEA_GLL] < 10) {
@@ -106,7 +110,8 @@ void nmea_callback_gpgll(u8 msg[]) {
   }
 }
 
-void nmea_callback_gpzda(u8 msg[]) {
+void nmea_callback_gpzda(char msg[], void* ctx) {
+  (void) ctx;
   if (strstr((char *)msg, "ZDA")) {
     if ((strstr((char *)msg, "193502.00") || start_count[SBP2NMEA_NMEA_ZDA]) &&
         msg_count[SBP2NMEA_NMEA_ZDA] < 10) {
@@ -133,7 +138,8 @@ void nmea_callback_gpzda(u8 msg[]) {
   }
 } */
 
-void nmea_callback_gsa(u8 msg[]) {
+void nmea_callback_gsa(char msg[], void* ctx) {
+  (void) ctx;
   if (strstr((char *)msg, "GSA")) {
     if ((strstr((char *)msg,
                 "$GNGSA,A,3,414,421,426,429,435,436,,,,,,,1.8,0.9,1.6*21") ||
@@ -148,7 +154,8 @@ void nmea_callback_gsa(u8 msg[]) {
   }
 }
 
-void nmea_callback_gpgst(u8 msg[]) {
+void nmea_callback_gpgst(char msg[], void* ctx) {
+  (void) ctx;
   if (strstr((char *)msg, "GST")) {
     if ((strstr((char *)msg, "193501.80") || start_count[SBP2NMEA_NMEA_GST]) &&
         msg_count[SBP2NMEA_NMEA_GST] < 10) {
@@ -161,7 +168,8 @@ void nmea_callback_gpgst(u8 msg[]) {
   }
 }
 
-void nmea_callback_gpgsv(u8 msg[]) {
+void nmea_callback_gpgsv(char msg[], void* ctx) {
+  (void) ctx;
   if (strstr((char *)msg, "GSV")) {
     if (msg_count[SBP2NMEA_NMEA_GSV] < 10) {
       nmea_gpgsv_processed = true;
@@ -285,17 +293,12 @@ void sbp_init(sbp_state_t *sbp_state, void *ctx) {
                         &observation_callback_node);
 }
 
-void cb_sbp_to_nmea_ctx_passthrough(char *msg, void *context) {
-  void (*cb)(u8[]) = context;
-  cb((u8 *)msg);
-}
-
-void test_NMEA(const char *filename, void (*cb_sbp_to_nmea)(u8 msg[])) {
+void test_NMEA(const char *filename, void (*cb_sbp_to_nmea)(char msg[], void* ctx)) {
   memset(&msg_count, 0, sizeof(msg_count));
   memset(&start_count, 0, sizeof(start_count));
 
   sbp2nmea_t state = {0};
-  sbp2nmea_init(&state, cb_sbp_to_nmea_ctx_passthrough, cb_sbp_to_nmea);
+  sbp2nmea_init(&state, cb_sbp_to_nmea, NULL);
   sbp2nmea_base_id_set(&state, 33);
   sbp2nmea_soln_freq_set(&state, 10);
   sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GGA);
