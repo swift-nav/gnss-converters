@@ -285,51 +285,17 @@ void sbp_init(sbp_state_t *sbp_state, void *ctx) {
                         &observation_callback_node);
 }
 
-void test_NMEA(const char *filename, void (*cb_sbp_to_nmea)(u8 msg[])) {
-  memset(&msg_count, 0, sizeof(msg_count));
-  memset(&start_count, 0, sizeof(start_count));
-
-  sbp2nmea_t state = {0};
-  sbp2nmea_init(&state, cb_sbp_to_nmea);
-  sbp2nmea_base_id_set(&state, 33);
-  sbp2nmea_soln_freq_set(&state, 10);
-  sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GGA);
-  sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_RMC);
-  sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_VTG);
-  /*sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_HDT);*/
-  sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_GLL);
-  sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_ZDA);
-  sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GSA);
-  sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GST);
-  sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_GSV);
-
-  sbp_state_t sbp_state_;
-  sbp_init(&sbp_state_, &state);
-
-  FILE *fp = fopen(filename, "rb");
-  if (fp == NULL) {
-    fprintf(stderr, "Can't open input file! %s\n", filename);
-    exit(1);
-  }
-  sbp_state_set_io_context(&sbp_state_, fp);
-  while (!feof(fp)) {
-    sbp_process(&sbp_state_, &read_file);
-  }
-  fclose(fp);
-  return;
-}
-
 void cb_sbp_to_nmea_ctx_passthrough(char *msg, void *context) {
   void (*cb)(u8[]) = context;
   cb((u8 *)msg);
 }
 
-void test_NMEA_ctx(const char *filename, void (*cb_sbp_to_nmea)(u8 msg[])) {
+void test_NMEA(const char *filename, void (*cb_sbp_to_nmea)(u8 msg[])) {
   memset(&msg_count, 0, sizeof(msg_count));
   memset(&start_count, 0, sizeof(start_count));
 
   sbp2nmea_t state = {0};
-  sbp2nmea_ctx_init(&state, cb_sbp_to_nmea_ctx_passthrough, cb_sbp_to_nmea);
+  sbp2nmea_init(&state, cb_sbp_to_nmea_ctx_passthrough, cb_sbp_to_nmea);
   sbp2nmea_base_id_set(&state, 33);
   sbp2nmea_soln_freq_set(&state, 10);
   sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GGA);
@@ -361,34 +327,19 @@ void test_NMEA_ctx(const char *filename, void (*cb_sbp_to_nmea)(u8 msg[])) {
 void nmea_setup_basic(void) { return; }
 
 START_TEST(test_nmea_gpgga) {
-  nmea_gpgga_processed = false;
   test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpgga);
-  ck_assert(nmea_gpgga_processed);
-
-  nmea_gpgga_processed = false;
-  test_NMEA_ctx(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpgga);
   ck_assert(nmea_gpgga_processed);
 }
 END_TEST
 
 START_TEST(test_nmea_gprmc) {
-  nmea_gprmc_processed = false;
   test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gprmc);
-  ck_assert(nmea_gprmc_processed);
-
-  nmea_gprmc_processed = false;
-  test_NMEA_ctx(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gprmc);
   ck_assert(nmea_gprmc_processed);
 }
 END_TEST
 
 START_TEST(test_nmea_gpvtg) {
-  nmea_gpvtg_processed = false;
   test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpvtg);
-  ck_assert(nmea_gpvtg_processed);
-
-  nmea_gpvtg_processed = false;
-  test_NMEA_ctx(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpvtg);
   ck_assert(nmea_gpvtg_processed);
 }
 END_TEST
@@ -401,56 +352,31 @@ END_TEST
 END_TEST */
 
 START_TEST(test_nmea_gpgll) {
-  nmea_gpgll_processed = false;
   test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpgll);
-  ck_assert(nmea_gpgll_processed);
-
-  nmea_gpgll_processed = false;
-  test_NMEA_ctx(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpgll);
   ck_assert(nmea_gpgll_processed);
 }
 END_TEST
 
 START_TEST(test_nmea_gpzda) {
-  nmea_gpzda_processed = false;
   test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpzda);
-  ck_assert(nmea_gpzda_processed);
-
-  nmea_gpzda_processed = false;
-  test_NMEA_ctx(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpzda);
   ck_assert(nmea_gpzda_processed);
 }
 END_TEST
 
 START_TEST(test_nmea_gsa) {
-  nmea_gsa_processed = false;
   test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gsa);
-  ck_assert(nmea_gsa_processed);
-
-  nmea_gsa_processed = false;
-  test_NMEA_ctx(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gsa);
   ck_assert(nmea_gsa_processed);
 }
 END_TEST
 
 START_TEST(test_nmea_gpgst) {
-  nmea_gpgst_processed = false;
   test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpgst);
-  ck_assert(nmea_gpgst_processed);
-
-  nmea_gpgst_processed = false;
-  test_NMEA_ctx(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpgst);
   ck_assert(nmea_gpgst_processed);
 }
 END_TEST
 
 START_TEST(test_nmea_gpgsv) {
-  nmea_gpgsv_processed = false;
   test_NMEA(RELATIVE_PATH_PREFIX "/data/azel-sbp.sbp", nmea_callback_gpgsv);
-  ck_assert(nmea_gpgsv_processed);
-
-  nmea_gpgsv_processed = false;
-  test_NMEA_ctx(RELATIVE_PATH_PREFIX "/data/azel-sbp.sbp", nmea_callback_gpgsv);
   ck_assert(nmea_gpgsv_processed);
 }
 END_TEST
