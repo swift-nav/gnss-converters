@@ -10,8 +10,6 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include "sbp_nmea_internal.h"
-
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -24,6 +22,8 @@
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/memcpy_s.h>
 #include <swiftnav/signal.h>
+
+#include "sbp_nmea_internal.h"
 
 struct nmea_meta_entry {
   uint16_t tow_mask;
@@ -251,7 +251,7 @@ void sbp2nmea_obs(sbp2nmea_t *state,
 }
 
 void sbp2nmea_to_str(const sbp2nmea_t *state, char *sentence) {
-  state->cb_sbp_to_nmea(sentence);
+  state->cb_sbp_to_nmea(sentence, state->ctx);
 }
 
 void *sbp2nmea_msg_get(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id) {
@@ -274,7 +274,10 @@ void sbp2nmea_soln_freq_set(sbp2nmea_t *state, float soln_freq) {
   state->soln_freq = soln_freq;
 }
 
-void sbp2nmea_init(sbp2nmea_t *state, void (*cb_sbp_to_nmea)(u8 msg_id[])) {
+void sbp2nmea_init(sbp2nmea_t *state,
+                   void (*cb_sbp_to_nmea)(char *msg, void *ctx),
+                   void *ctx) {
   memset(state, 0, sizeof(*state));
   state->cb_sbp_to_nmea = cb_sbp_to_nmea;
+  state->ctx = ctx;
 }

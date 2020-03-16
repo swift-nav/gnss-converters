@@ -78,14 +78,17 @@ typedef struct sbp2nmea_state {
 
   float soln_freq;
 
-  void (*cb_sbp_to_nmea)();
+  void (*cb_sbp_to_nmea)(char *msg, void *ctx);
+  void *ctx;
 } sbp2nmea_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void sbp2nmea_init(sbp2nmea_t *state, void (*cb_sbp_to_nmea)(u8 msg_id[]));
+void sbp2nmea_init(sbp2nmea_t *state,
+                   void (*cb_sbp_to_nmea)(char *msg, void *ctx),
+                   void *ctx);
 
 void sbp2nmea(sbp2nmea_t *state,
               u8 len,
