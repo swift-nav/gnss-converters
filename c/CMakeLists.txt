@@ -20,7 +20,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU")
   # when using a GNU compiler. Doesn't apply when using clang compiler.
   set(clang_tidy_extra_args "EXTRA_ARGS" "-extra-arg=-Wno-unknown-warning-option")
 endif()
-swift_setup_clang_tidy(PATTERNS 'c/src/*.cc' ${clang_tidy_extra_args})
+swift_setup_clang_tidy(PATTERNS 'src/*.c' ${clang_tidy_extra_args})
 include(CodeCoverage)
 add_code_coverage_all_targets()
 

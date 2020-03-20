@@ -173,6 +173,8 @@ __attribute__((format(printf, 3, 4))) static void vsnprintf_wrap(
   va_list args;
   va_start(args, format);
 
+  /* see clang-tidy bug https://bugs.llvm.org/show_bug.cgi?id=41311 */
+  /* NOLINTNEXTLINE(clang-analyzer-valist.Uninitialized) */
   int res = vsnprintf(*buf_ptr, buf_end - *buf_ptr, format, args);
 
   va_end(args);

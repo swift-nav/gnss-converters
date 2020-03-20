@@ -89,7 +89,7 @@ pipeline {
 
                         sh '''#!/bin/bash -ex
                             (cd c && cd build && make clang-tidy-all)
-                            if [ -e "fixes.yaml" ]; then
+                            if [ -e "c/fixes.yaml" ]; then
                                 echo "clang-tidy warning found"
                                 exit 1
                             fi
@@ -97,7 +97,7 @@ pipeline {
                     }
                     post {
                         always {
-                            archiveArtifacts(artifacts: 'fixes.yaml', allowEmptyArchive: true)
+                            archiveArtifacts(artifacts: 'c/fixes.yaml', allowEmptyArchive: true)
                         }
                     }
                 }
