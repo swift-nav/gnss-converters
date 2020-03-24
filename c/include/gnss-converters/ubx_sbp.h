@@ -68,6 +68,7 @@ struct ubx_sbp_state {
   struct sat_data gps_sat[NUM_SATS_GPS];
   struct sat_data bds_sat[NUM_SATS_BDS];
   struct gal_sat_data gal_sat[NUM_SATS_GAL];
+  u32 last_tow_ms;
 };
 
 double ubx_convert_msss_to_tow(u32 msss, const struct ubx_esf_state *state);

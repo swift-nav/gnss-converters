@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2019 Swift Navigation Inc.
- * Contact: Swift Navigation <dev@swiftnav.com>
+ * Copyright (C) 2020 Swift Navigation Inc.
+ * Contact: Swift Navigation <dev@swift-nav.com>
  *
  * This source is subject to the license found in the file 'LICENSE' which must
  * be be distributed together with this source. All other rights reserved.
@@ -10,17 +10,12 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef CHECK_UBX_H
-#define CHECK_UBX_H
+#ifndef GNSS_CONVERTERS_SBAS_H
+#define GNSS_CONVERTERS_SBAS_H
 
-#include <libsbp/logging.h>
+void sbas_decode_subframe(struct ubx_sbp_state *data,
+                          int prn,
+                          const u32 words[],
+                          int sz);
 
-#include <ubx/decode.h>
-#include <ubx/ubx_messages.h>
-
-#define MAX_FILE_SIZE 1048576
-
-void ubx_setup_basic(void);
-void test_UBX(struct ubx_sbp_state *state, const char *filename);
-
-#endif /* CHECK_UBX_H */
+#endif /* #ifndef GNSS_CONVERTERS_SBAS_H */

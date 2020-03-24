@@ -22,6 +22,7 @@
 #include <libsbp/edc.h>
 #include <libsbp/imu.h>
 #include <libsbp/orientation.h>
+#include <libsbp/sbas.h>
 #include <libsbp/vehicle.h>
 
 #include <gnss-converters/ubx_sbp.h>
@@ -158,6 +159,16 @@ static void ubx_sbp_callback_rxm_sfrbx_gal(
   u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
   crc = crc16_ccitt(buff, length, crc);
   ck_assert(crc == rxm_sfrbx_gal_crc);
+}
+
+static void ubx_sbp_callback_rxm_sfrbx_sbas(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)buff;
+  (void)sender_id;
+  (void)context;
+
+  ck_assert(msg_id == SBP_MSG_SBAS_RAW);
+  ck_assert(length == 34);
 }
 
 static void ubx_sbp_callback_nav_status(
@@ -450,7 +461,7 @@ int read_file_check_ubx(uint8_t *buf, size_t len, void *ctx) {
   return fread(buf, sizeof(uint8_t), len, fp);
 }
 
-void test_UBX(struct ubx_sbp_state state, const char *filename) {
+void test_UBX(struct ubx_sbp_state *state, const char *filename) {
   fp = fopen(filename, "rb");
   if (fp == NULL) {
     fprintf(stderr, "Can't open input file! %s\n", filename);
@@ -459,7 +470,7 @@ void test_UBX(struct ubx_sbp_state state, const char *filename) {
 
   int ret;
   do {
-    ret = ubx_sbp_process(&state, &read_file_check_ubx);
+    ret = ubx_sbp_process(state, &read_file_check_ubx);
   } while (ret > 0);
 }
 
@@ -468,7 +479,7 @@ START_TEST(test_hnr_pvt) {
   ubx_sbp_init(&state, ubx_sbp_callback_hnr_pvt, NULL);
 
   ubx_set_hnr_flag(&state, true);
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/hnr_pvt.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/hnr_pvt.ubx");
 }
 END_TEST
 
@@ -477,7 +488,7 @@ START_TEST(test_hnr_pvt_disabled) {
   ubx_sbp_init(&state, ubx_sbp_callback_hnr_pvt_disabled, NULL);
 
   ubx_set_hnr_flag(&state, false);
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/hnr_pvt.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/hnr_pvt.ubx");
 }
 END_TEST
 
@@ -485,7 +496,7 @@ START_TEST(test_nav_att) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_nav_att, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_att.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/nav_att.ubx");
 }
 END_TEST
 
@@ -493,7 +504,9 @@ START_TEST(test_nav_pvt) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_nav_pvt, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_pvt.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/nav_pvt.ubx");
+
+  ck_assert(state.last_tow_ms < WEEK_MS);
 }
 END_TEST
 
@@ -501,7 +514,7 @@ START_TEST(test_nav_pvt_corrupted) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_nav_pvt_corrupted, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_pvt_corrupted.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/nav_pvt_corrupted.ubx");
 }
 END_TEST
 
@@ -509,7 +522,9 @@ START_TEST(test_nav_pvt_fix_type) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_nav_pvt_fix_type, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_pvt_fix_type.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/nav_pvt_fix_type.ubx");
+
+  ck_assert(state.last_tow_ms < WEEK_MS);
 }
 END_TEST
 
@@ -518,7 +533,7 @@ START_TEST(test_nav_pvt_set_sender_id) {
   ubx_sbp_init(&state, ubx_sbp_callback_nav_pvt_set_sender_id, NULL);
 
   ubx_set_sender_id(&state, 12345);
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_pvt.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/nav_pvt.ubx");
 }
 END_TEST
 
@@ -526,7 +541,7 @@ START_TEST(test_nav_vel_ecef) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_nav_vel_ecef, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_velecef.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/nav_velecef.ubx");
 }
 END_TEST
 
@@ -534,7 +549,7 @@ START_TEST(test_rxm_rawx) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_rxm_rawx, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_rawx.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/rxm_rawx.ubx");
 }
 END_TEST
 
@@ -542,7 +557,7 @@ START_TEST(test_rxm_sfrbx_gps) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx_gps, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx_gps.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx_gps.ubx");
 }
 END_TEST
 
@@ -550,7 +565,7 @@ START_TEST(test_rxm_sfrbx_bds) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx_bds, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx_bds.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx_bds.ubx");
 }
 END_TEST
 
@@ -558,7 +573,16 @@ START_TEST(test_rxm_sfrbx_gal) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx_gal, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx_gal.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx_gal.ubx");
+}
+END_TEST
+
+START_TEST(test_rxm_sfrbx_sbas) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx_sbas, NULL);
+  state.last_tow_ms = 250709100;
+
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx_sbas.ubx");
 }
 END_TEST
 
@@ -566,7 +590,7 @@ START_TEST(test_esf_meas) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_esf_meas, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/esf_meas.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/esf_meas.ubx");
 }
 END_TEST
 
@@ -574,7 +598,9 @@ START_TEST(test_nav_status) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_nav_status, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/nav_status.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/nav_status.ubx");
+
+  ck_assert(state.last_tow_ms < WEEK_MS);
 }
 END_TEST
 
@@ -582,7 +608,7 @@ START_TEST(test_esf_raw) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_esf_raw, NULL);
 
-  test_UBX(state, RELATIVE_PATH_PREFIX "/data/esf_raw.ubx");
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/esf_raw.ubx");
 }
 END_TEST
 
@@ -665,6 +691,7 @@ Suite *ubx_suite(void) {
   tcase_add_test(tc_rxm, test_rxm_sfrbx_gps);
   tcase_add_test(tc_rxm, test_rxm_sfrbx_bds);
   tcase_add_test(tc_rxm, test_rxm_sfrbx_gal);
+  tcase_add_test(tc_rxm, test_rxm_sfrbx_sbas);
   suite_add_tcase(s, tc_rxm);
 
   return s;
