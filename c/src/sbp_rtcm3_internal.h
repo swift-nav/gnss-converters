@@ -156,7 +156,7 @@ void sbp_to_rtcm3_bds_eph(const msg_ephemeris_bds_t *sbp_bds_eph,
                           rtcm_msg_eph *msg_eph,
                           const struct rtcm3_out_state *state);
 
-void sbp_to_rtcm3_gal_eph(const msg_ephemeris_gal_t *sbp_gps_eph,
+void sbp_to_rtcm3_gal_eph(const msg_ephemeris_gal_t *sbp_gal_eph,
                           rtcm_msg_eph *msg_eph,
                           const struct rtcm3_out_state *state);
 

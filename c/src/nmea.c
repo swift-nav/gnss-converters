@@ -66,7 +66,7 @@
 
 /* Based on testing calculated Course Over Ground starts deviating noticeably
  * below this limit. */
-#define NMEA_COG_STATIC_LIMIT_MS 0.1f
+#define NMEA_COG_STATIC_LIMIT_MS 0.1
 #define NMEA_COG_STATIC_LIMIT_KNOTS MS2KNOTS(NMEA_COG_STATIC_LIMIT_MS, 0, 0)
 #define NMEA_COG_STATIC_LIMIT_KPH MS2KMHR(NMEA_COG_STATIC_LIMIT_MS, 0, 0)
 
@@ -921,7 +921,8 @@ void send_gpgst(const sbp2nmea_t *state) {
     NMEA_SENTENCE_PRINTF("$GPGST,%s,,,,,,", utc);
     NMEA_SENTENCE_DONE(state);
     return;
-  } else if (constellations > 1) {
+  }
+  if (constellations > 1) {
     /* At bare minimum, print empty GNGST and be done with it */
     NMEA_SENTENCE_PRINTF("$GNGST,%s", utc);
   } else {
@@ -938,9 +939,9 @@ void send_gpgst(const sbp2nmea_t *state) {
 
   /* Compute the eigenvalues to get the semi-major and semi-minor axis of error
    * ellipse */
-  double std_n = sqrt(sbp_pos_llh_cov->cov_n_n);
-  double std_e = sqrt(sbp_pos_llh_cov->cov_e_e);
-  double std_d = sqrt(sbp_pos_llh_cov->cov_d_d);
+  double std_n = sqrtf(sbp_pos_llh_cov->cov_n_n);
+  double std_e = sqrtf(sbp_pos_llh_cov->cov_e_e);
+  double std_d = sqrtf(sbp_pos_llh_cov->cov_d_d);
 
   double trace = sbp_pos_llh_cov->cov_n_n + sbp_pos_llh_cov->cov_e_e;
   double det = sbp_pos_llh_cov->cov_n_n * sbp_pos_llh_cov->cov_e_e -

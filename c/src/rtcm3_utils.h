@@ -77,7 +77,7 @@ uint8_t convert_glo_uri_to_ura(float uri);
 uint8_t convert_bds_uri_to_ura(float uri);
 
 u32 rtcm3_decode_fit_interval_gps(u8 fit_interval_flag, u16 iodc);
-u8 rtcm3_encode_fit_interval_gps(u32 sbp_fit_interval);
+u8 rtcm3_encode_fit_interval_gps(u32 fit_interval);
 u8 rtcm3_encode_fit_interval_glo(u32 fit_interval);
 
 float convert_sisa_to_meters(const uint8_t sisa);

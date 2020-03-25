@@ -797,9 +797,9 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
                 freq, rtcm_obs->sats[sat].obs[freq].code, state);
             if (glo_sbp_code == CODE_INVALID) {
               continue;
-            } else {
-              sbp_freq->sid.code = glo_sbp_code;
             }
+            sbp_freq->sid.code = glo_sbp_code;
+
           } else {
             /* invalid PRN or slot number uknown*/
             continue;
@@ -1111,9 +1111,9 @@ void compute_gps_message_time(u32 tow_ms,
   obs_time->tow = tow_ms * MS_TO_S;
   obs_time->wn = rover_time->wn;
   double timediff = gpsdifftime(obs_time, rover_time);
-  if (timediff < -SEC_IN_WEEK / 2) {
+  if (timediff < -SEC_IN_WEEK / 2.0) {
     obs_time->wn = rover_time->wn + 1;
-  } else if (timediff > SEC_IN_WEEK / 2) {
+  } else if (timediff > SEC_IN_WEEK / 2.0) {
     obs_time->wn = rover_time->wn - 1;
   }
   assert(gps_time_valid(obs_time));
@@ -1167,7 +1167,7 @@ void compute_glo_time(u32 tod_ms,
 
   /* check for day rollover against reference time */
   double timediff = gpsdifftime(obs_time, rover_time);
-  if (fabs(timediff) > SEC_IN_DAY / 2) {
+  if (fabs(timediff) > SEC_IN_DAY / 2.0) {
     obs_time->tow += (timediff < 0 ? 1 : -1) * SEC_IN_DAY;
     normalize_gps_time(obs_time);
   }

@@ -157,7 +157,8 @@ int main(int argc, char **argv) {
           fprintf(stderr, "expecting GPS week number and time of week\n");
           help(argv[0]);
           return -1;
-        } else if (gps_time_valid(&(gps_time_t){time_of_week, week_num})) {
+        }
+        if (gps_time_valid(&(gps_time_t){time_of_week, week_num})) {
           ct_utc_unix = gps2time(&(gps_time_t){time_of_week, week_num});
         }
         break;
@@ -169,12 +170,12 @@ int main(int argc, char **argv) {
           fprintf(stderr, "expecting [year:month:day:hour]\n");
           help(argv[0]);
           return -1;
-        } else {
-          gps_time_t gps_time = date2gps(year, month, day, hour, 0, 0);
-          if (gps_time_valid(&gps_time)) {
-            ct_utc_unix = gps2time(&gps_time);
-          }
         }
+        gps_time_t gps_time = date2gps(year, month, day, hour, 0, 0);
+        if (gps_time_valid(&gps_time)) {
+          ct_utc_unix = gps2time(&gps_time);
+        }
+
         break;
       }
       case 'G':
@@ -237,7 +238,9 @@ static void parse_biases(char *arg) {
   char *tok = strtok(arg, ",");
   while (NULL != tok) {
     n = sscanf(tok, "%d:%f", &code, &bias);
-    if ((n != 2) || (code >= CODE_COUNT)) break;
+    if ((n != 2) || (code >= CODE_COUNT)) {
+      break;
+    }
     sbp_signal_biases[code] = bias;
     if (verbosity_level > VERB_NORMAL) {
       fprintf(stderr, "Applying %.1f m bias to code %02d\n", bias, code);
@@ -252,7 +255,9 @@ static void parse_glonass_code_biases(char *arg) {
   char *tok = strtok(arg, ",");
   while (NULL != tok) {
     n = sscanf(tok, "%d:%f", &code, &bias_fcn_ratio);
-    if (n != 2) break;
+    if (n != 2) {
+      break;
+    }
     if (code == CODE_GLO_L1OF) {
       sbp_glo_code_bias[0] = bias_fcn_ratio;
       if (verbosity_level > VERB_NORMAL) {
@@ -274,7 +279,9 @@ static void parse_glonass_phase_biases(char *arg) {
   char *tok = strtok(arg, ",");
   while (NULL != tok) {
     n = sscanf(tok, "%d:%f", &code, &bias_fcn_ratio);
-    if (n != 2) break;
+    if (n != 2) {
+      break;
+    }
     if (code == CODE_GLO_L1OF) {
       sbp_glo_phase_bias[0] = bias_fcn_ratio;
       if (verbosity_level > VERB_NORMAL) {

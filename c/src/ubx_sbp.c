@@ -123,9 +123,8 @@ static int read_ubx_bytes(u8 *buf, size_t length, struct ubx_sbp_state *state) {
       int reload_bytes = reload_ubx_buffer(state);
       if (reload_bytes <= 0) {
         return reload_bytes;
-      } else {
-        continue;
       }
+      continue;
     }
 
     size_t remaining_bytes = state->bytes_in_buffer - state->index;
@@ -203,9 +202,9 @@ static int read_ubx_frame(u8 *frame, struct ubx_sbp_state *state) {
     ubx_checksum(frame, 4 + payload_length, (u8 *)&checksum);
     if (memcmp(&checksum, frame + 4 + payload_length, 2) != 0) {
       continue;
-    } else {
-      return payload_length;
     }
+    return payload_length;
+
   } while (state->bytes_in_buffer != 0);
 
   return -1;
@@ -216,49 +215,64 @@ static code_t convert_ubx_gnssid_sigid(u8 gnss_id, u8 sig_id) {
   if ((gnss_id == 0) && (sig_id == 0)) {
     return CODE_GPS_L1CA;
     /* GPS L2 CL */
-  } else if ((gnss_id == UBX_GNSS_ID_GPS) && (sig_id == 3)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_GPS) && (sig_id == 3)) {
     return CODE_GPS_L2CL;
     /* GPS L2 CM */
-  } else if ((gnss_id == UBX_GNSS_ID_GPS) && (sig_id == 4)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_GPS) && (sig_id == 4)) {
     return CODE_GPS_L2CM;
     /* Galileo E1 C */
-  } else if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 0)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 0)) {
     return CODE_GAL_E1C;
     /* Galileo E1 B */
-  } else if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 1)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 1)) {
     return CODE_GAL_E1B;
     /* Galileo E5 bI */
-  } else if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 5)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 5)) {
     return CODE_GAL_E7I;
     /* Galileo E5 bQ */
-  } else if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 6)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 6)) {
     return CODE_GAL_E7Q;
     /* BeiDou B1I D1 */
-  } else if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 0)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 0)) {
     return CODE_BDS2_B1;
     /* BeiDou B1I D2 */
-  } else if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 1)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 1)) {
     return CODE_BDS2_B1;
     /* BeiDou B2I D1 */
-  } else if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 2)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 2)) {
     return CODE_BDS2_B2;
     /* BeiDou B2I D2 */
-  } else if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 3)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 3)) {
     return CODE_BDS2_B2;
     /* QZSS L1C/A */
-  } else if ((gnss_id == UBX_GNSS_ID_QZSS) && (sig_id == 0)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_QZSS) && (sig_id == 0)) {
     return CODE_QZS_L1CA;
     /* QZSS L2 CM */
-  } else if ((gnss_id == UBX_GNSS_ID_QZSS) && (sig_id == 4)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_QZSS) && (sig_id == 4)) {
     return CODE_QZS_L2CM;
     /* QZSS L2 CL */
-  } else if ((gnss_id == UBX_GNSS_ID_QZSS) && (sig_id == 5)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_QZSS) && (sig_id == 5)) {
     return CODE_QZS_L2CL;
     /* GLONASS L1 OF */
-  } else if ((gnss_id == UBX_GNSS_ID_GLO) && (sig_id == 0)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_GLO) && (sig_id == 0)) {
     return CODE_GLO_L1OF;
     /* GLONASS L2 OF */
-  } else if ((gnss_id == UBX_GNSS_ID_GLO) && (sig_id == 2)) {
+  }
+  if ((gnss_id == UBX_GNSS_ID_GLO) && (sig_id == 2)) {
     return CODE_GLO_L2OF;
   }
 
@@ -597,7 +611,8 @@ double ubx_convert_msss_to_tow(u32 msss, const struct ubx_esf_state *state) {
   double tow = MS_SECS * msss + state->time_since_startup_tow_offset;
   if (!state->tow_offset_set) {
     return -1;
-  } else if (msss < state->last_sync_msss - 100) {
+  }
+  if (msss < state->last_sync_msss - 100) {
     /* Rollover occured since last sync */
     const u32 msss_max = UINT32_MAX;
     const double time_since_startup_rollover = MS_SECS * msss_max + MS_SECS;
