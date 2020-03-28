@@ -568,7 +568,7 @@ void add_glo_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
   }
 
   if (!gps_time_valid(&state->last_glo_time) ||
-      gpsdifftime(&obs_time, &state->last_glo_time) > MS_TO_S / 2) {
+      gpsdifftime(&obs_time, &state->last_glo_time) > 0.5 / SECS_MS) {
     state->last_glo_time = obs_time;
     add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
   }
@@ -590,7 +590,7 @@ void add_gps_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
   }
 
   if (!gps_time_valid(&state->last_gps_time) ||
-      gpsdifftime(&obs_time, &state->last_gps_time) > MS_TO_S / 2) {
+      gpsdifftime(&obs_time, &state->last_gps_time) > 0.5 / SECS_MS) {
     state->last_gps_time = obs_time;
     add_obs_to_buffer(new_rtcm_obs, &obs_time, state);
   }
@@ -609,7 +609,7 @@ void add_obs_to_buffer(const rtcm_obs_message *new_rtcm_obs,
 
   /* Build an SBP time stamp */
   new_sbp_obs->header.t.wn = obs_time->wn;
-  new_sbp_obs->header.t.tow = (u32)rint(obs_time->tow * S_TO_MS);
+  new_sbp_obs->header.t.tow = (u32)rint(obs_time->tow * SECS_MS);
   new_sbp_obs->header.t.ns_residual = 0;
 
   rtcm3_to_sbp(new_rtcm_obs, new_sbp_obs, state);
@@ -1108,12 +1108,12 @@ void compute_gps_message_time(u32 tow_ms,
                               gps_time_t *obs_time,
                               const gps_time_t *rover_time) {
   assert(gps_time_valid(rover_time));
-  obs_time->tow = tow_ms * MS_TO_S;
+  obs_time->tow = (double)tow_ms / SECS_MS;
   obs_time->wn = rover_time->wn;
   double timediff = gpsdifftime(obs_time, rover_time);
-  if (timediff < -SEC_IN_WEEK / 2.0) {
+  if (timediff < -WEEK_SECS / 2.0) {
     obs_time->wn = rover_time->wn + 1;
-  } else if (timediff > SEC_IN_WEEK / 2.0) {
+  } else if (timediff > WEEK_SECS / 2.0) {
     obs_time->wn = rover_time->wn - 1;
   }
   assert(gps_time_valid(obs_time));
@@ -1122,8 +1122,8 @@ void compute_gps_message_time(u32 tow_ms,
 void beidou_tow_to_gps_tow(u32 *tow_ms) {
   /* BDS system time has a constant offset */
   *tow_ms += BDS_SECOND_TO_GPS_SECOND * SECS_MS;
-  if (*tow_ms >= SEC_IN_WEEK * S_TO_MS) {
-    *tow_ms -= SEC_IN_WEEK * S_TO_MS;
+  if (*tow_ms >= WEEK_SECS * SECS_MS) {
+    *tow_ms -= WEEK_SECS * SECS_MS;
   }
 }
 
@@ -1147,28 +1147,28 @@ void compute_glo_time(u32 tod_ms,
     obs_time->wn = INVALID_TIME;
     return;
   }
-  assert(tod_ms < (SEC_IN_DAY + 1) * S_TO_MS);
+  assert(tod_ms < (DAY_SECS + 1) * SECS_MS);
   assert(gps_time_valid(rover_time));
 
   /* Approximate DOW from the reference GPS time */
-  u8 glo_dow = (u8)(rover_time->tow / SEC_IN_DAY);
-  s32 glo_tod_ms = tod_ms - UTC_SU_OFFSET * SEC_IN_HOUR * S_TO_MS;
+  u8 glo_dow = (u8)(rover_time->tow / DAY_SECS);
+  s32 glo_tod_ms = tod_ms - UTC_SU_OFFSET * HOUR_SECS * SECS_MS;
 
   obs_time->wn = rover_time->wn;
-  s32 tow_ms = glo_dow * SEC_IN_DAY * S_TO_MS + glo_tod_ms +
-               state->leap_seconds * S_TO_MS;
+  s32 tow_ms =
+      glo_dow * DAY_SECS * SECS_MS + glo_tod_ms + state->leap_seconds * SECS_MS;
   while (tow_ms < 0) {
-    tow_ms += SEC_IN_WEEK * S_TO_MS;
+    tow_ms += WEEK_SECS * SECS_MS;
     obs_time->wn -= 1;
   }
-  obs_time->tow = tow_ms * MS_TO_S;
+  obs_time->tow = tow_ms / (double)SECS_MS;
 
   normalize_gps_time(obs_time);
 
   /* check for day rollover against reference time */
   double timediff = gpsdifftime(obs_time, rover_time);
-  if (fabs(timediff) > SEC_IN_DAY / 2.0) {
-    obs_time->tow += (timediff < 0 ? 1 : -1) * SEC_IN_DAY;
+  if (fabs(timediff) > DAY_SECS / 2.0) {
+    obs_time->tow += (timediff < 0 ? 1 : -1) * DAY_SECS;
     normalize_gps_time(obs_time);
   }
 }
@@ -1375,7 +1375,7 @@ void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
 
   /* Build an SBP time stamp */
   new_sbp_obs->header.t.wn = obs_time.wn;
-  new_sbp_obs->header.t.tow = (u32)rint(obs_time.tow * S_TO_MS);
+  new_sbp_obs->header.t.tow = (u32)rint(obs_time.tow * SECS_MS);
   new_sbp_obs->header.t.ns_residual = 0;
 
   rtcm3_msm_to_sbp(new_rtcm_obs, new_sbp_obs, state);

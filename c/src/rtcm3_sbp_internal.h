@@ -10,23 +10,16 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef GNSS_CONVERTERS_RTCM3_SBP_H
-#define GNSS_CONVERTERS_RTCM3_SBP_H
+#ifndef GNSS_CONVERTERS_RTCM3_SBP_INTERNAL_H
+#define GNSS_CONVERTERS_RTCM3_SBP_INTERNAL_H
 
 #include <rtcm3/messages.h>
 #include <rtcm3/msm_utils.h>
 #include <swiftnav/constants.h>
+#include <swiftnav/gnss_time.h>
 #include <swiftnav/signal.h>
+#include "common.h"
 #include "gnss-converters/rtcm3_sbp.h"
-
-#define MSG_OBS_P_MULTIPLIER ((double)5e1)
-#define MSG_OBS_CN0_MULTIPLIER ((float)4)
-#define MSG_OBS_LF_MULTIPLIER ((double)(1 << 8))
-#define MSG_OBS_DF_MULTIPLIER ((double)(1 << 8))
-#define MSG_OBS_FLAGS_CODE_VALID ((u8)(1 << 0))
-#define MSG_OBS_FLAGS_PHASE_VALID ((u8)(1 << 1))
-#define MSG_OBS_FLAGS_HALF_CYCLE_KNOWN ((u8)(1 << 2))
-#define MSG_OBS_FLAGS_DOPPLER_VALID ((u8)(1 << 3))
 
 /* message type range reserved for MSM */
 #define MSM_MSG_TYPE_MIN 1070
@@ -42,24 +35,10 @@
 #define CODE_WARNING_BUFFER_SIZE (100u)
 #define CODE_WARNING_FMT_STRING "Unsupported code received from base: %s"
 
-#define MS_TO_S 1e-3
-#define S_TO_MS 1000
-
-/** Number of milliseconds in a second. */
-#define SECS_MS 1000
-#define SEC_IN_DAY 86400
-#define SEC_IN_WEEK 604800
-#define SEC_IN_HOUR 3600
-#define SEC_IN_MINUTE 60
-#define SEC_IN_15MINUTES (60 * 15)
-
 /** Threshold for base measurements coming from the future */
 #define BASE_FUTURE_THRESHOLD_S 10
 /** Threshold for GLO time difference from rover */
 #define GLO_SANITY_THRESHOLD_S 30
-
-/** UTC (SU) offset (hours) */
-#define UTC_SU_OFFSET 3
 
 /** Constant difference of Galileo time from GPS time */
 #define GAL_WEEK_TO_GPS_WEEK 1024
@@ -196,7 +175,7 @@ void rtcm_log_callback_fn(uint8_t level,
                           void *context);
 
 static inline bool gps_time_sec_valid(const gps_time_sec_t *t) {
-  return (t->wn != INVALID_TIME) && (t->wn < MAX_WN) && (t->tow < SEC_IN_WEEK);
+  return (t->wn != INVALID_TIME) && (t->wn < MAX_WN) && (t->tow < WEEK_SECS);
 };
 
 void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
@@ -226,4 +205,4 @@ void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases,
 void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases,
                                  struct rtcm3_sbp_state *state);
 
-#endif /* GNSS_CONVERTERS_RTCM3_SBP_H */
+#endif /* GNSS_CONVERTERS_RTCM3_SBP_INTERNAL_H */

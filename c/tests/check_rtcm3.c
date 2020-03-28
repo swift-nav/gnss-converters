@@ -142,7 +142,7 @@ static uint32_t crc24q(const uint8_t *buf, uint32_t len, uint32_t crc) {
 }
 
 void update_obs_time(const msg_obs_t *msg) {
-  gps_time_t obs_time = {.tow = msg[0].header.t.tow * MS_TO_S,
+  gps_time_t obs_time = {.tow = (double)msg[0].header.t.tow / SECS_MS,
                          .wn = msg[0].header.t.wn};
   rtcm2sbp_set_gps_time(&obs_time, &state);
 }
@@ -1655,7 +1655,7 @@ static msg_ephemeris_bds_t get_example_bds_eph() {
   ret.common.toe.wn = 2022;
   ret.common.toe.tow = 460800;
   ret.common.ura = (float)2.8;
-  ret.common.fit_interval = 3 * SEC_IN_HOUR;
+  ret.common.fit_interval = 3 * HOUR_SECS;
   ret.common.valid = 1;
   ret.common.health_bits = 0;
   ret.tgd1 = (float)(-3 * 1e-10);
@@ -1731,7 +1731,7 @@ static msg_ephemeris_gal_t get_example_gal_eph() {
   ret.common.toe.wn = 2022;
   ret.common.toe.tow = 460800;
   ret.common.ura = (float)2.8;
-  ret.common.fit_interval = 4 * SEC_IN_HOUR;
+  ret.common.fit_interval = 4 * HOUR_SECS;
   ret.common.valid = 1;
   ret.common.health_bits = 0;
   ret.bgd_e1e5a = (float)(-3 * 1e-10);

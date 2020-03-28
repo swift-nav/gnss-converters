@@ -212,7 +212,7 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
   assert(sbp_glo_eph);
   assert(RTCM_CONSTELLATION_GLO == msg_eph->constellation);
   gps_time_t toe;
-  compute_glo_time(msg_eph->glo.t_b * SEC_IN_15MINUTES * S_TO_MS,
+  compute_glo_time(msg_eph->glo.t_b * 15 * MINUTE_SECS * SECS_MS,
                    &toe,
                    &state->time_from_rover_obs,
                    state);
@@ -243,7 +243,7 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_glo_eph->acc[2] = (float)(msg_eph->glo.acc[2] * C_1_2P30 * 1000);
 
   sbp_glo_eph->fcn = msg_eph->glo.fcn + 1;
-  sbp_glo_eph->iod = (msg_eph->glo.t_b * SEC_IN_15MINUTES) & 127u;
+  sbp_glo_eph->iod = (msg_eph->glo.t_b * 15 * MINUTE_SECS) & 127u;
 }
 
 void rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
@@ -265,7 +265,7 @@ void rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
   sbp_gal_eph->common.sid.code = CODE_GAL_E1B;
   sbp_gal_eph->common.ura = convert_sisa_to_meters(msg_eph->ura);
   /* Fit interval is hardcoded to 4 hours, as not present in RTCM fields */
-  sbp_gal_eph->common.fit_interval = 4 * SEC_IN_HOUR;
+  sbp_gal_eph->common.fit_interval = 4 * HOUR_SECS;
   sbp_gal_eph->common.valid = 1;
   sbp_gal_eph->common.health_bits = msg_eph->health_bits;
 
@@ -331,7 +331,7 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_bds_eph->common.sid.code = CODE_BDS2_B1;
   sbp_bds_eph->common.ura = convert_bds_ura_to_meters(msg_eph->ura);
   /* Fit interval is hardcoded to 3 hours, as not present in RTCM fields */
-  sbp_bds_eph->common.fit_interval = 3 * SEC_IN_HOUR;
+  sbp_bds_eph->common.fit_interval = 3 * HOUR_SECS;
   sbp_bds_eph->common.valid = 1;
   sbp_bds_eph->common.health_bits = msg_eph->health_bits;
 

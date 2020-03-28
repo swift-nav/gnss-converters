@@ -16,32 +16,10 @@
 #include <rtcm3/messages.h>
 #include <rtcm3/msm_utils.h>
 #include <swiftnav/constants.h>
+#include <swiftnav/gnss_time.h>
 #include <swiftnav/signal.h>
+#include "common.h"
 #include "gnss-converters/sbp_rtcm3.h"
-
-#define MSG_OBS_P_MULTIPLIER ((double)5e1)
-#define MSG_OBS_CN0_MULTIPLIER ((float)4)
-#define MSG_OBS_LF_MULTIPLIER ((double)(1 << 8))
-#define MSG_OBS_DF_MULTIPLIER ((double)(1 << 8))
-#define MSG_OBS_FLAGS_CODE_VALID ((u8)(1 << 0))
-#define MSG_OBS_FLAGS_PHASE_VALID ((u8)(1 << 1))
-#define MSG_OBS_FLAGS_HALF_CYCLE_KNOWN ((u8)(1 << 2))
-#define MSG_OBS_FLAGS_DOPPLER_VALID ((u8)(1 << 3))
-#define MSG_OBS_FLAGS_RAIM_EXCLUSION ((u8)(1 << 7))
-
-#define MS_TO_S 1e-3
-#define S_TO_MS 1000
-
-/** Number of milliseconds in a second. */
-#define SECS_MS 1000
-#define SEC_IN_DAY 86400
-#define SEC_IN_WEEK 604800
-#define SEC_IN_HOUR 3600
-#define SEC_IN_MINUTE 60
-#define SEC_IN_15MINUTES (60 * 15)
-
-/** UTC (SU) offset (hours) */
-#define UTC_SU_OFFSET 3
 
 /* Multiplier for glonass bias resolution scaling */
 #define GLO_BIAS_RESOLUTION 50.0

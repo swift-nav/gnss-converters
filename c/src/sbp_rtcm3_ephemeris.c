@@ -79,14 +79,14 @@ static bool compute_glo_time_of_day(const gps_time_t *obs_time,
     return false;
   }
   assert(gps_time_valid(obs_time));
-  s32 tod_glo_s = (s32)(obs_time->tow - state->leap_seconds) % SEC_IN_DAY;
-  tod_glo_s += UTC_SU_OFFSET * SEC_IN_HOUR;
+  s32 tod_glo_s = (s32)(obs_time->tow - state->leap_seconds) % DAY_SECS;
+  tod_glo_s += UTC_SU_OFFSET * HOUR_SECS;
 
-  if (tod_glo_s > SEC_IN_DAY) {
-    tod_glo_s -= SEC_IN_DAY;
+  if (tod_glo_s > DAY_SECS) {
+    tod_glo_s -= DAY_SECS;
   }
 
-  *t_b = tod_glo_s / SEC_IN_15MINUTES;
+  *t_b = tod_glo_s / (15 * MINUTE_SECS);
   return true;
 }
 
@@ -142,9 +142,8 @@ static void get_bds_wn_tow(const gps_time_t *input,
                            time_resolution);
   } else {
     *wn = (input->wn - BDS_WEEK_TO_GPS_WEEK - 1);
-    *tow =
-        (uint32_t)round((input->tow - BDS_SECOND_TO_GPS_SECOND + SEC_IN_WEEK) /
-                        time_resolution);
+    *tow = (uint32_t)round((input->tow - BDS_SECOND_TO_GPS_SECOND + WEEK_SECS) /
+                           time_resolution);
   }
   // Deal with rollover every 8192 weeks
   *wn = *wn % 8192;

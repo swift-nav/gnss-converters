@@ -44,17 +44,17 @@ START_TEST(test_compute_glo_time) {
     for (u8 hour = 0; hour < 24; hour++) {
       for (u8 min = 0; min < 60; min++) {
         for (u8 sec = 0; sec < 60; sec++) {
-          u32 tod = hour * SEC_IN_HOUR + min * SEC_IN_MINUTE + sec;
-          gps_time_t rover_time = {.tow = day * SEC_IN_DAY + tod, .wn = 1945};
+          u32 tod = hour * HOUR_SECS + min * MINUTE_SECS + sec;
+          gps_time_t rover_time = {.tow = day * DAY_SECS + tod, .wn = 1945};
           rtcm2sbp_set_gps_time(&rover_time, &state);
-          u32 glo_tod_ms = (tod + UTC_SU_OFFSET * SEC_IN_HOUR) * S_TO_MS;
-          if (glo_tod_ms > SEC_IN_DAY * S_TO_MS) {
-            glo_tod_ms -= SEC_IN_DAY * S_TO_MS;
+          u32 glo_tod_ms = (tod + UTC_SU_OFFSET * HOUR_SECS) * SECS_MS;
+          if (glo_tod_ms > DAY_SECS * SECS_MS) {
+            glo_tod_ms -= DAY_SECS * SECS_MS;
           }
           gps_time_t expected_time = rover_time;
           expected_time.tow += state.leap_seconds;
-          if (expected_time.tow >= SEC_IN_WEEK) {
-            expected_time.tow -= SEC_IN_WEEK;
+          if (expected_time.tow >= WEEK_SECS) {
+            expected_time.tow -= WEEK_SECS;
             expected_time.wn++;
           }
 
@@ -71,12 +71,12 @@ START_TEST(test_compute_glo_time) {
 END_TEST
 
 START_TEST(test_glo_time_conversion) {
-  for (u32 tow = 0; tow < SEC_IN_WEEK; tow++) {
+  for (u32 tow = 0; tow < WEEK_SECS; tow++) {
     gps_time_t rover_time = {.tow = tow, .wn = 1945};
     rtcm2sbp_set_gps_time(&rover_time, &state);
 
     u32 glo_tod_ms =
-        compute_glo_tod_ms((u32)rint(rover_time.tow * S_TO_MS), &out_state);
+        compute_glo_tod_ms((u32)rint(rover_time.tow * SECS_MS), &out_state);
 
     gps_time_t obs_time;
     compute_glo_time(glo_tod_ms, &obs_time, &rover_time, &state);

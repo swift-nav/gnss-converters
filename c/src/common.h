@@ -19,6 +19,16 @@
 #include "swiftnav/ephemeris.h"
 #include "swiftnav/signal.h"
 
+#define MSG_OBS_P_MULTIPLIER ((double)5e1)
+#define MSG_OBS_CN0_MULTIPLIER ((float)4)
+#define MSG_OBS_LF_MULTIPLIER ((double)(1 << 8))
+#define MSG_OBS_DF_MULTIPLIER ((double)(1 << 8))
+#define MSG_OBS_FLAGS_CODE_VALID ((u8)(1 << 0))
+#define MSG_OBS_FLAGS_PHASE_VALID ((u8)(1 << 1))
+#define MSG_OBS_FLAGS_HALF_CYCLE_KNOWN ((u8)(1 << 2))
+#define MSG_OBS_FLAGS_DOPPLER_VALID ((u8)(1 << 3))
+#define MSG_OBS_FLAGS_RAIM_EXCLUSION ((u8)(1 << 7))
+
 typedef union {
   msg_ephemeris_gps_t gps;
   msg_ephemeris_bds_t bds;

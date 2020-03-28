@@ -73,7 +73,7 @@ double sbp_diff_time(const sbp_gps_time_t *end,
                      const sbp_gps_time_t *beginning) {
   s32 week_diff = end->wn - beginning->wn;
   double dt = (double)end->tow / SECS_MS - (double)beginning->tow / SECS_MS;
-  dt += week_diff * SEC_IN_WEEK;
+  dt += week_diff * WEEK_SECS;
   return dt;
 }
 
@@ -392,10 +392,10 @@ void sbp2rtcm_set_rcv_ant_descriptors(const char *ant_descriptor,
 
 void gps_tow_to_beidou_tow(u32 *tow_ms) {
   /* BDS system time has a constant offset */
-  if (*tow_ms < BDS_SECOND_TO_GPS_SECOND * S_TO_MS) {
-    *tow_ms += SEC_IN_WEEK * S_TO_MS;
+  if (*tow_ms < BDS_SECOND_TO_GPS_SECOND * SECS_MS) {
+    *tow_ms += WEEK_MS;
   }
-  *tow_ms -= BDS_SECOND_TO_GPS_SECOND * S_TO_MS;
+  *tow_ms -= BDS_SECOND_TO_GPS_SECOND * SECS_MS;
 }
 
 void sbp2rtcm_base_pos_ecef_cb(const u16 sender_id,
@@ -599,22 +599,22 @@ uint32_t compute_glo_tod_ms(uint32_t gps_tow_ms,
     return -1;
   }
 
-  double gps_tod_s = gps_tow_ms * MS_TO_S;
-  gps_tod_s -= floor(gps_tod_s / SEC_IN_DAY) * SEC_IN_DAY;
+  double gps_tod_s = (double)gps_tow_ms / SECS_MS;
+  gps_tod_s -= floor(gps_tod_s / DAY_SECS) * DAY_SECS;
 
   double glo_tod_s =
-      gps_tod_s + UTC_SU_OFFSET * SEC_IN_HOUR - state->leap_seconds;
+      gps_tod_s + UTC_SU_OFFSET * HOUR_SECS - state->leap_seconds;
 
   if (glo_tod_s < 0) {
-    glo_tod_s += SEC_IN_DAY;
+    glo_tod_s += DAY_SECS;
   }
   /* TODO: this fails during the leap second event */
-  if (glo_tod_s >= SEC_IN_DAY) {
-    glo_tod_s -= SEC_IN_DAY;
+  if (glo_tod_s >= DAY_SECS) {
+    glo_tod_s -= DAY_SECS;
   }
 
-  assert(glo_tod_s >= 0 && glo_tod_s < (SEC_IN_DAY + 1));
-  return (uint32_t)rint(glo_tod_s * S_TO_MS);
+  assert(glo_tod_s >= 0 && glo_tod_s < (DAY_SECS + 1));
+  return (uint32_t)rint(glo_tod_s * SECS_MS);
 }
 
 static void rtcm_init_obs_message(rtcm_obs_message *msg,

@@ -48,7 +48,7 @@ static bool rtcm_ssr_header_to_sbp_orbit_clock(
     msg_ssr_orbit_clock_t *sbp_orbit_clock,
     struct rtcm3_sbp_state *state) {
   sbp_orbit_clock->time = compute_ssr_message_time(header->constellation,
-                                                   header->epoch_time * S_TO_MS,
+                                                   header->epoch_time * SECS_MS,
                                                    &state->time_from_rover_obs,
                                                    state);
 
@@ -212,7 +212,7 @@ void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases,
     length = 0;
     sbp_code_bias->time =
         compute_ssr_message_time(msg_code_biases->header.constellation,
-                                 msg_code_biases->header.epoch_time * S_TO_MS,
+                                 msg_code_biases->header.epoch_time * SECS_MS,
                                  &state->time_from_rover_obs,
                                  state);
 
@@ -263,7 +263,7 @@ void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases,
     length = 0;
     sbp_phase_bias->time =
         compute_ssr_message_time(msg_phase_biases->header.constellation,
-                                 msg_phase_biases->header.epoch_time * S_TO_MS,
+                                 msg_phase_biases->header.epoch_time * SECS_MS,
                                  &state->time_from_rover_obs,
                                  state);
 
