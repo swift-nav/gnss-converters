@@ -30,6 +30,8 @@ extern "C" {
 
 #define DEFAULT_UBX_SENDER_ID 61568
 
+#define UBX_UNKNOWN_PRN 255
+
 struct sat_data {
   struct subframe {
     u32 words[10];
@@ -41,6 +43,13 @@ struct gal_sat_data {
   struct page {
     u32 words[8];
   } pg[5];
+  unsigned vmask;
+};
+
+struct glo_sat_data {
+  struct string {
+    u32 words[4];
+  } string[5];
   unsigned vmask;
 };
 
@@ -68,6 +77,7 @@ struct ubx_sbp_state {
   struct sat_data gps_sat[NUM_SATS_GPS];
   struct sat_data bds_sat[NUM_SATS_BDS];
   struct gal_sat_data gal_sat[NUM_SATS_GAL];
+  struct glo_sat_data glo_sat[NUM_SATS_GLO];
   u32 last_tow_ms;
 };
 

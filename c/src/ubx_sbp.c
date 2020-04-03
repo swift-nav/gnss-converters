@@ -24,6 +24,7 @@
 #include <ubx/ubx_messages.h>
 #include <ubx_ephemeris/bds.h>
 #include <ubx_ephemeris/gal.h>
+#include <ubx_ephemeris/glo.h>
 #include <ubx_ephemeris/gps.h>
 #include <ubx_ephemeris/sbas.h>
 
@@ -214,64 +215,64 @@ static code_t convert_ubx_gnssid_sigid(u8 gnss_id, u8 sig_id) {
   /* GPS L1C/A */
   if ((gnss_id == 0) && (sig_id == 0)) {
     return CODE_GPS_L1CA;
-    /* GPS L2 CL */
   }
+  /* GPS L2 CL */
   if ((gnss_id == UBX_GNSS_ID_GPS) && (sig_id == 3)) {
     return CODE_GPS_L2CL;
-    /* GPS L2 CM */
   }
+  /* GPS L2 CM */
   if ((gnss_id == UBX_GNSS_ID_GPS) && (sig_id == 4)) {
     return CODE_GPS_L2CM;
-    /* Galileo E1 C */
   }
+  /* Galileo E1 C */
   if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 0)) {
     return CODE_GAL_E1C;
-    /* Galileo E1 B */
   }
+  /* Galileo E1 B */
   if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 1)) {
     return CODE_GAL_E1B;
-    /* Galileo E5 bI */
   }
+  /* Galileo E5 bI */
   if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 5)) {
     return CODE_GAL_E7I;
-    /* Galileo E5 bQ */
   }
+  /* Galileo E5 bQ */
   if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 6)) {
     return CODE_GAL_E7Q;
-    /* BeiDou B1I D1 */
   }
+  /* BeiDou B1I D1 */
   if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 0)) {
     return CODE_BDS2_B1;
-    /* BeiDou B1I D2 */
   }
+  /* BeiDou B1I D2 */
   if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 1)) {
     return CODE_BDS2_B1;
-    /* BeiDou B2I D1 */
   }
+  /* BeiDou B2I D1 */
   if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 2)) {
     return CODE_BDS2_B2;
-    /* BeiDou B2I D2 */
   }
+  /* BeiDou B2I D2 */
   if ((gnss_id == UBX_GNSS_ID_BDS) && (sig_id == 3)) {
     return CODE_BDS2_B2;
-    /* QZSS L1C/A */
   }
+  /* QZSS L1C/A */
   if ((gnss_id == UBX_GNSS_ID_QZSS) && (sig_id == 0)) {
     return CODE_QZS_L1CA;
-    /* QZSS L2 CM */
   }
+  /* QZSS L2 CM */
   if ((gnss_id == UBX_GNSS_ID_QZSS) && (sig_id == 4)) {
     return CODE_QZS_L2CM;
-    /* QZSS L2 CL */
   }
+  /* QZSS L2 CL */
   if ((gnss_id == UBX_GNSS_ID_QZSS) && (sig_id == 5)) {
     return CODE_QZS_L2CL;
-    /* GLONASS L1 OF */
   }
+  /* GLONASS L1 OF */
   if ((gnss_id == UBX_GNSS_ID_GLO) && (sig_id == 0)) {
     return CODE_GLO_L1OF;
-    /* GLONASS L2 OF */
   }
+  /* GLONASS L2 OF */
   if ((gnss_id == UBX_GNSS_ID_GLO) && (sig_id == 2)) {
     return CODE_GLO_L2OF;
   }
@@ -960,7 +961,6 @@ static void handle_rxm_sfrbx(struct ubx_sbp_state *state, u8 *buf, int sz) {
   assert(state);
   assert(buf);
   assert(sz > 0);
-
   ubx_rxm_sfrbx sfrbx;
   if (ubx_decode_rxm_sfrbx(buf, &sfrbx) != RC_OK) {
     return;
@@ -973,6 +973,9 @@ static void handle_rxm_sfrbx(struct ubx_sbp_state *state, u8 *buf, int sz) {
     bds_decode_subframe(state, prn, sfrbx.data_words, sfrbx.num_words);
   } else if (UBX_GNSS_ID_GAL == sfrbx.gnss_id) {
     gal_decode_page(state, prn, sfrbx.data_words, sfrbx.num_words);
+  } else if (UBX_GNSS_ID_GLO == sfrbx.gnss_id) {
+    glo_decode_string(
+        state, prn, sfrbx.freq_id, sfrbx.data_words, sfrbx.num_words);
   } else if (UBX_GNSS_ID_SBAS == sfrbx.gnss_id) {
     sbas_decode_subframe(state, prn, sfrbx.data_words, sfrbx.num_words);
   }

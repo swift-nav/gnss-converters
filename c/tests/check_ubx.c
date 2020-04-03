@@ -123,6 +123,23 @@ static void ubx_sbp_callback_rxm_sfrbx_gps(
   ck_assert(crc == rxm_sfrbx_gps_crc);
 }
 
+static void ubx_sbp_callback_rxm_sfrbx_glo(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)length;
+  (void)sender_id;
+  (void)context;
+
+  if (msg_id != SBP_MSG_EPHEMERIS_GLO) {
+    return;
+  }
+
+  msg_ephemeris_glo_t *eph = (msg_ephemeris_glo_t *)buff;
+
+  ck_assert(eph->common.toe.wn == 2081);
+  ck_assert(eph->common.toe.tow == 251118);
+  ck_assert(eph->common.sid.code == CODE_GLO_L1OF);
+}
+
 static const u16 rxm_sfrbx_bds_crc = 0x3EA4;
 static void ubx_sbp_callback_rxm_sfrbx_bds(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
@@ -561,6 +578,14 @@ START_TEST(test_rxm_sfrbx_gps) {
 }
 END_TEST
 
+START_TEST(test_rxm_sfrbx_glo) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx_glo, NULL);
+
+  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/rxm_sfrbx_glo.ubx");
+}
+END_TEST
+
 START_TEST(test_rxm_sfrbx_bds) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_rxm_sfrbx_bds, NULL);
@@ -689,6 +714,7 @@ Suite *ubx_suite(void) {
   TCase *tc_rxm = tcase_create("UBX_RXM");
   tcase_add_test(tc_rxm, test_rxm_rawx);
   tcase_add_test(tc_rxm, test_rxm_sfrbx_gps);
+  tcase_add_test(tc_rxm, test_rxm_sfrbx_glo);
   tcase_add_test(tc_rxm, test_rxm_sfrbx_bds);
   tcase_add_test(tc_rxm, test_rxm_sfrbx_gal);
   tcase_add_test(tc_rxm, test_rxm_sfrbx_sbas);

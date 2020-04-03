@@ -17,6 +17,7 @@ add_library(
   ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/gps.c
   ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/bds.c
   ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/gal.c
+  ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/glo.c
   ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/sbas.c
   sbp_nmea.c
   nmea.c
