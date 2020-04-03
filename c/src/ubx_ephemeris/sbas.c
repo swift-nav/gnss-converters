@@ -67,9 +67,9 @@ static void pack_sbas_data(const u8 *buffer,
  * @param sz must be 8 (number of 32 bit words per one SBAS message)
  */
 void sbas_decode_subframe(struct ubx_sbp_state *data,
-                          u8 prn,
+                          int prn,
                           const u32 words[],
-                          size_t sz) {
+                          int sz) {
   assert(data);
   assert(prn >= SBAS_FIRST_PRN);
   assert(prn < (SBAS_FIRST_PRN + NUM_SATS_SBAS));
@@ -78,7 +78,7 @@ void sbas_decode_subframe(struct ubx_sbp_state *data,
   u8 buffer[32];
 
   /* copy the input word buffer into byte buffer, swapping byte endianness */
-  for (size_t i = 0; i < sz; i++) {
+  for (int i = 0; i < sz; i++) {
     buffer[i * 4] = (words[i] >> 24U) & 0xFFU;
     buffer[i * 4 + 1] = (words[i] >> 16U) & 0xFFU;
     buffer[i * 4 + 2] = (words[i] >> 8U) & 0xFFU;
