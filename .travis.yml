@@ -115,8 +115,6 @@ before_script:
 
 script:
   - bash ./travis.sh
-
-after_script:
   - if [[ "$TESTENV" == "rust" ]] && [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
       cd target/release;
       7z a -tzip ../../gnss_converters_windows.zip rtcm3tosbp.exe sbp2rtcm.exe ubx2sbp.exe;
