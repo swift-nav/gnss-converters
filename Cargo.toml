@@ -1,0 +1,30 @@
+[package]
+name = "gnss-converters"
+version = "1.0.0"
+authors = ["Swift Navigation <dev@swiftnav.com>"]
+edition = "2018"
+build = "rust/build.rs"
+
+[[bin]]
+name = "rtcm3tosbp"
+path = "rust/rtcm3tosbp.rs"
+
+[[bin]]
+name = "ubx2sbp"
+path = "rust/ubx2sbp.rs"
+
+[[bin]]
+name = "sbp2rtcm"
+path = "rust/sbp2rtcm.rs"
+
+[lib]
+name = "gnss_converters"
+path = "rust/lib.rs"
+
+[dependencies]
+libc = "0.2"
+
+[build-dependencies]
+num_cpus = "1"
+cmake = "0.1"
+cc = "1.0"

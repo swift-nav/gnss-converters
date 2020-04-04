@@ -10,6 +10,13 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+/* Per suggestion from https://stackoverflow.com/a/59780476/749342
+ * to fix a compatibility issue with %zd format specifiers.
+ */
+#if defined(__GNUC__) && defined(__MINGW32__)
+#define __USE_MINGW_ANSI_STDIO 1
+#endif
+
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>

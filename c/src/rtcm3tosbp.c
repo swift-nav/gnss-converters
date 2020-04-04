@@ -130,7 +130,7 @@ static void help(char *arg) {
   fprintf(stderr, "  -v for stderr verbosity\n");
 }
 
-int main(int argc, char **argv) {
+int rtcm3tosbp_main(int argc, char **argv) {
   /* initialize time from systime */
   time_t ct_utc_unix = time(NULL);
 

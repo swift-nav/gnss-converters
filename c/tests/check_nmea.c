@@ -298,7 +298,9 @@ void test_NMEA(const char *filename,
   memset(&msg_count, 0, sizeof(msg_count));
   memset(&start_count, 0, sizeof(start_count));
 
-  sbp2nmea_t state = {0};
+  sbp2nmea_t state;
+  memset(&state, 0, sizeof(state));
+
   sbp2nmea_init(&state, cb_sbp_to_nmea, NULL);
   sbp2nmea_base_id_set(&state, 33);
   sbp2nmea_soln_freq_set(&state, 10);

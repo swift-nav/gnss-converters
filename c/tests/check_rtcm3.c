@@ -1557,7 +1557,7 @@ static void compare_gps_ephs(const msg_ephemeris_gps_t *first,
   assert(first->common.sid.sat == second->common.sid.sat);
   assert(first->common.sid.code == second->common.sid.code);
   assert(first->common.toe.wn == second->common.toe.wn);
-  assert(fabs(first->common.toe.tow - second->common.toe.tow) <= 8);
+  assert((first->common.toe.tow - second->common.toe.tow) <= 8);
   assert(fabs(first->common.ura - second->common.ura) < 1e-12);
   assert(first->common.fit_interval == second->common.fit_interval);
   assert(first->common.health_bits == second->common.health_bits);
@@ -1583,7 +1583,7 @@ static void compare_gps_ephs(const msg_ephemeris_gps_t *first,
   assert(fabs(first->af1 - second->af1) <= C_1_2P43 / 2);
   assert(fabs(first->af2 - second->af2) <= C_1_2P55 / 2);
   assert(first->toc.wn == second->toc.wn);
-  assert(fabs(first->toc.tow - second->toc.tow) <= 8);
+  assert((first->toc.tow - second->toc.tow) <= 8);
   assert(first->iode == second->iode);
   assert(first->iodc == second->iodc);
 }
@@ -1691,7 +1691,7 @@ static void compare_bds_ephs(const msg_ephemeris_bds_t *first,
   assert(first->common.sid.sat == second->common.sid.sat);
   assert(first->common.sid.code == second->common.sid.code);
   assert(first->common.toe.wn == second->common.toe.wn);
-  assert(fabs(first->common.toe.tow - second->common.toe.tow) <= 4);
+  assert((first->common.toe.tow - second->common.toe.tow) <= 4);
   assert(fabs(first->common.ura - second->common.ura) < 1e-12);
   assert(first->common.fit_interval == second->common.fit_interval);
   assert(first->common.health_bits == second->common.health_bits);
@@ -1718,7 +1718,7 @@ static void compare_bds_ephs(const msg_ephemeris_bds_t *first,
   assert(fabs(first->af1 - second->af1) <= C_1_2P50 / 2);
   assert(fabs(first->af2 - second->af2) <= C_1_2P66 / 2);
   assert(first->toc.wn == second->toc.wn);
-  assert(fabs(first->toc.tow - second->toc.tow) <= 4);
+  assert((first->toc.tow - second->toc.tow) <= 4);
   assert(first->iode == second->iode);
   assert(first->iodc == second->iodc);
 }
@@ -1767,7 +1767,7 @@ static void compare_gal_ephs(const msg_ephemeris_gal_t *first,
   assert(first->common.sid.sat == second->common.sid.sat);
   assert(first->common.sid.code == second->common.sid.code);
   assert(first->common.toe.wn == second->common.toe.wn);
-  assert(fabs(first->common.toe.tow - second->common.toe.tow) <= 30);
+  assert((first->common.toe.tow - second->common.toe.tow) <= 30);
   assert(fabs(first->common.ura - second->common.ura) < 1e-12);
   assert(first->common.fit_interval == second->common.fit_interval);
   assert(first->common.health_bits == second->common.health_bits);
@@ -1794,7 +1794,7 @@ static void compare_gal_ephs(const msg_ephemeris_gal_t *first,
   assert(fabs(first->af1 - second->af1) <= C_1_2P46 / 2);
   assert(fabs(first->af2 - second->af2) <= C_1_2P59 / 2);
   assert(first->toc.wn == second->toc.wn);
-  assert(fabs(first->toc.tow - second->toc.tow) <= 30);
+  assert((first->toc.tow - second->toc.tow) <= 30);
   assert(first->iode == second->iode);
   assert(first->iodc == second->iodc);
 }

@@ -11,3 +11,4 @@ CMakeCache.txt
 .cproject
 .project
 .vscode
+target/

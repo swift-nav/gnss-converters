@@ -50,7 +50,7 @@ static void help(char *arg) {
           "messages are still necessary.\n");
 }
 
-int main(int argc, char **argv) {
+int ubx2sbp_main(int argc, char **argv) {
   /* TODO(STAR-917) accept sender id as a cmdline argument */
 
   sbp_state_init(&sbp_state);

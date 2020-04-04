@@ -71,7 +71,7 @@ typedef struct {
   sbp_msg_callbacks_node_t ephemeris_glo;
 } sbp_nodes_t;
 
-int main(int argc, char **argv) {
+int sbp2rtcm_main(int argc, char **argv) {
   (void)(argc);
   (void)(argv);
 

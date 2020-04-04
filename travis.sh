@@ -13,6 +13,10 @@ function build_haskell () {
     cd ../
 }
 
+function build_rust () {
+  cargo build --release
+}
+
 function build_c() {
     cd c
     mkdir build
@@ -38,6 +42,8 @@ if [ "$TESTENV" == "stack" ]; then
   build_haskell
 elif [ "$TESTENV" == "codecov" ]; then
   build_codecov
+elif [ "$TESTENV" == "rust" ]; then
+  build_rust
 else
   build_c
 fi
