@@ -2,6 +2,7 @@ set(gnss_converters_HEADERS
   ${PROJECT_SOURCE_DIR}/include/gnss-converters/nmea.h
   ${PROJECT_SOURCE_DIR}/include/gnss-converters/rtcm3_sbp.h
   ${PROJECT_SOURCE_DIR}/include/gnss-converters/ubx_sbp.h
+  ${PROJECT_SOURCE_DIR}/include/gnss-converters/ixcom_sbp.h
   ${PROJECT_SOURCE_DIR}/include/gnss-converters/sbp_rtcm3.h
   ${PROJECT_SOURCE_DIR}/include/gnss-converters/sbp_nmea.h
   ${PROJECT_SOURCE_DIR}/include/gnss-converters/options.h
@@ -19,6 +20,7 @@ add_library(
   ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/gal.c
   ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/glo.c
   ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris/sbas.c
+  ixcom_sbp.c
   sbp_nmea.c
   nmea.c
   rtcm3_utils.c
@@ -28,7 +30,7 @@ add_library(
   common.c
   )
 
-target_link_libraries(gnss_converters PUBLIC m swiftnav sbp rtcm ubx)
+target_link_libraries(gnss_converters PUBLIC m swiftnav sbp rtcm ubx ixcom)
 target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/src/ubx_ephemeris)
@@ -74,6 +76,9 @@ add_executable(sbp2rtcm sbp2rtcm_main.c)
 target_link_libraries(sbp2rtcm PRIVATE sbp2rtcm_main)
 target_code_coverage(sbp2rtcm AUTO ALL)
 
+add_executable(ixcom2sbp ixcom2sbp.c)
+target_link_libraries(ixcom2sbp PRIVATE gnss_converters)
+
 install(TARGETS gnss_converters DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(TARGETS rtcm3tosbp_main DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(TARGETS rtcm3tosbp DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
@@ -81,4 +86,5 @@ install(TARGETS sbp2rtcm_main DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(TARGETS sbp2rtcm DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 install(TARGETS ubx2sbp_main DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(TARGETS ubx2sbp DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+install(TARGETS ixcom2sbp DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 install(FILES ${gnss_converters_HEADERS} DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/gnss-converters)

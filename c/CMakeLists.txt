@@ -39,6 +39,9 @@ find_package(Rtcm REQUIRED)
 option(libubx_ENABLE_TESTS "" OFF)
 find_package(Ubx REQUIRED)
 
+option(libixcom_ENABLE_TESTS "" OFF)
+find_package(Ixcom REQUIRED)
+
 # If NDEBUG is defined, all asserts() will be knocked out, and
 # currently we rely on asserts() for correct behavior.
 add_compile_options(-UNDEBUG)

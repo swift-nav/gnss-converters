@@ -10,6 +10,7 @@ set(TEST_SOURCE_FILES
     check_rtcm3_ssr.c
     check_nmea.c
     check_ubx.c
+    check_ixcom.c
     check_utils.c
     check_options.c
     )

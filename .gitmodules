@@ -16,3 +16,6 @@
 [submodule "c/third_party/libubx"]
 	path = c/third_party/libubx
 	url = https://github.com/swift-nav/libubx.git
+[submodule "c/third_party/libixcom"]
+	path = c/third_party/libixcom
+	url = https://github.com/swift-nav/libixcom.git
