@@ -139,7 +139,7 @@ void handle_imuraw(struct ixcom_sbp_state *state) {
   assert(state);
 
   XCOMmsg_IMURAW imuraw;
-  if (ixcom_decode_imuraw(state->read_buffer, &imuraw) == RC_OK) {
+  if (ixcom_decode_imuraw(state->read_buffer, &imuraw) == IXCOM_RC_OK) {
     msg_imu_raw_t sbp_imuraw;
     /* need temp variable since sbp_imuraw is packed struct */
     u32 tow;
@@ -182,7 +182,7 @@ void handle_wheeldata(struct ixcom_sbp_state *state) {
   assert(state);
 
   XCOMmsg_WHEELDATA wheeldata;
-  if (ixcom_decode_wheeldata(state->read_buffer, &wheeldata) == RC_OK) {
+  if (ixcom_decode_wheeldata(state->read_buffer, &wheeldata) == IXCOM_RC_OK) {
     msg_odometry_t sbp_wheeldata;
 
     sbp_wheeldata.tow = wheeldata.header.gps_time_sec * 1000 +
