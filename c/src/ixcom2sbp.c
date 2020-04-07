@@ -47,7 +47,7 @@ static void help(char *arg) {
       DEFAULT_IXCOM_SENDER_ID);
 }
 
-int main(int argc, char **argv) {
+int ixcom2sbp_main(int argc, char **argv) {
   sbp_state_init(&sbp_state);
 
   struct ixcom_sbp_state state;

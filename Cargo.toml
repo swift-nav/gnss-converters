@@ -17,6 +17,10 @@ path = "rust/ubx2sbp.rs"
 name = "sbp2rtcm"
 path = "rust/sbp2rtcm.rs"
 
+[[bin]]
+name = "ixcom2sbp"
+path = "rust/ixcom2sbp.rs"
+
 [lib]
 name = "gnss_converters"
 path = "rust/lib.rs"

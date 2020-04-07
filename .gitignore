@@ -6,7 +6,7 @@ build*/
 .br_*
 CMakeFiles
 CMakeCache.txt
-.*.swp
+.*.sw?
 .autotools
 .cproject
 .project

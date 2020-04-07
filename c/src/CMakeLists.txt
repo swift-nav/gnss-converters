@@ -76,8 +76,12 @@ add_executable(sbp2rtcm sbp2rtcm_main.c)
 target_link_libraries(sbp2rtcm PRIVATE sbp2rtcm_main)
 target_code_coverage(sbp2rtcm AUTO ALL)
 
-add_executable(ixcom2sbp ixcom2sbp.c)
-target_link_libraries(ixcom2sbp PRIVATE gnss_converters)
+add_library(ixcom2sbp_main
+  ixcom2sbp.c)
+add_executable(ixcom2sbp ixcom2sbp_main.c)
+
+target_link_libraries(ixcom2sbp_main PRIVATE gnss_converters)
+target_link_libraries(ixcom2sbp PRIVATE ixcom2sbp_main)
 
 install(TARGETS gnss_converters DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(TARGETS rtcm3tosbp_main DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -86,5 +90,6 @@ install(TARGETS sbp2rtcm_main DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(TARGETS sbp2rtcm DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 install(TARGETS ubx2sbp_main DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(TARGETS ubx2sbp DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+install(TARGETS ixcom2sbp_main DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(TARGETS ixcom2sbp DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 install(FILES ${gnss_converters_HEADERS} DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/gnss-converters)

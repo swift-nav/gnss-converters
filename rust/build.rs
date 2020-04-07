@@ -85,11 +85,13 @@ fn main() -> Result<(), Error> {
         println!("cargo:rustc-link-lib=static=rtcm3tosbp_main");
         println!("cargo:rustc-link-lib=static=ubx2sbp_main");
         println!("cargo:rustc-link-lib=static=sbp2rtcm_main");
+        println!("cargo:rustc-link-lib=static=ixcom2sbp_main");
         println!("cargo:rustc-link-lib=static=gnss_converters");
         println!("cargo:rustc-link-lib=static=swiftnav");
         println!("cargo:rustc-link-lib=static=rtcm");
         println!("cargo:rustc-link-lib=static=sbp");
         println!("cargo:rustc-link-lib=static=ubx");
+        println!("cargo:rustc-link-lib=static=ixcom");
         println!("cargo:rustc-link-lib=dylib=m");
     } else {
         return Err("Unknown target OS...".into());

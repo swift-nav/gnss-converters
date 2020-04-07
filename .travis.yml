@@ -117,7 +117,7 @@ script:
   - bash ./travis.sh
   - if [[ "$TESTENV" == "rust" ]] && [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
       cd target/release;
-      7z a -tzip ../../gnss_converters_windows.zip rtcm3tosbp.exe sbp2rtcm.exe ubx2sbp.exe;
+      7z a -tzip ../../gnss_converters_windows.zip rtcm3tosbp.exe sbp2rtcm.exe ubx2sbp.exe ixcom2sbp.exe;
       cd ../..;
       VERSION="$(git describe --always --tags --dirty)";
       BUILD_TRIPLET="$($CC -dumpmachine)";
@@ -125,14 +125,14 @@ script:
       ls -l;
     fi
   - if [[ "$TESTENV" == "rust" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      tar -C "target/release" -czf gnss_converters_osx.tar.gz rtcm3tosbp sbp2rtcm ubx2sbp;
+      tar -C "target/release" -czf gnss_converters_osx.tar.gz rtcm3tosbp sbp2rtcm ubx2sbp ixcom2sbp;
       VERSION="$(git describe --always --tags --dirty)";
       BUILD_TRIPLET="$($CC -dumpmachine)";
       mv gnss_converters_osx.tar.gz "gnss_converters-${VERSION}-${BUILD_TRIPLET}.tar.gz";
       ls -l;
     fi
   - if [[ "$TESTENV" == "rust" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      tar -C "target/release" -czf gnss_converters_linux.tar.gz rtcm3tosbp sbp2rtcm ubx2sbp;
+      tar -C "target/release" -czf gnss_converters_linux.tar.gz rtcm3tosbp sbp2rtcm ubx2sbp ixcom2sbp;
       VERSION="$(git describe --always --tags --dirty)";
       BUILD_TRIPLET="$($CC -dumpmachine)";
       mv gnss_converters_linux.tar.gz "gnss_converters-${VERSION}-${BUILD_TRIPLET}.tar.gz";
