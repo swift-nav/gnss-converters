@@ -35,7 +35,7 @@ static int read_ixcom_bytes(struct ixcom_sbp_state *state, size_t num_bytes) {
   assert(state->index + num_bytes < IXCOM_BUFFER_SIZE);
 
   int ret = state->read_stream_func(
-      state->read_buffer + state->index, num_bytes, state);
+      state->read_buffer + state->index, num_bytes, state->context);
 
   if (ret > 0) {
     state->index += ret;
