@@ -1445,9 +1445,6 @@ static bool unsupported_signal(sbp_gnss_signal_t *sid) {
     case CODE_BDS3_B1CI:
     case CODE_BDS3_B1CQ:
     case CODE_BDS3_B1CX:
-    case CODE_BDS3_B5I:
-    case CODE_BDS3_B5Q:
-    case CODE_BDS3_B5X:
     case CODE_BDS3_B7I:
     case CODE_BDS3_B7Q:
     case CODE_BDS3_B7X:

@@ -196,34 +196,45 @@ static code_t get_msm_bds_code(u8 signal_id) {
       return CODE_BDS2_B1;
     /* case 3:  2Q */
     /* case 4:  2X */
-    case 5: /* B1C-I */
-      return CODE_BDS3_B1CI;
-    case 6: /* B1C-Q */
-      return CODE_BDS3_B1CQ;
-    case 7: /* B1C-X */
-      return CODE_BDS3_B1CX;
+    /* case 5:  Reserved */
+    /* case 6:  Reserved */
+    /* case 7:  Reserved */
     case 8: /* 6I */
       return CODE_BDS3_B3I;
     case 9: /* 6Q */
       return CODE_BDS3_B3Q;
     case 10: /* 6X */
       return CODE_BDS3_B3X;
+    /* case 11:  Reserved */
+    /* case 12:  Reserved */
+    /* case 13:  Reserved */
     case 14: /* 7I */
       return CODE_BDS2_B2;
     /* case 15:  7Q */
     /* case 16:  7X */
-    case 17: /* B2bI */
-      return CODE_BDS3_B7I;
-    case 18: /* B2bQ */
-      return CODE_BDS3_B7Q;
-    case 19: /* B2bX */
-      return CODE_BDS3_B7X;
-    case 20: /* B2aI */
+    /* case 17:  Reserved */
+    /* case 18:  Reserved */
+    /* case 19:  Reserved */
+    /* case 20:  Reserved */
+    /* case 21:  Reserved */
+    case 22: /* B2aI */
       return CODE_BDS3_B5I;
-    case 21: /* B2aQ */
+    case 23: /* B2aQ */
       return CODE_BDS3_B5Q;
-    case 22: /* B2aX */
+    case 24: /* B2aX */
       return CODE_BDS3_B5X;
+    case 25: /* B2bI */
+      return CODE_BDS3_B7I;
+    /* case 26:  Reserved */
+    /* case 27:  Reserved */
+    /* case 28:  Reserved */
+    /* case 29:  Reserved */
+    case 30: /* B1C */
+      return CODE_BDS3_B1CI;
+    case 31: /* B1P */
+      return CODE_BDS3_B1CQ;
+    case 32: /* B1X */
+      return CODE_BDS3_B1CX;
     default:
       return CODE_INVALID;
   }
