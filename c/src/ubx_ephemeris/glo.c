@@ -64,12 +64,6 @@ static u8 reverse_byte(u8 b) {
   return b;
 }
 
-static gps_time_t glo2gps_wrapper(const glo_time_t *t) {
-  /* return time with factory UTC parameters */
-  /* TODO(STAR-1136) collect utc_params from UBX-MGA-GPS-UTC */
-  return glo2gps(t, /* utc_params = */ NULL);
-}
-
 /**
  * Decodes GLO pages 1-5.
  * Reference: GLO OS SIS ICD, Issue 1.3, December 2016
@@ -111,6 +105,11 @@ void glo_decode_string(
     return; /* not all word types 1,2,3,4,5 are available yet */
   }
 
+  /* do not proceed to decoding until leap second is known */
+  if (!data->leap_second_known) {
+    return;
+  }
+
   /* all pages collected, rearrange the strings byte and bit order to what the
    * decoder expects */
 
@@ -150,7 +149,7 @@ void glo_decode_string(
 
   ephemeris_t e;
   memset(&e, 0, sizeof(e));
-  decode_glo_ephemeris(page, sid, glo2gps_wrapper, &e);
+  decode_glo_ephemeris(page, sid, &data->utc_params, &e);
 
   /* SBP codes FCN as [1..14] */
   e.glo.fcn = fcn + 1;

@@ -338,14 +338,9 @@ void check_overflow(s32 *value) {
   }
 }
 
-static int fill_msg_obs(const u8 buf[], msg_obs_t *msg) {
-  ubx_rxm_rawx rxm_rawx;
-  if (ubx_decode_rxm_rawx(buf, &rxm_rawx) != RC_OK) {
-    return -1;
-  }
-
+static int fill_msg_obs(const ubx_rxm_rawx *rxm_rawx, msg_obs_t *msg) {
   /* convert from sec to ms */
-  double ms = UBX_SBP_TOW_MS_SCALING * rxm_rawx.rcv_tow;
+  double ms = UBX_SBP_TOW_MS_SCALING * rxm_rawx->rcv_tow;
   double ns = UBX_SBP_TOW_NS_SCALING * modf(ms, &ms);
   msg->header.t.tow = (u32)ms;
   msg->header.t.ns_residual = (s32)ns;
@@ -354,36 +349,36 @@ static int fill_msg_obs(const u8 buf[], msg_obs_t *msg) {
     msg->header.t.tow += 1;
   }
 
-  msg->header.t.wn = rxm_rawx.rcv_wn;
+  msg->header.t.wn = rxm_rawx->rcv_wn;
   /* Not proper SBP n_obs. Needed to pass total number of measurements
    * to handle_rxm_rawx
    */
-  msg->header.n_obs = rxm_rawx.num_meas;
+  msg->header.n_obs = rxm_rawx->num_meas;
 
   for (int i = 0; i < msg->header.n_obs; i++) {
     /* convert units: meter -> 2 cm */
     msg->obs[i].P =
-        (u32)(UBX_SBP_PSEUDORANGE_SCALING * rxm_rawx.pseudorange_m[i]);
-    pack_carrier_phase(rxm_rawx.carrier_phase_cycles[i], &msg->obs[i].L);
-    pack_doppler(rxm_rawx.doppler_hz[i], &msg->obs[i].D);
+        (u32)(UBX_SBP_PSEUDORANGE_SCALING * rxm_rawx->pseudorange_m[i]);
+    pack_carrier_phase(rxm_rawx->carrier_phase_cycles[i], &msg->obs[i].L);
+    pack_doppler(rxm_rawx->doppler_hz[i], &msg->obs[i].D);
     /* check for overflow */
-    if (rxm_rawx.cno_dbhz[i] > 0x3F) {
+    if (rxm_rawx->cno_dbhz[i] > 0x3F) {
       msg->obs[i].cn0 = 0xFF;
     } else {
-      msg->obs[i].cn0 = 4 * rxm_rawx.cno_dbhz[i];
+      msg->obs[i].cn0 = 4 * rxm_rawx->cno_dbhz[i];
     }
     /* TODO(STAR-919) converts from u32 ms, to double s; encode_lock_time
      * internally converts back to u32 ms.
      */
     msg->obs[i].lock =
-        encode_lock_time((double)rxm_rawx.lock_time[i] / SECS_MS);
+        encode_lock_time((double)rxm_rawx->lock_time[i] / SECS_MS);
     msg->obs[i].flags = 0;
     /* currently assumes all doppler are valid */
     msg->obs[i].flags |= SBP_OBS_DOPPLER_MASK;
-    msg->obs[i].flags |= rxm_rawx.track_state[i] & SBP_OBS_TRACK_STATE_MASK;
-    msg->obs[i].sid.sat = rxm_rawx.sat_id[i];
+    msg->obs[i].flags |= rxm_rawx->track_state[i] & SBP_OBS_TRACK_STATE_MASK;
+    msg->obs[i].sid.sat = rxm_rawx->sat_id[i];
     msg->obs[i].sid.code =
-        convert_ubx_gnssid_sigid(rxm_rawx.gnss_id[i], rxm_rawx.sig_id[i]);
+        convert_ubx_gnssid_sigid(rxm_rawx->gnss_id[i], rxm_rawx->sig_id[i]);
   }
 
   return 0;
@@ -913,11 +908,36 @@ static void handle_nav_status(struct ubx_sbp_state *state, u8 *inbuf) {
   }
 }
 
+static void update_utc_params(struct ubx_sbp_state *state,
+                              const ubx_rxm_rawx *rxm_rawx) {
+  if ((rxm_rawx->rec_status & 1U) == 1) {
+    state->leap_second_known = true;
+    /* create a dummy utc_params struct for glo2gps time conversion */
+    state->utc_params.dt_ls = rxm_rawx->leap_second;
+    state->utc_params.dt_lsf = rxm_rawx->leap_second;
+    /* set the dummy time stamp of this message and the last leap second event
+     * to beginning of the week. these values do not matter in the glo2gps
+     * conversion since the current and next leap second values above are set to
+     * be equal and the polynomial corrections are all zeros */
+    state->utc_params.tot.wn = rxm_rawx->rcv_wn;
+    state->utc_params.t_lse.wn = rxm_rawx->rcv_wn;
+  } else {
+    state->leap_second_known = false;
+  }
+}
+
 static void handle_rxm_rawx(struct ubx_sbp_state *state,
                             u8 *inbuf,
                             u8 *sbp_obs_buffer) {
+  ubx_rxm_rawx rxm_rawx;
+  if (ubx_decode_rxm_rawx(inbuf, &rxm_rawx) != RC_OK) {
+    return;
+  }
+
+  update_utc_params(state, &rxm_rawx);
+
   msg_obs_t *sbp_obs = (msg_obs_t *)sbp_obs_buffer;
-  if (fill_msg_obs(inbuf, sbp_obs) == 0) {
+  if (fill_msg_obs(&rxm_rawx, sbp_obs) == 0) {
     u8 total_messages;
     /* header.n_obs is assumed to hold the TOTAL number of observations
      * from fill_msg_obs, NOT n_obs as described in the SBP spec.
@@ -1054,6 +1074,8 @@ void ubx_sbp_init(struct ubx_sbp_state *state,
   state->context = context;
   state->use_hnr = false;
   state->last_tow_ms = -1;
+
+  state->leap_second_known = false;
 }
 
 void ubx_set_sender_id(struct ubx_sbp_state *state, u16 sender_id) {
