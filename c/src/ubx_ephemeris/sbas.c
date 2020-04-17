@@ -87,8 +87,10 @@ void sbas_decode_subframe(struct ubx_sbp_state *data,
 
   /* SBAS preamble */
   u8 preamble = buffer[0];
-  assert(SBAS_PREAMBLE1 == preamble || SBAS_PREAMBLE2 == preamble ||
-         SBAS_PREAMBLE3 == preamble);
+  if (SBAS_PREAMBLE1 != preamble && SBAS_PREAMBLE2 != preamble &&
+      SBAS_PREAMBLE3 != preamble) {
+    return;
+  }
 
   /* SBAS message type */
   u8 message_type = (buffer[1] >> 2) & 0x3FU;
