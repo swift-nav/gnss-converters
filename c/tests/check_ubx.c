@@ -201,7 +201,7 @@ static void ubx_sbp_callback_nav_status(
 }
 
 static const u16 esf_meas_crc[] = {
-    0xDA8D, 0x6238, 0x7009, 0xF101, 0xE330, 0x6238, 0xF101};
+    0xBBD3, 0x9653, 0xD2D0, 0x7881, 0x3C02, 0x9653, 0xF101};
 static void ubx_sbp_callback_esf_meas(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
@@ -209,20 +209,35 @@ static void ubx_sbp_callback_esf_meas(
   static int msg_index = 0;
   const u8 vel_sources[] = {0, 0, 2, 3, 1, 0, 3};
 
-  ck_assert(msg_id == SBP_MSG_ODOMETRY);
-  msg_odometry_t *msg = (msg_odometry_t *)buff;
-  const u8 vel_source_mask = 0b11000;
-  const u8 time_source_mask = 0x3;
-  const u8 velocity_source = (msg->flags & vel_source_mask) >> 3;
-  const u8 time_source = (msg->flags & time_source_mask);
+  u8 velocity_source = -1;
+  s32 velocity = 0;
 
-  /* The first message in the .ubx file won't have a valid time because no
-   * UBX-NAV-STATUS has been received to calculate the offset between
-   * milliseconds since startup and GNSS time of week */
-  if (msg_index == 0) {
-    ck_assert_int_eq(msg->tow, 25269459);
-    ck_assert_int_eq(time_source, 0);
-  } else { /* all following messages should have a valid GPS timestamp */
+  if (msg_index < 6) {
+    ck_assert(msg_id == SBP_MSG_WHEELTICK);
+    msg_wheeltick_t *msg = (msg_wheeltick_t *)buff;
+
+    const u8 time_source = msg->flags;
+    velocity_source = msg->source;
+    velocity = msg->ticks;
+    /* The first message in the .ubx file will use local system time because no
+     * UBX-NAV-STATUS has been received to calculate the offset between
+     * milliseconds since startup and GNSS time of week */
+    if (msg_index == 0) {
+      ck_assert_int_eq(msg->time, 25269459000);
+      ck_assert_int_eq(time_source, 2);
+    } else { /* all following messages should have a valid GPS timestamp */
+      ck_assert_int_eq(msg->time, 349740106000);
+      ck_assert_int_eq(time_source, 1);
+    }
+  } else {
+    ck_assert(msg_id == SBP_MSG_ODOMETRY);
+    msg_odometry_t *msg = (msg_odometry_t *)buff;
+    const u8 vel_source_mask = 0b11000;
+    const u8 time_source_mask = 0x3;
+    velocity_source = (msg->flags & vel_source_mask) >> 3;
+    velocity = msg->velocity;
+    const u8 time_source = (msg->flags & time_source_mask);
+
     ck_assert_int_eq(msg->tow, 349740106);
     ck_assert_int_eq(time_source, 1);
   }
@@ -230,7 +245,7 @@ static void ubx_sbp_callback_esf_meas(
   /* Check that the velocity source is correctly set - RR = 0, RL = 1, FL = 2,
    * FR = 3, single tick = 0, speed = 3 */
   ck_assert(velocity_source == vel_sources[msg_index]);
-  ck_assert_int_eq(msg->velocity, 25677);
+  ck_assert_int_eq(velocity, 25677);
 
   /* Check the CRCs */
   uint8_t tmpbuf[5];

@@ -532,7 +532,7 @@ static bool is_odo(u8 data_type) {
          (ESF_SINGLE_TICK == data_type) || (ESF_SPEED == data_type);
 }
 
-static u8 get_odo_velocity_source(u8 data_type) {
+static u8 get_wheeltick_velocity_source(u8 data_type) {
   switch (data_type) {
     case ESF_REAR_LEFT_WHEEL_TICKS:
       return 1;
@@ -544,11 +544,34 @@ static u8 get_odo_velocity_source(u8 data_type) {
       return 3;
     case ESF_SINGLE_TICK:
       return 0;
+    default:
+      assert(false && "Unsupported data type");
+      return 0;
+  }
+}
+
+static u8 get_odo_velocity_source(u8 data_type) {
+  switch (data_type) {
     case ESF_SPEED:
       return 3;
     default:
       assert(false && "Unsupported data type");
       return 0;
+  }
+}
+
+static void set_wheeltick_time(u32 msss,
+                               const struct ubx_esf_state *esf_state,
+                               msg_wheeltick_t *msg_wheeltick) {
+  if (esf_state->tow_offset_set) {
+    double tow_s = ubx_convert_msss_to_tow(msss, esf_state);
+    const u8 time_source_gps = 1;
+    msg_wheeltick->flags = time_source_gps;
+    msg_wheeltick->time = (u64)(tow_s * SECS_US);
+  } else {
+    const u8 time_source_local = 2;
+    msg_wheeltick->flags = time_source_local;
+    msg_wheeltick->time = (u64)(msss * SECS_US / SECS_MS);
   }
 }
 
@@ -580,24 +603,33 @@ static void handle_esf_meas(struct ubx_sbp_state *state, u8 *inbuf) {
     u32 data_value = ((u32)esf_meas.data[idx] & 0xFFFFFF);
 
     if (is_odo(data_type)) {
-      msg_odometry_t msg_odo;
-      set_odo_time(esf_meas.calib_tag, &state->esf_state, &msg_odo);
-      u8 velocity_source = get_odo_velocity_source(data_type);
       u32 tick_count = data_value & 0x3FFFFF;
-      u32 direction = (data_value & 0x800000) >> 23;
-      msg_odo.flags |= direction << 5;
-      msg_odo.flags |= velocity_source << 3;
-      if (ESF_SPEED == data_type) {
-        msg_odo.velocity = data_value;
-      } else {
-        msg_odo.velocity = tick_count;
-      }
 
-      state->cb_ubx_to_sbp(SBP_MSG_ODOMETRY,
-                           sizeof(msg_odo),
-                           (u8 *)&msg_odo,
-                           state->sender_id,
-                           state->context);
+      if (data_type == ESF_SPEED) {
+        msg_odometry_t msg_odo;
+        set_odo_time(esf_meas.calib_tag, &state->esf_state, &msg_odo);
+        u8 velocity_source = get_odo_velocity_source(data_type);
+        u32 direction = (data_value & 0x800000) >> 23;
+        msg_odo.flags |= direction << 5;
+        msg_odo.flags |= velocity_source << 3;
+        msg_odo.velocity = tick_count;
+        state->cb_ubx_to_sbp(SBP_MSG_ODOMETRY,
+                             sizeof(msg_odo),
+                             (u8 *)&msg_odo,
+                             state->sender_id,
+                             state->context);
+      } else {
+        msg_wheeltick_t msg_wheeltick;
+        set_wheeltick_time(
+            esf_meas.calib_tag, &state->esf_state, &msg_wheeltick);
+        msg_wheeltick.source = get_wheeltick_velocity_source(data_type);
+        msg_wheeltick.ticks = tick_count;
+        state->cb_ubx_to_sbp(SBP_MSG_WHEELTICK,
+                             sizeof(msg_wheeltick),
+                             (u8 *)&msg_wheeltick,
+                             state->sender_id,
+                             state->context);
+      }
     }
   }
 }
