@@ -10,14 +10,15 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <assert.h>
-#include <time.h>
+#include "gnss-converters/sbp_conv.h"
 
+#include <assert.h>
+#include <libsbp/logging.h>
 #include <libsbp/sbp.h>
 #include <swiftnav/fifo_byte.h>
 #include <swiftnav/gnss_time.h>
+#include <time.h>
 
-#include "gnss-converters/sbp_conv.h"
 #include "gnss-converters/sbp_rtcm3.h"
 
 struct sbp_conv_s {
@@ -106,6 +107,10 @@ size_t sbp_conv(sbp_conv_t conv,
     }
     case SBP_MSG_EPHEMERIS_GAL: {
       sbp2rtcm_sbp_gal_eph_cb(sender, rlen, rbuf, &conv->state);
+      break;
+    }
+    case SBP_MSG_LOG: {
+      sbp2rtcm_sbp_log_cb(sender, rlen, rbuf, &conv->state);
       break;
     }
     default: { break; }

@@ -117,6 +117,10 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
       rtcm_msg_eph *msg_1020 = (rtcm_msg_eph *)rtcm_msg;
       return rtcm3_encode_glo_eph(msg_1020, buff);
     }
+    case 1029: {
+      rtcm_msg_1029 *msg_1029 = (rtcm_msg_1029 *)rtcm_msg;
+      return rtcm3_encode_1029(msg_1029, buff);
+    }
     case 1033: {
       rtcm_msg_1033 *msg_1033 = (rtcm_msg_1033 *)rtcm_msg;
       return rtcm3_encode_1033(msg_1033, buff);
@@ -1085,5 +1089,27 @@ void sbp2rtcm_sbp_gal_eph_cb(const u16 sender_id,
 
   u16 message_type = sbp_gal_eph->source == EPH_SOURCE_GAL_INAV ? 1046 : 1045;
   u16 frame_size = encode_rtcm3_frame(&msg_gal_eph, message_type, frame);
+  state->cb_sbp_to_rtcm(frame, frame_size, state->context);
+}
+
+void sbp2rtcm_sbp_log_cb(const u16 sender_id,
+                         const u8 len,
+                         const u8 msg[],
+                         struct rtcm3_out_state *state) {
+  msg_log_t *sbp_msg_log = (msg_log_t *)msg;
+  rtcm_msg_1029 rtcm_msg_log;
+
+  state->sender_id = sender_id;
+  rtcm_msg_log.stn_id = sender_id;
+  rtcm_msg_log.mjd_num = 0;
+  rtcm_msg_log.utc_sec_of_day = 0;
+  rtcm_msg_log.unicode_chars = 0;
+  rtcm_msg_log.utf8_code_units_n = len - 1;
+  MEMCPY_S(rtcm_msg_log.utf8_code_units,
+           RTCM_1029_MAX_CODE_UNITS,
+           &sbp_msg_log->text,
+           rtcm_msg_log.utf8_code_units_n);
+  u8 frame[RTCM3_MAX_MSG_LEN];
+  u16 frame_size = encode_rtcm3_frame(&rtcm_msg_log, 1029, frame);
   state->cb_sbp_to_rtcm(frame, frame_size, state->context);
 }

@@ -14,15 +14,15 @@
  * and writes RTCM3 on stdout. */
 
 #include <assert.h>
+#include <libsbp/logging.h>
+#include <libsbp/observation.h>
+#include <libsbp/sbp.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-
-#include <libsbp/observation.h>
-#include <libsbp/sbp.h>
 #include <swiftnav/gnss_time.h>
+#include <unistd.h>
 
 #include "gnss-converters/sbp_rtcm3.h"
 
@@ -69,6 +69,7 @@ typedef struct {
   sbp_msg_callbacks_node_t ephemeris_bds;
   sbp_msg_callbacks_node_t ephemeris_qzss;
   sbp_msg_callbacks_node_t ephemeris_glo;
+  sbp_msg_callbacks_node_t log;
 } sbp_nodes_t;
 
 int sbp2rtcm_main(int argc, char **argv) {
@@ -158,6 +159,11 @@ int sbp2rtcm_main(int argc, char **argv) {
                         (void *)&sbp2rtcm_sbp_gal_eph_cb,
                         &state,
                         &sbp_nodes.ephemeris_gal);
+  sbp_register_callback(&sbp_state,
+                        SBP_MSG_LOG,
+                        (void *)&sbp2rtcm_sbp_log_cb,
+                        &state,
+                        &sbp_nodes.log);
 
   while (!feof(stdin)) {
     sbp_process(&sbp_state, &sbp_read_stdin);
