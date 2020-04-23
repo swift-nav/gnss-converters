@@ -951,10 +951,16 @@ void send_gpgst(const sbp2nmea_t *state) {
   double semi_major = sqrt(eigenval_1);
   double semi_minor = sqrt(eigenval_2);
 
-  double orientation =
-      atan(sbp_pos_llh_cov->cov_n_e / (eigenval_1 - sbp_pos_llh_cov->cov_e_e));
+  double orientation = 0.0;
+  if (eigenval_1 > 0 && sbp_pos_llh_cov->cov_e_e < eigenval_1) {
+    orientation = atan(sbp_pos_llh_cov->cov_n_e /
+                       (eigenval_1 - sbp_pos_llh_cov->cov_e_e)) *
+                  R2D;
+  } else if (eigenval_1 > 0) {
+    orientation = 90.0;
+  }
 
-  NMEA_SENTENCE_PRINTF("%f,%f,%f,%f,%f,%f",
+  NMEA_SENTENCE_PRINTF("%f,%f,%.1f,%f,%f,%f",
                        semi_major,
                        semi_minor,
                        orientation,
