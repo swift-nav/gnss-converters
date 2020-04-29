@@ -52,6 +52,7 @@ struct glo_sat_data {
     u32 words[4];
   } string[5];
   unsigned vmask;
+  u16 curr_superframe_id;
 };
 
 /* Stores state for ESF-* messages */

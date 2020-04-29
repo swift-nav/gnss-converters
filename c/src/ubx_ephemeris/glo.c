@@ -96,6 +96,10 @@ void glo_decode_string(
   }
 
   struct glo_sat_data *sat = &data->glo_sat[prn - 1];
+  if (sat->curr_superframe_id != (words[3] >> 16)) {
+    sat->vmask = 0;
+    sat->curr_superframe_id = (words[3] >> 16);
+  }
   sat->vmask |= 1U << (u8)(string_num - 1);
   assert(string_num <= (int)ARRAY_SIZE(sat->string));
   memcpy(&sat->string[string_num - 1].words,
