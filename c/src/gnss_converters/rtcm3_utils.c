@@ -30,6 +30,7 @@
 #include <rtcm3/constants.h>
 #include <rtcm3/msm_utils.h>
 #include <swiftnav/constants.h>
+#include <swiftnav/logging.h>
 #include <swiftnav/signal.h>
 
 /** Define the PRN ranges for each constellation. */
@@ -346,7 +347,7 @@ u8 code_to_msm_signal_id(const code_t code, const rtcm_constellation_t cons) {
     default:
       break;
   }
-  fprintf(stderr, "Code %d not found in RTCM constellation %u\n", code, cons);
+  log_info("Code %d not found in RTCM constellation %u", code, cons);
   return MSM_SIGNAL_MASK_SIZE;
 }
 
@@ -610,7 +611,7 @@ static void msm_add_to_header_err(code_t code, u8 prn, const char reason[]) {
   char code_string[SID_STR_LEN_MAX];
   gnss_signal_t sid = {prn, code};
   sid_to_string(code_string, SID_STR_LEN_MAX, sid);
-  fprintf(stderr, "Cannot add %s to MSM header: %s\n", code_string, reason);
+  log_info("Cannot add %s to MSM header: %s", code_string, reason);
 }
 
 /* add the given signal and satellite to the MSM header, returns true if

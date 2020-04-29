@@ -17,6 +17,7 @@
 #include <swiftnav/bits.h>
 #include <swiftnav/common.h>
 #include <swiftnav/edc.h>
+#include <swiftnav/logging.h>
 #include <swiftnav/signal.h>
 
 #include "common.h"
@@ -102,7 +103,7 @@ void sbas_decode_subframe(struct ubx_sbp_state *data,
   u32 crc = getbitu(buffer, SBAS_MSG_DATA_LENGTH, SBAS_MSG_CRC_LENGTH);
 
   if (crc != computed_crc) {
-    fprintf(stderr, "Ignoring uBlox SBAS frame with CRC mismatch\n");
+    log_info("Ignoring uBlox SBAS frame with CRC mismatch");
     return;
   }
 

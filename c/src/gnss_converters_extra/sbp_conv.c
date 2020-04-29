@@ -10,7 +10,7 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include "gnss-converters/sbp_conv.h"
+#include <gnss-converters-extra/sbp_conv.h>
 
 #include <assert.h>
 #include <libsbp/logging.h>
@@ -19,7 +19,7 @@
 #include <swiftnav/gnss_time.h>
 #include <time.h>
 
-#include "gnss-converters/sbp_rtcm3.h"
+#include <gnss-converters/sbp_rtcm3.h>
 
 struct sbp_conv_s {
   struct rtcm3_out_state state;

@@ -12,7 +12,6 @@
 
 #include <assert.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,6 +28,7 @@
 #include <swiftnav/ephemeris.h>
 #include <swiftnav/fifo_byte.h>
 #include <swiftnav/gnss_time.h>
+#include <swiftnav/logging.h>
 #include <swiftnav/memcpy_s.h>
 #include <swiftnav/sid_set.h>
 #include <swiftnav/signal.h>
@@ -179,7 +179,7 @@ u16 encode_rtcm3_frame(const void *rtcm_msg, u16 message_type, u8 *frame) {
   u16 message_size = encode_rtcm3_payload(rtcm_msg, message_type, &frame[byte]);
 
   if (0 == message_size) {
-    fprintf(stderr, "Error encoding RTCM message %u\n", message_type);
+    log_info("Error encoding RTCM message %u", message_type);
     return 0;
   }
 
@@ -331,7 +331,7 @@ static u8 sbp_fcn_to_rtcm(u8 sbp_fcn) {
   }
   s8 rtcm_fcn = sbp_fcn + MSM_GLO_FCN_OFFSET - SBP_GLO_FCN_OFFSET;
   if (rtcm_fcn < 0 || rtcm_fcn > MSM_GLO_MAX_FCN) {
-    fprintf(stderr, "Ignoring invalid GLO FCN %d\n", sbp_fcn);
+    log_info("Ignoring invalid GLO FCN %d", sbp_fcn);
     return MSM_GLO_FCN_UNKNOWN;
   }
   return rtcm_fcn;
@@ -367,7 +367,7 @@ void sbp2rtcm_set_glo_fcn(sbp_gnss_signal_t sid,
   /* convert FCN from SBP representation to RTCM representation */
   if (sid.sat < GLO_FIRST_PRN || sid.sat >= GLO_FIRST_PRN + NUM_SATS_GLO) {
     /* invalid PRN */
-    fprintf(stderr, "Ignoring invalid GLO PRN %u\n", sid.sat);
+    log_info("Ignoring invalid GLO PRN %u", sid.sat);
     return;
   }
   state->glo_sv_id_fcn_map[sid.sat] = sbp_fcn_to_rtcm(sbp_fcn);
@@ -532,10 +532,7 @@ static void sbp_obs_to_msm_signal_data(const packed_obs_content_t *sbp_obs,
   u8 cell_id = sat_index * num_sigs + signal_index;
 
   if (!msg->header.cell_mask[cell_id]) {
-    fprintf(stderr,
-            "Cell mask not set for sat %u signal %u\n",
-            sat_index,
-            signal_index);
+    log_info("Cell mask not set for sat %u signal %u", sat_index, signal_index);
     return;
   }
 
@@ -840,17 +837,15 @@ void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
     double dt = sbp_diff_time(&sbp_obs->header.t, &state->sbp_header.t);
 
     if (dt < 0) {
-      fprintf(stderr,
-              "Discarding SBP obs with timestamp %.1f seconds in the past\n",
-              dt);
+      log_info("Discarding SBP obs with timestamp %.1f seconds in the past",
+               dt);
       return;
     }
     if (dt > 0) {
       /* observations belong to the next epoch, send out the current buffer
        * before processing this message */
-      fprintf(
-          stderr,
-          "SBP obs sequence ended prematurely, starting new one at dt=%.1f\n",
+      log_info(
+          "SBP obs sequence ended prematurely, starting new one at dt=%.1f",
           dt);
 
       sbp_buffer_to_rtcm3(state);
@@ -860,24 +855,23 @@ void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
 
       if (seq_size != current_seq_size || seq_counter <= current_seq_counter) {
         /* sequence broken, send out current buffer and ignore this message */
-        fprintf(stderr,
-                "Ignoring SBP obs with invalid obs sequence: expected %d/%d "
-                "but got %d/%d\n",
-                current_seq_counter + 1,
-                current_seq_size,
-                seq_counter,
-                seq_size);
+        log_info(
+            "Ignoring SBP obs with invalid obs sequence: expected %d/%d "
+            "but got %d/%d",
+            current_seq_counter + 1,
+            current_seq_size,
+            seq_counter,
+            seq_size);
         sbp_buffer_to_rtcm3(state);
         return;
       }
       if (seq_counter != current_seq_counter + 1) {
         /* missed a packet, emit warning but still process this message */
-        fprintf(stderr,
-                "Missed an SBP obs packet, expected seq %d/%d but got %d/%d\n",
-                current_seq_counter + 1,
-                current_seq_size,
-                seq_counter,
-                seq_size);
+        log_info("Missed an SBP obs packet, expected seq %d/%d but got %d/%d",
+                 current_seq_counter + 1,
+                 current_seq_size,
+                 seq_counter,
+                 seq_size);
       }
     }
   }
@@ -897,10 +891,9 @@ void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
     state->sbp_obs_buffer[state->n_sbp_obs] = sbp_obs->obs[i];
     state->n_sbp_obs++;
     if (state->n_sbp_obs == MAX_OBS_PER_EPOCH) {
-      fprintf(
-          stderr,
+      log_info(
           "Reached max observations per epoch %u, ignoring the remaining %u "
-          "obs\n",
+          "obs",
           (u16)MAX_OBS_PER_EPOCH,
           n_meas - i - 1);
       break;

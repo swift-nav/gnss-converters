@@ -14,7 +14,6 @@
 #include <libsbp/ssr.h>
 #include <math.h>
 #include <rtcm3/msm_utils.h>
-#include <stdio.h>
 #include <string.h>
 #include "rtcm3_sbp_internal.h"
 

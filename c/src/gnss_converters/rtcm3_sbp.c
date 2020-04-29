@@ -17,9 +17,23 @@
 #define __USE_MINGW_ANSI_STDIO 1
 #endif
 
+/**
+ * Per suggestion from
+ * https://stackoverflow.com/questions/44382862/how-to-printf-a-size-t-without-warning-in-mingw-w64-gcc-7-1
+ * to fix a compatibility issue with %zd format specifiers.
+ */
+#ifdef _WIN32
+#ifdef _WIN64
+#define PRI_SSIZE "I64d"
+#else
+#define PRI_SSIZE "I32d"
+#endif
+#else
+#define PRI_SSIZE "zd"
+#endif
+
 #include <assert.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -36,6 +50,7 @@
 #include <swiftnav/ephemeris.h>
 #include <swiftnav/fifo_byte.h>
 #include <swiftnav/gnss_time.h>
+#include <swiftnav/logging.h>
 #include <swiftnav/memcpy_s.h>
 #include <swiftnav/sid_set.h>
 #include <swiftnav/signal.h>
@@ -125,7 +140,7 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       (payload[byte] << 4) | ((payload[byte + 1] >> 4) & 0xf);
 
   if (verbosity_level > VERB_HIGH) {
-    fprintf(stderr, "MID: %5u\n", message_type);
+    log_info("MID: %5u", message_type);
   }
 
   switch (message_type) {
@@ -844,15 +859,14 @@ void rtcm3_to_sbp(const rtcm_obs_message *rtcm_obs,
         }
 
         if (verbosity_level > VERB_HIGH) {
-          fprintf(stderr,
-                  "OBS: %3d %8s %14.3lf %14.3lf %14.3lf %2d 0x%02x\n",
-                  sbp_freq->sid.sat,
-                  code_to_string(sbp_freq->sid.code),
-                  sbp_freq->P / MSG_OBS_P_MULTIPLIER,
-                  sbp_freq->L.i + sbp_freq->L.f / MSG_OBS_LF_MULTIPLIER,
-                  sbp_freq->cn0 / MSG_OBS_CN0_MULTIPLIER,
-                  sbp_freq->lock,
-                  sbp_freq->flags);
+          log_info("OBS: %3d %8s %14.3lf %14.3lf %14.3lf %2d 0x%02x",
+                   sbp_freq->sid.sat,
+                   code_to_string(sbp_freq->sid.code),
+                   sbp_freq->P / MSG_OBS_P_MULTIPLIER,
+                   sbp_freq->L.i + sbp_freq->L.f / MSG_OBS_LF_MULTIPLIER,
+                   sbp_freq->cn0 / MSG_OBS_CN0_MULTIPLIER,
+                   sbp_freq->lock,
+                   sbp_freq->flags);
         }
 
         new_sbp_obs->header.n_obs++;
@@ -1069,7 +1083,7 @@ static u8 sbp_fcn_to_rtcm(u8 sbp_fcn) {
   }
   s8 rtcm_fcn = sbp_fcn + MSM_GLO_FCN_OFFSET - SBP_GLO_FCN_OFFSET;
   if (rtcm_fcn < 0 || rtcm_fcn > MSM_GLO_MAX_FCN) {
-    fprintf(stderr, "Ignoring invalid GLO FCN %d\n", sbp_fcn);
+    log_info("Ignoring invalid GLO FCN %d", sbp_fcn);
     return MSM_GLO_FCN_UNKNOWN;
   }
   return rtcm_fcn;
@@ -1105,7 +1119,7 @@ void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
   /* convert FCN from SBP representation to RTCM representation */
   if (sid.sat < GLO_FIRST_PRN || sid.sat >= GLO_FIRST_PRN + NUM_SATS_GLO) {
     /* invalid PRN */
-    fprintf(stderr, "Ignoring invalid GLO PRN %u\n", sid.sat);
+    log_info("Ignoring invalid GLO PRN %u", sid.sat);
     return;
   }
   state->glo_sv_id_fcn_map[sid.sat] = sbp_fcn_to_rtcm(sbp_fcn);
@@ -1253,7 +1267,7 @@ void send_sbp_log_message(const uint8_t level,
   /* truncate the message to fit in the payload */
   u16 max_message_length = SBP_FRAMING_MAX_PAYLOAD_SIZE - sizeof(*sbp_log_msg);
   if (length > max_message_length) {
-    fprintf(stderr, "Truncating too long log message: %s\n", message);
+    log_info("Truncating too long log message: %s", message);
     length = max_message_length;
   }
   MEMCPY_S(sbp_log_msg->text, max_message_length, message, length);
@@ -1565,15 +1579,14 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
           }
 
           if (verbosity_level > VERB_HIGH) {
-            fprintf(stderr,
-                    "OBS: %3d %8s %14.3lf %14.3lf %14.3lf %2d 0x%02x\n",
-                    sbp_freq->sid.sat,
-                    code_to_string(sbp_freq->sid.code),
-                    sbp_freq->P / MSG_OBS_P_MULTIPLIER,
-                    sbp_freq->L.i + sbp_freq->L.f / MSG_OBS_LF_MULTIPLIER,
-                    sbp_freq->cn0 / MSG_OBS_CN0_MULTIPLIER,
-                    sbp_freq->lock,
-                    sbp_freq->flags);
+            log_info("OBS: %3d %8s %14.3lf %14.3lf %14.3lf %2d 0x%02x",
+                     sbp_freq->sid.sat,
+                     code_to_string(sbp_freq->sid.code),
+                     sbp_freq->P / MSG_OBS_P_MULTIPLIER,
+                     sbp_freq->L.i + sbp_freq->L.f / MSG_OBS_LF_MULTIPLIER,
+                     sbp_freq->cn0 / MSG_OBS_CN0_MULTIPLIER,
+                     sbp_freq->lock,
+                     sbp_freq->flags);
           }
 
           new_sbp_obs->header.n_obs++;
@@ -1614,10 +1627,10 @@ int rtcm2sbp_process(struct rtcm3_sbp_state *state,
 
   ssize_t write_sz = fifo_write(&state->fifo, inbuf, read_sz);
   if (write_sz != read_sz) {
-    fprintf(stderr,
-            "%zd bytes read but only %zd written to FIFO\n",
-            read_sz,
-            write_sz);
+    log_info("%" PRI_SSIZE " bytes read but only %" PRI_SSIZE
+             " written to FIFO",
+             read_sz,
+             write_sz);
     fifo_init(&state->fifo, state->fifo_buf, RTCM3_FIFO_SIZE);
   }
 
@@ -1652,10 +1665,8 @@ int rtcm2sbp_process(struct rtcm3_sbp_state *state,
 
   fifo_size_t removed_sz = fifo_remove(&state->fifo, index);
   if (removed_sz != index) {
-    fprintf(stderr,
-            "Tried to remove %u bytes from FIFO, only got %u\n",
-            index,
-            removed_sz);
+    log_info(
+        "Tried to remove %u bytes from FIFO, only got %u", index, removed_sz);
     fifo_init(&state->fifo, state->fifo_buf, RTCM3_FIFO_SIZE);
   }
 
@@ -1671,20 +1682,17 @@ static uint16_t extract_msg_len(const uint8_t *buf) {
 static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
   uint16_t msg_len = extract_msg_len(buf);
   if (buf_len < msg_len + RTCM3_MSG_OVERHEAD) {
-    fprintf(stderr,
-            "CRC failure! Buffer %u too short for message length %u\n",
-            buf_len,
-            msg_len);
+    log_info("CRC failure! Buffer %u too short for message length %u",
+             buf_len,
+             msg_len);
     return false;
   }
   uint32_t computed_crc = crc24q(buf, 3 + msg_len, 0);
   uint32_t frame_crc = (buf[msg_len + 3] << 16) | (buf[msg_len + 4] << 8) |
                        (buf[msg_len + 5] << 0);
   if (frame_crc != computed_crc) {
-    fprintf(stderr,
-            "CRC failure! frame: %08X computed: %08X\n",
-            frame_crc,
-            computed_crc);
+    log_info(
+        "CRC failure! frame: %08X computed: %08X", frame_crc, computed_crc);
   }
   return (frame_crc == computed_crc);
 }

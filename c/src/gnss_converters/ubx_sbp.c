@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <swiftnav/common.h>
+#include <swiftnav/logging.h>
 #include <swiftnav/nav_meas.h>
 #include <swiftnav/signal.h>
 #include <ubx/decode.h>
@@ -184,12 +185,12 @@ static int read_ubx_frame(u8 *frame, struct ubx_sbp_state *state) {
      * bytes for length, 2 bytes for checksum not counted in payload_length
      */
     if (payload_length > UBX_FRAME_SIZE - 6) {
-      fprintf(stderr,
-              "UBX payload_length for class 0x%X and ID 0x%X too large: %d; "
-              "possible corrupted frame\n",
-              frame[0],
-              frame[1],
-              payload_length);
+      log_warn(
+          "UBX payload_length for class 0x%X and ID 0x%X too large: %d; "
+          "possible corrupted frame",
+          frame[0],
+          frame[1],
+          payload_length);
       continue;
     }
 
@@ -454,9 +455,8 @@ static int fill_msg_pos_llh(const u8 buf[], msg_pos_llh_t *msg) {
           msg->flags |= SBP_LLH_FIXED_RTK_MASK;
           break;
         default:
-          fprintf(stderr,
-                  "Invalid NAV_PVT.flags carrier solution value: %d\n",
-                  carr_soln);
+          log_warn("Invalid NAV_PVT.flags carrier solution value: %d",
+                   carr_soln);
           break;
       }
     }
