@@ -261,7 +261,7 @@ static void ubx_sbp_callback_esf_meas(
   msg_index++;
 }
 
-static const u16 esf_raw_crc[] = {0x598C,
+static const u16 esf_raw_crc[] = {0x2AC9,
                                   0x4A06,
                                   0x2DDF,
                                   0x13BB,
@@ -702,6 +702,23 @@ START_TEST(test_convert_msss_to_tow) {
 }
 END_TEST
 
+START_TEST(test_convert_temperature) {
+  /* Check that the conversion yields the same results that would be expected
+   * for the BMI160 IMU */
+  ck_assert_int_eq(ubx_convert_temperature_to_bmi160(23.0), 0);
+  ck_assert_int_eq(ubx_convert_temperature_to_bmi160(23.0 + 1.0 / 512), 1);
+  ck_assert_int_eq(ubx_convert_temperature_to_bmi160(23.0 - 1.0 / 512), -1);
+  ck_assert_int_eq(ubx_convert_temperature_to_bmi160(87.0 - 1.0 / 512),
+                   INT16_MAX);
+  ck_assert_int_eq(ubx_convert_temperature_to_bmi160(-41.0 + 1.0 / 512),
+                   INT16_MIN + 1);
+
+  /* Check overflow behavior */
+  ck_assert_int_eq(ubx_convert_temperature_to_bmi160(-50.0), INT16_MIN + 1);
+  ck_assert_int_eq(ubx_convert_temperature_to_bmi160(100.0), INT16_MAX);
+}
+END_TEST
+
 Suite *ubx_suite(void) {
   Suite *s = suite_create("UBX");
 
@@ -724,6 +741,7 @@ Suite *ubx_suite(void) {
   tcase_add_test(tc_esf, test_convert_msss_to_tow);
   tcase_add_test(tc_esf, test_esf_meas);
   tcase_add_test(tc_esf, test_esf_raw);
+  tcase_add_test(tc_esf, test_convert_temperature);
   suite_add_tcase(s, tc_esf);
 
   TCase *tc_rxm = tcase_create("UBX_RXM");

@@ -650,6 +650,20 @@ double ubx_convert_msss_to_tow(u32 msss, const struct ubx_esf_state *state) {
   return tow;
 }
 
+int16_t ubx_convert_temperature_to_bmi160(double temperature_degrees) {
+  if (temperature_degrees >= 87.0 - 1.0 / 512.0) {
+    return INT16_MAX;
+  }
+
+  if (temperature_degrees <= -41.0 + 1.0 / 512.0) {
+    /* INT16_MIN denotes an invalid value according to the BMI160 spec */
+    return INT16_MIN + 1;
+  }
+
+  double imu_temp_bmi160_scaled = (temperature_degrees - 23.0) * 512.0;
+  return (int16_t)imu_temp_bmi160_scaled;
+}
+
 struct sbp_imuraw_timespec {
   u32 tow;
   u8 tow_f;
@@ -800,9 +814,10 @@ static void send_imu_aux(struct ubx_sbp_state *state) {
   const u8 gyro_range_125degs = 4;
   const u8 acc_range_4g = 1;
   msg.imu_conf = (gyro_range_125degs << 4) | acc_range_4g;
-  double imu_temp_bmi160_scaled =
-      (state->esf_state.last_imu_temp - 23.0) / 512.0;
-  msg.temp = (s16)imu_temp_bmi160_scaled;
+  /* Convert the IMU temperature to BMI160 format, see
+   * https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BMI160-DS000.pdf,
+   * section 2.11.8 */
+  msg.temp = ubx_convert_temperature_to_bmi160(state->esf_state.last_imu_temp);
   state->cb_ubx_to_sbp(SBP_MSG_IMU_AUX,
                        sizeof(msg),
                        (u8 *)&msg,

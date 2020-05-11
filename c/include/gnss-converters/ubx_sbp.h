@@ -88,6 +88,8 @@ struct ubx_sbp_state {
 
 double ubx_convert_msss_to_tow(u32 msss, const struct ubx_esf_state *state);
 
+int16_t ubx_convert_temperature_to_bmi160(double temperature_degrees);
+
 void ubx_sbp_init(struct ubx_sbp_state *state,
                   void (*cb_ubx_to_sbp)(u16 msg_id,
                                         u8 length,
