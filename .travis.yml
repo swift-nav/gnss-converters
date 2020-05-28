@@ -39,7 +39,7 @@ matrix:
 
     - os: linux
       language: rust
-      rust: nightly
+      rust: nightly-2020-05-25
       addons:
         apt:
           sources:
@@ -51,14 +51,14 @@ matrix:
       env: TESTENV=rust CC=clang-6.0 CXX=clang++-6.0
 
     - os: osx
-      osx_image: xcode8
+      osx_image: xcode10
       language: rust
-      rust: nightly
+      rust: nightly-2020-05-25
       env: TESTENV=rust CC=clang CXX=clang++
 
     - os: windows
       language: rust
-      rust: nightly-x86_64-pc-windows-gnu
+      rust: nightly-2020-05-25-x86_64-pc-windows-gnu
       env:
         - TESTENV=rust
         - CMAKE_GENERATOR="MinGW Makefiles"

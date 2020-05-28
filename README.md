@@ -19,13 +19,13 @@ Install build dependencies, and a nightly toolchain for Rust:
 
 ```
 sudo apt install build-essential cmake clang
-rustup install nightly
+rustup install nightly-2020-05-25
 ```
 
 Then build and install with `cargo`:
 ```
 git clone --recursive --jobs=4 https://github.com/swift-nav/gnss-converters.git
-cargo +nightly install --path gnss-converters --bins
+cargo +nightly-2020-05-25 install --path gnss-converters --bins
 ```
 
 The following tools will be installed in `~/.cargo/bin` (which should be in the path):
