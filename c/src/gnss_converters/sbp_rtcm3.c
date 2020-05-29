@@ -1089,6 +1089,9 @@ void sbp2rtcm_sbp_log_cb(const u16 sender_id,
                          const u8 len,
                          const u8 msg[],
                          struct rtcm3_out_state *state) {
+  if (len < 2) {
+    return;
+  }
   msg_log_t *sbp_msg_log = (msg_log_t *)msg;
   rtcm_msg_1029 rtcm_msg_log;
 
