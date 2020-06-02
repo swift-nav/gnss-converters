@@ -33,9 +33,9 @@ The following tools will be installed in `~/.cargo/bin` (which should be in the 
 - sbp2rtcm
 - rtcm3tosbp
 - ubx2sbp
+- ixcom2sbp
 
 ## Build locally
-
 
 This repository is a bit of a chimera; its products are the
 gnss-converters library which provides funtionality for converting
