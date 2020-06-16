@@ -229,13 +229,14 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       rtcm_msg_eph msg_eph;
       if (RC_OK == rtcm3_decode_glo_eph(&payload[byte], &msg_eph)) {
         msg_ephemeris_glo_t sbp_glo_eph;
-        rtcm3_glo_eph_to_sbp(&msg_eph, &sbp_glo_eph, state);
-        rtcm2sbp_set_glo_fcn(sbp_glo_eph.common.sid, sbp_glo_eph.fcn, state);
-        state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GLO,
-                              (u8)sizeof(sbp_glo_eph),
-                              (u8 *)&sbp_glo_eph,
-                              rtcm_stn_to_sbp_sender_id(0),
-                              state->context);
+        if (rtcm3_glo_eph_to_sbp(&msg_eph, &sbp_glo_eph, state)) {
+          rtcm2sbp_set_glo_fcn(sbp_glo_eph.common.sid, sbp_glo_eph.fcn, state);
+          state->cb_rtcm_to_sbp(SBP_MSG_EPHEMERIS_GLO,
+                                (u8)sizeof(sbp_glo_eph),
+                                (u8 *)&sbp_glo_eph,
+                                rtcm_stn_to_sbp_sender_id(0),
+                                state->context);
+        }
       }
       break;
     }
@@ -1168,7 +1169,11 @@ void compute_glo_time(u32 tod_ms,
     obs_time->wn = INVALID_TIME;
     return;
   }
-  assert(tod_ms < (DAY_SECS + 1) * SECS_MS);
+  if (tod_ms >= (DAY_SECS + 1) * SECS_MS) {
+    log_error("Invalid GLO time received.");
+    obs_time->wn = INVALID_TIME;
+    return;
+  }
   assert(gps_time_valid(rover_time));
 
   /* Approximate DOW from the reference GPS time */

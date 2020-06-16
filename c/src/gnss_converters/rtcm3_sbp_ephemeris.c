@@ -205,7 +205,7 @@ void rtcm3_qzss_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_qzss_eph->toc.tow = msg_eph->kepler.toc * GPS_TOC_RESOLUTION;
 }
 
-void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
+bool rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_glo_t *sbp_glo_eph,
                           struct rtcm3_sbp_state *state) {
   assert(msg_eph);
@@ -216,6 +216,9 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
                    &toe,
                    &state->time_from_rover_obs,
                    state);
+  if (toe.wn == (s16)INVALID_TIME) {
+    return false;
+  }
   sbp_glo_eph->common.toe.wn = toe.wn;
   sbp_glo_eph->common.toe.tow = (u32)rint(toe.tow);
   sbp_glo_eph->common.sid.sat = msg_eph->sat_id;
@@ -244,6 +247,7 @@ void rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
 
   sbp_glo_eph->fcn = msg_eph->glo.fcn + 1;
   sbp_glo_eph->iod = (msg_eph->glo.t_b * 15 * MINUTE_SECS) & 127u;
+  return true;
 }
 
 void rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
