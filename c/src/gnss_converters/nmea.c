@@ -160,7 +160,10 @@ static void nmea_append_checksum(char *s, size_t size) {
     p++;
   }
 
-  sprintf(p, "*%02X\r\n", sum);
+  size_t remaining_size = size - (size_t)(p - s);
+  if (remaining_size > 0) {
+    snprintf(p, remaining_size, "*%02X\r\n", sum);
+  }  // truncates without check, will always null terminate
 }
 
 /** Wrapper function for vsnprintf to accommodate return value handling. Updates
