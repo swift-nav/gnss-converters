@@ -159,7 +159,7 @@ static void ubx_sbp_callback_rxm_sfrbx_bds(
   ck_assert(crc == rxm_sfrbx_bds_crc);
 }
 
-static const u16 rxm_sfrbx_gal_crc = 0x09BA;
+static const u16 rxm_sfrbx_gal_crc = 0x4929;
 static void ubx_sbp_callback_rxm_sfrbx_gal(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
