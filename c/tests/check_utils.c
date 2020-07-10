@@ -95,7 +95,7 @@ START_TEST(test_msm_sid_conversion) {
   memset((void *)&header.satellite_mask, 0, sizeof(header.satellite_mask));
   header.satellite_mask[0] = true;  /* PRN 1 */
   header.satellite_mask[1] = true;  /* PRN 2 */
-  header.satellite_mask[63] = true; /* invalid PRN 64 */
+  header.satellite_mask[63] = true; /* PRN 64, invalid except for BDS  */
   /* signal ids 2 (L1CA) and 15 (L2CM) */
   memset((void *)&header.signal_mask, 0, sizeof(header.signal_mask));
   header.signal_mask[1] = true;
@@ -168,7 +168,7 @@ START_TEST(test_msm_sid_conversion) {
   ck_assert_uint_eq(to_constellation(header.msg_num), CONSTELLATION_BDS);
   ck_assert_uint_eq(msm_sat_to_prn(&header, 0), 1);
   ck_assert_uint_eq(msm_sat_to_prn(&header, 1), 2);
-  ck_assert_uint_eq(msm_sat_to_prn(&header, 2), PRN_INVALID);
+  ck_assert_uint_eq(msm_sat_to_prn(&header, 2), 64);
   ck_assert_uint_eq(msm_signal_to_code(&header, 0), CODE_BDS2_B1);
   ck_assert_uint_eq(msm_signal_to_code(&header, 1), CODE_BDS2_B2);
   ck_assert(msm_signal_frequency(&header, 0, 0, &freq) &&
