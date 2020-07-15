@@ -1670,8 +1670,9 @@ int rtcm2sbp_process(struct rtcm3_sbp_state *state,
 
   fifo_size_t removed_sz = fifo_remove(&state->fifo, index);
   if (removed_sz != index) {
-    log_info(
-        "Tried to remove %u bytes from FIFO, only got %u", index, removed_sz);
+    log_info("Tried to remove %" PRIu32 " bytes from FIFO, only got %" PRIu32,
+             index,
+             removed_sz);
     fifo_init(&state->fifo, state->fifo_buf, RTCM3_FIFO_SIZE);
   }
 
@@ -1696,8 +1697,9 @@ static bool verify_crc(uint8_t *buf, uint16_t buf_len) {
   uint32_t frame_crc = (buf[msg_len + 3] << 16) | (buf[msg_len + 4] << 8) |
                        (buf[msg_len + 5] << 0);
   if (frame_crc != computed_crc) {
-    log_info(
-        "CRC failure! frame: %08X computed: %08X", frame_crc, computed_crc);
+    log_info("CRC failure! frame: %08" PRIX32 " computed: %08" PRIX32,
+             frame_crc,
+             computed_crc);
   }
   return (frame_crc == computed_crc);
 }

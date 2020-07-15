@@ -271,7 +271,7 @@ void get_utc_time_string(bool time,
     /* Time (UTC) */
     vsnprintf_wrap(&utc_str,
                    buf_end,
-                   "%02u%02u%02u.%0*u,",
+                   "%02u%02u%02u.%0*" PRIu32 ",",
                    rounded_utc_time.hours,
                    rounded_utc_time.minutes,
                    rounded_utc_time.seconds,

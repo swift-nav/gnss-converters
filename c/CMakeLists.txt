@@ -12,6 +12,8 @@ swift_create_project_options(
     TEST_PACKAGES "Check"
     )
 
+option(gnss-converters_BUILD_BINARIES "" true)
+
 include(ClangFormat)
 swift_setup_clang_format()
 include(ClangTidy)
