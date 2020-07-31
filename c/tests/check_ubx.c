@@ -25,6 +25,8 @@
 #include <libsbp/sbas.h>
 #include <libsbp/vehicle.h>
 
+#include <ubx/encode.h>
+
 #include <gnss-converters/ubx_sbp.h>
 
 #include "check_suites.h"
@@ -32,6 +34,14 @@
 #include "config.h"
 
 FILE *fp;
+static char tmp_file_name[FILENAME_MAX] = {0};
+
+static void tmp_file_teardown() {
+  if (strlen(tmp_file_name) != 0) {
+    unlink(tmp_file_name);
+    tmp_file_name[0] = '\0';
+  }
+}
 
 static const uint16_t hnr_pvt_crc[] = {57519};
 static void ubx_sbp_callback_hnr_pvt(
@@ -488,6 +498,82 @@ static void ubx_sbp_callback_nav_vel_ecef(
   msg_index++;
 }
 
+static void ubx_sbp_callback_wheeltick_sign_handling(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)length;
+  (void)sender_id;
+  (void)context;
+  static int msg_index = 0;
+  uint16_t expected_messages[] = {
+      SBP_MSG_WHEELTICK, SBP_MSG_WHEELTICK, SBP_MSG_WHEELTICK};
+
+  ck_assert_int_eq(msg_id, expected_messages[msg_index]);
+  msg_wheeltick_t *msg_wheeltick = (msg_wheeltick_t *)buff;
+  if (msg_index == 0) {
+    // Inserted first wheeltick message has tick count 91011
+    ck_assert_uint_eq(msg_wheeltick->time, 1234000);
+    ck_assert_int_eq(msg_wheeltick->ticks, 91011);
+    ck_assert_int_eq(msg_wheeltick->source, 2);
+    ck_assert_int_eq(msg_wheeltick->flags, 2);
+  } else if (msg_index == 1) {
+    // Second wheeltick message should increment tick count by 10
+    ck_assert_uint_eq(msg_wheeltick->time, 1244000);
+    ck_assert_int_eq(msg_wheeltick->ticks, 91021);
+    ck_assert_int_eq(msg_wheeltick->source, 2);
+    ck_assert_int_eq(msg_wheeltick->flags, 2);
+  } else if (msg_index == 1) {
+    // Third wheeltick message should decrement tick count by 20
+    ck_assert_uint_eq(msg_wheeltick->time, 1254000);
+    ck_assert_int_eq(msg_wheeltick->ticks, 91001);
+    ck_assert_int_eq(msg_wheeltick->source, 2);
+    ck_assert_int_eq(msg_wheeltick->flags, 2);
+  }
+
+  msg_index++;
+}
+
+static void ubx_sbp_callback_speed_sign_handling(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)length;
+  (void)sender_id;
+  (void)context;
+  static int msg_index = 0;
+  uint16_t expected_messages[] = {
+      SBP_MSG_ODOMETRY, SBP_MSG_ODOMETRY, SBP_MSG_ODOMETRY};
+
+  ck_assert_int_eq(msg_id, expected_messages[msg_index]);
+  msg_odometry_t *msg_odometry = (msg_odometry_t *)buff;
+  if (msg_index == 0) {
+    // Inserted first wheeltick message has tick count 91011
+    ck_assert_uint_eq(msg_odometry->tow, 1234);
+    ck_assert_int_eq(msg_odometry->flags & 0b111, 2);
+    ck_assert_int_eq((msg_odometry->flags & 0b11000) >> 3, 3);
+    ck_assert_int_eq(msg_odometry->velocity, 91011);
+  } else if (msg_index == 1) {
+    ck_assert_uint_eq(msg_odometry->tow, 1244);
+    ck_assert_int_eq(msg_odometry->flags & 0b111, 2);
+    ck_assert_int_eq((msg_odometry->flags & 0b11000) >> 3, 3);
+    ck_assert_int_eq(msg_odometry->velocity, -1);
+  } else if (msg_index == 2) {
+    ck_assert_uint_eq(msg_odometry->tow, 1254);
+    ck_assert_int_eq(msg_odometry->flags & 0b111, 2);
+    ck_assert_int_eq((msg_odometry->flags & 0b11000) >> 3, 3);
+    ck_assert_int_eq(msg_odometry->velocity, 91011);
+  }
+
+  msg_index++;
+}
+
+static void ubx_sbp_callback_test_no_conversion_invalid_calibtag(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)length;
+  (void)sender_id;
+  (void)context;
+  (void)msg_id;
+  (void)buff;
+  ck_assert_msg(false, "No SBP message output expected for this test");
+}
+
 int read_file_check_ubx(uint8_t *buf, size_t len, void *ctx) {
   (void)ctx;
   return fread(buf, sizeof(uint8_t), len, fp);
@@ -504,6 +590,38 @@ void test_UBX(struct ubx_sbp_state *state, const char *filename) {
   do {
     ret = ubx_sbp_process(state, &read_file_check_ubx);
   } while (ret > 0);
+}
+
+static int create_esf_meas_messages(uint8_t *dest,
+                                    uint32_t calib_time_tag,
+                                    bool calib_tag_valid,
+                                    uint32_t external_time_tag,
+                                    uint8_t data_type,
+                                    uint32_t data) {
+  ubx_esf_meas msg_esf_meas;
+  memset(&msg_esf_meas, 0, sizeof(msg_esf_meas));
+
+  if (calib_tag_valid) {
+    msg_esf_meas.calib_tag = calib_time_tag;
+    msg_esf_meas.length = 12 + 4;
+  } else {
+    msg_esf_meas.length = 8 + 4;
+  }
+
+  msg_esf_meas.class_id = UBX_CLASS_ESF;
+  msg_esf_meas.msg_id = UBX_MSG_ESF_MEAS;
+  const uint8_t kCalibTtagValid = 0b1000;
+  msg_esf_meas.flags = (1 << 11) | kCalibTtagValid;
+  msg_esf_meas.data[0] = (data_type << 24) | (data & 0xFFFFFF);
+  msg_esf_meas.time_tag = external_time_tag;
+  int n_bytes;
+
+  dest[0] = UBX_SYNC_CHAR_1;
+  dest[1] = UBX_SYNC_CHAR_2;
+  n_bytes = ubx_encode_esf_meas(&msg_esf_meas, &dest[2]);
+  ubx_checksum(&dest[2], n_bytes, (u8 *)&dest[2 + n_bytes]);
+  n_bytes += 4;
+  return n_bytes;
 }
 
 START_TEST(test_hnr_pvt) {
@@ -634,6 +752,111 @@ START_TEST(test_esf_meas) {
 }
 END_TEST
 
+START_TEST(test_wheeltick_sign) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_wheeltick_sign_handling, NULL);
+  // Open a temporary file for this test
+  strncpy(tmp_file_name, "XXXXXX", FILENAME_MAX);
+  int fd = mkstemp(tmp_file_name);
+  fp = fdopen(fd, "wb");
+  uint8_t buffer[512];
+  memset(buffer, 0, 512);
+
+  // Insert first wheeltick message
+  uint32_t positive_ticks = 91011;
+  int n_bytes = create_esf_meas_messages(
+      buffer, 1234, true, 5678, ESF_FRONT_LEFT_WHEEL_TICKS, positive_ticks);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // Increment ticks by 10
+  positive_ticks += 10;
+  n_bytes = create_esf_meas_messages(
+      buffer, 1244, true, 5678, ESF_FRONT_LEFT_WHEEL_TICKS, positive_ticks);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // Decrement ticks by 20
+  uint32_t decrement_ticks_by_20 = (1 << 23) | (positive_ticks + 20);
+  n_bytes = create_esf_meas_messages(buffer,
+                                     1254,
+                                     true,
+                                     5678,
+                                     ESF_FRONT_LEFT_WHEEL_TICKS,
+                                     decrement_ticks_by_20);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  fclose(fp);
+
+  test_UBX(&state, tmp_file_name);
+}
+END_TEST
+
+START_TEST(test_odometry_sign) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_speed_sign_handling, NULL);
+  // Open a temporary file for this test
+  strncpy(tmp_file_name, "XXXXXX", FILENAME_MAX);
+  int fd = mkstemp(tmp_file_name);
+  fp = fdopen(fd, "wb");
+  uint8_t buffer[512];
+  memset(buffer, 0, 512);
+
+  // Insert first odomety message - positive speed
+  uint32_t positive_speed = 91011;
+  int n_bytes = create_esf_meas_messages(
+      buffer, 1234, true, 5678, ESF_SPEED, positive_speed);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // Insert second odomety message - negative speed
+  uint32_t negative_speed = 0xFFFFFF;  // -1 in 24 bit two's complement
+  n_bytes = create_esf_meas_messages(
+      buffer, 1244, true, 5678, ESF_SPEED, negative_speed);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // Insert third odomety message - positive speed
+  n_bytes = create_esf_meas_messages(
+      buffer, 1254, true, 5678, ESF_SPEED, positive_speed);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  fclose(fp);
+
+  test_UBX(&state, tmp_file_name);
+}
+END_TEST
+
+START_TEST(test_no_conversion_invalid_calibtag) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(
+      &state, ubx_sbp_callback_test_no_conversion_invalid_calibtag, NULL);
+  // Open a temporary file for this test
+  strncpy(tmp_file_name, "XXXXXX", FILENAME_MAX);
+  int fd = mkstemp(tmp_file_name);
+  fp = fdopen(fd, "wb");
+  uint8_t buffer[512];
+  memset(buffer, 0, 512);
+
+  // Insert first odomety message - positive speed
+  uint32_t positive_speed = 91011;
+  int n_bytes = create_esf_meas_messages(
+      buffer, 1234, false, 5678, ESF_SPEED, positive_speed);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // Insert second odomety message - negative speed
+  uint32_t negative_speed = 0xFFFFFF;  // -1 in 24 bit two's complement
+  n_bytes = create_esf_meas_messages(
+      buffer, 1244, false, 5678, ESF_SPEED, negative_speed);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // Insert third odomety message - positive speed
+  n_bytes = create_esf_meas_messages(
+      buffer, 1254, false, 5678, ESF_SPEED, positive_speed);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  fclose(fp);
+
+  test_UBX(&state, tmp_file_name);
+}
+END_TEST
+
 START_TEST(test_nav_status) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_nav_status, NULL);
@@ -742,6 +965,10 @@ Suite *ubx_suite(void) {
   tcase_add_test(tc_esf, test_esf_meas);
   tcase_add_test(tc_esf, test_esf_raw);
   tcase_add_test(tc_esf, test_convert_temperature);
+  tcase_add_test(tc_esf, test_wheeltick_sign);
+  tcase_add_test(tc_esf, test_odometry_sign);
+  tcase_add_test(tc_esf, test_no_conversion_invalid_calibtag);
+  tcase_add_checked_fixture(tc_esf, NULL, tmp_file_teardown);
   suite_add_tcase(s, tc_esf);
 
   TCase *tc_rxm = tcase_create("UBX_RXM");

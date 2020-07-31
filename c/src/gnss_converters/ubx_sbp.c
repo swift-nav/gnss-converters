@@ -584,8 +584,8 @@ static void set_odo_time(u32 msss,
     msg_odo->flags = time_source_gps;
     msg_odo->tow = (u32)(tow_s * SECS_MS);
   } else {
-    const u8 time_source_invalid = 0;
-    msg_odo->flags = time_source_invalid;
+    const u8 time_source_processor = 2;
+    msg_odo->flags = time_source_processor;
     msg_odo->tow = msss;
   }
 }
@@ -603,7 +603,11 @@ static void handle_esf_meas(struct ubx_sbp_state *state, u8 *inbuf) {
     u32 data_value = ((u32)esf_meas.data[idx] & 0xFFFFFF);
 
     if (is_odo(data_type)) {
-      u32 tick_count = data_value & 0x3FFFFF;
+      const uint8_t kCalibTtagValid = 0b1000;
+
+      if (!(esf_meas.flags & kCalibTtagValid)) {
+        return;
+      }
 
       if (data_type == ESF_SPEED) {
         msg_odometry_t msg_odo;
@@ -612,18 +616,33 @@ static void handle_esf_meas(struct ubx_sbp_state *state, u8 *inbuf) {
         u32 direction = (data_value & 0x800000) >> 23;
         msg_odo.flags |= direction << 5;
         msg_odo.flags |= velocity_source << 3;
-        msg_odo.velocity = tick_count;
+        msg_odo.velocity = convert24b(data_value & 0x00FFFFFF);
         state->cb_ubx_to_sbp(SBP_MSG_ODOMETRY,
                              sizeof(msg_odo),
                              (u8 *)&msg_odo,
                              state->sender_id,
                              state->context);
       } else {
+        u32 tick_count = data_value & 0x3FFFFF;
+        bool reverse = (data_value & (1 << 23)) >> 23;
+        if (state->esf_state.last_input_tick_count == UINT32_MAX) {
+          state->esf_state.last_input_tick_count = tick_count;
+          state->esf_state.output_tick_count = tick_count;
+        } else {
+          u32 increment = tick_count - state->esf_state.last_input_tick_count;
+          state->esf_state.last_input_tick_count = tick_count;
+          if (reverse) {
+            state->esf_state.output_tick_count -= increment;
+          } else {
+            state->esf_state.output_tick_count += increment;
+          }
+        }
+
         msg_wheeltick_t msg_wheeltick;
         set_wheeltick_time(
             esf_meas.calib_tag, &state->esf_state, &msg_wheeltick);
         msg_wheeltick.source = get_wheeltick_velocity_source(data_type);
-        msg_wheeltick.ticks = tick_count;
+        msg_wheeltick.ticks = state->esf_state.output_tick_count;
         state->cb_ubx_to_sbp(SBP_MSG_WHEELTICK,
                              sizeof(msg_wheeltick),
                              (u8 *)&msg_wheeltick,
@@ -1121,6 +1140,8 @@ void ubx_sbp_init(struct ubx_sbp_state *state,
   state->context = context;
   state->use_hnr = false;
   state->last_tow_ms = -1;
+
+  state->esf_state.last_input_tick_count = UINT32_MAX;
 
   state->leap_second_known = false;
 }

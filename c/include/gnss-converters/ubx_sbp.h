@@ -61,6 +61,8 @@ struct ubx_esf_state {
   bool tow_offset_set;
   u32 last_sync_msss;
   u32 imu_raw_msgs_sent;
+  u32 last_input_tick_count;
+  s32 output_tick_count;
   double last_imu_temp;
 };
 
