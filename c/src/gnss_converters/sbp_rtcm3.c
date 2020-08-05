@@ -1080,6 +1080,8 @@ void sbp2rtcm_sbp_gal_eph_cb(const u16 sender_id,
    * source */
   sbp_to_rtcm3_gal_eph(sbp_gal_eph, &msg_gal_eph, state);
 
+  assert((sbp_gal_eph->source == EPH_SOURCE_GAL_INAV) ||
+         (sbp_gal_eph->source == EPH_SOURCE_GAL_FNAV));
   u16 message_type = sbp_gal_eph->source == EPH_SOURCE_GAL_INAV ? 1046 : 1045;
   u16 frame_size = encode_rtcm3_frame(&msg_gal_eph, message_type, frame);
   state->cb_sbp_to_rtcm(frame, frame_size, state->context);
