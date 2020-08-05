@@ -48,6 +48,8 @@
 #define THIRD_SISA_MAX_METERS 2.0f
 #define FOURTH_SISA_MAX_METERS 6.0f
 
+#define SISA_NAPA 255
+
 bool msm_signal_frequency(const rtcm_msm_header *header,
                           const u8 signal_index,
                           const u8 glo_fcn,

@@ -57,9 +57,12 @@ struct glo_sat_data {
 
 /* Stores state for ESF-* messages */
 struct ubx_esf_state {
-  double time_since_startup_tow_offset;
-  bool tow_offset_set;
-  u32 last_sync_msss;
+  gps_time_t last_obs_time_gnss;
+  gps_time_t last_imu_time_msss;
+  s64 running_imu_msss;
+  s64 running_odo_msss;
+  u32 last_imu_msss;
+  u32 last_odo_msss;
   u32 imu_raw_msgs_sent;
   u32 last_input_tick_count;
   s32 output_tick_count;
@@ -87,8 +90,6 @@ struct ubx_sbp_state {
   bool leap_second_known;
   utc_params_t utc_params;
 };
-
-double ubx_convert_msss_to_tow(u32 msss, const struct ubx_esf_state *state);
 
 int16_t ubx_convert_temperature_to_bmi160(double temperature_degrees);
 

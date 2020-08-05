@@ -87,7 +87,11 @@ struct sbp_meta_entry {
 };
 
 static uint32_t get_tow(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id) {
-  return *(uint32_t *)(sbp2nmea_msg_get(state, id) + sbp_meta[id].offset_tow);
+  uint32_t result;
+  memcpy(&result,
+         sbp2nmea_msg_get(state, id) + sbp_meta[id].offset_tow,
+         sizeof(uint32_t));
+  return result;
 }
 
 static double sbp_gpsdifftime(const sbp_gps_time_t *sbp_end,

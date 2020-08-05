@@ -15,6 +15,7 @@
 
 #include <libsbp/logging.h>
 
+#include <gnss-converters/ubx_sbp.h>
 #include <ubx/decode.h>
 #include <ubx/ubx_messages.h>
 

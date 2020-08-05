@@ -935,6 +935,10 @@ float convert_sisa_to_meters(const uint8_t sisa) {
 
 uint8_t convert_meters_to_sisa(const float ura) {
   /* Convert between meters and GAL SISA index.*/
+  if (ura < 0) {
+    return SISA_NAPA;
+  }
+
   if (ura <= FIRST_SISA_MAX_METERS) {
     return (uint8_t)(((ura - FIRST_SISA_MIN_METERS) / FIRST_SISA_RESOLUTION) +
                      0.5);

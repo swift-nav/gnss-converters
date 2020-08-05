@@ -10,7 +10,16 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include "check_ubx.h"
+
 #include <check.h>
+#include <libsbp/edc.h>
+#include <libsbp/imu.h>
+#include <libsbp/orientation.h>
+#include <libsbp/sbas.h>
+#include <libsbp/system.h>
+#include <libsbp/vehicle.h>
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,15 +28,7 @@
 #include <swiftnav/nav_meas.h>
 #include <swiftnav/signal.h>
 
-#include <libsbp/edc.h>
-#include <libsbp/imu.h>
-#include <libsbp/orientation.h>
-#include <libsbp/sbas.h>
-#include <libsbp/vehicle.h>
-
 #include <ubx/encode.h>
-
-#include <gnss-converters/ubx_sbp.h>
 
 #include "check_suites.h"
 #include "check_ubx.h"
@@ -202,16 +203,98 @@ static void ubx_sbp_callback_nav_status(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
   (void)sender_id;
-  (void)buff;
   (void)length;
-  (void)msg_id;
-  /* If this gets called, fail the test. We should not generate an SBP message
-   * from NAV-STATUS */
-  ck_assert_msg(false, "UBX-NAV-STATUS should not generate a SBP message");
+  static int msg_index = 0;
+  const u16 msg_order[] = {
+      SBP_MSG_OBS, SBP_MSG_IMU_AUX, SBP_MSG_IMU_RAW, SBP_MSG_GNSS_TIME_OFFSET};
+  ck_assert_msg(msg_id == msg_order[msg_index++],
+                "Unexpected SBP message created");
+  if (msg_id == SBP_MSG_GNSS_TIME_OFFSET) {
+    msg_gnss_time_offset_t *msg = (msg_gnss_time_offset_t *)buff;
+    // The GPS week of the obs message was 1234, so this should also be the week
+    // offset.
+    ck_assert_int_eq(msg->weeks, 1234);
+    // The millisecond offset should be the GPS iTOW of NAV-STATUS minus MSSS of
+    // NAV-STATUS
+    ck_assert_int_eq(msg->milliseconds, 5670 - 1234);
+    ck_assert_int_eq(msg->microseconds, 0);
+    ck_assert_int_eq(msg->flags, 0);
+  }
+}
+
+static void ubx_sbp_callback_imu_timestamp(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)context;
+  (void)sender_id;
+  (void)length;
+  static int msg_index = 0;
+  u16 msg_order[23];
+  msg_order[0] = SBP_MSG_IMU_AUX;
+  int idx = 1;
+  for (idx = 1; idx < 23; idx++) {
+    msg_order[idx] = SBP_MSG_IMU_RAW;
+  }
+
+  ck_assert_msg(msg_id == msg_order[msg_index],
+                "Unexpected SBP message created");
+  if (msg_id == SBP_MSG_IMU_RAW) {
+    msg_imu_raw_t *msg = (msg_imu_raw_t *)buff;
+    const uint32_t mask = 0x3FFFFFFF;
+    uint32_t timing_mode = (msg->tow & (~mask)) >> 30;
+    uint32_t cpu_local_time = 1;
+    ck_assert_uint_eq(timing_mode, cpu_local_time);
+
+    if (msg_index < 13) {
+      // The starting MSSS of the IMU messages is 4711 and the IMU interbal is
+      // 0.01 seconds. The corrected starting time (including the 50 ms
+      // correction) is thus 4661, and this should increment by 10 milliseconds
+      // with every additional message received.
+      ck_assert_uint_eq(msg->tow & mask,
+                        (unsigned int)(4661 + (msg_index - 1) * 10));
+      ck_assert_uint_eq(msg->tow_f, 0);
+    } else {
+      // Here, we check that the decoded TOW field wraps around at the end of a
+      // week. The tolerance is set to 2 LSBs of the tow_f field.
+      double tow = 1.0e-3 * (msg->tow & mask) + 1.0e-3 * msg->tow_f / 256.0;
+      if (msg_index < 18) {
+        ck_assert_double_eq_tol(
+            tow, 604799.95 + (msg_index - 13) * 0.01, 2.0e-3 / 256.0);
+      } else {
+        ck_assert_double_eq_tol(
+            tow, 0 + (msg_index - 18) * 0.01, 2.0e-3 / 256.0);
+      }
+    }
+  }
+  msg_index++;
+}
+
+static void ubx_sbp_callback_msss_rollover(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)context;
+  (void)sender_id;
+  (void)length;
+  static int msg_index = 0;
+  u16 msg_order[] = {SBP_MSG_IMU_AUX, SBP_MSG_IMU_RAW, SBP_MSG_IMU_RAW};
+
+  ck_assert_msg(msg_id == msg_order[msg_index],
+                "Unexpected SBP message created");
+  if (msg_id == SBP_MSG_IMU_RAW) {
+    msg_imu_raw_t *msg = (msg_imu_raw_t *)buff;
+    const uint32_t mask = 0x3FFFFFFF;
+    uint32_t timing_mode = (msg->tow & (~mask)) >> 30;
+    uint32_t cpu_local_time = 1;
+    ck_assert_uint_eq(timing_mode, cpu_local_time);
+    double tow = 1.0e-3 * (msg->tow & mask) + 1.0e-3 * msg->tow_f / 256.0;
+    // This test checks that a rollover of the MSSS field in the ubx protocol
+    // will not cause discontinuities in the SBP output.
+    ck_assert_double_eq_tol(
+        tow, 61367.245 + (msg_index - 1) * 0.01, 2.0e-3 / 256);
+  }
+  msg_index++;
 }
 
 static const u16 esf_meas_crc[] = {
-    0xBBD3, 0x9653, 0xD2D0, 0x7881, 0x3C02, 0x9653, 0xF101};
+    0xBBD3, 0xBBD3, 0xFF50, 0x5501, 0x1182, 0xBBD3, 0x69F6, 0xF101};
 static void ubx_sbp_callback_esf_meas(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
@@ -221,7 +304,6 @@ static void ubx_sbp_callback_esf_meas(
 
   u8 velocity_source = -1;
   s32 velocity = 0;
-
   if (msg_index < 6) {
     ck_assert(msg_id == SBP_MSG_WHEELTICK);
     msg_wheeltick_t *msg = (msg_wheeltick_t *)buff;
@@ -229,16 +311,8 @@ static void ubx_sbp_callback_esf_meas(
     const u8 time_source = msg->flags;
     velocity_source = msg->source;
     velocity = msg->ticks;
-    /* The first message in the .ubx file will use local system time because no
-     * UBX-NAV-STATUS has been received to calculate the offset between
-     * milliseconds since startup and GNSS time of week */
-    if (msg_index == 0) {
-      ck_assert_int_eq(msg->time, 25269459000);
-      ck_assert_int_eq(time_source, 2);
-    } else { /* all following messages should have a valid GPS timestamp */
-      ck_assert_int_eq(msg->time, 349740106000);
-      ck_assert_int_eq(time_source, 1);
-    }
+    ck_assert_int_eq(msg->time, 25269459000);
+    ck_assert_int_eq(time_source, 2);
   } else {
     ck_assert(msg_id == SBP_MSG_ODOMETRY);
     msg_odometry_t *msg = (msg_odometry_t *)buff;
@@ -248,8 +322,8 @@ static void ubx_sbp_callback_esf_meas(
     velocity = msg->velocity;
     const u8 time_source = (msg->flags & time_source_mask);
 
-    ck_assert_int_eq(msg->tow, 349740106);
-    ck_assert_int_eq(time_source, 1);
+    ck_assert_int_eq(msg->tow, 25269459);
+    ck_assert_int_eq(time_source, 2);
   }
 
   /* Check that the velocity source is correctly set - RR = 0, RL = 1, FL = 2,
@@ -272,16 +346,16 @@ static void ubx_sbp_callback_esf_meas(
 }
 
 static const u16 esf_raw_crc[] = {0x2AC9,
-                                  0x4A06,
-                                  0x2DDF,
-                                  0x13BB,
-                                  0xE40B,
-                                  0x51A1,
-                                  0x2C19,
-                                  0xEAC8,
-                                  0x8D0A,
-                                  0x8560,
-                                  0x8EC4};
+                                  0x7CAF,
+                                  0xFDED,
+                                  0x3B13,
+                                  0xF366,
+                                  0x1CCB,
+                                  0x3B74,
+                                  0xFDA5,
+                                  0xB864,
+                                  0x920D,
+                                  0x87A8};
 static void ubx_sbp_callback_esf_raw(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
@@ -304,8 +378,9 @@ static void ubx_sbp_callback_esf_raw(
   } else {
     ck_assert(msg_id == SBP_MSG_IMU_RAW);
     msg_imu_raw_t *msg = (msg_imu_raw_t *)buff;
-    ck_assert_int_ge(msg->tow, 325305109);
-    ck_assert_int_le(msg->tow, 325305198);
+    const u32 mask = 0x3FFFFFFF;
+    ck_assert_int_ge(msg->tow & mask, 834462);
+    ck_assert_int_le(msg->tow & mask, 834551);
   }
 
   /* Check that we won't receive more than 11 messages from this test file */
@@ -592,6 +667,46 @@ void test_UBX(struct ubx_sbp_state *state, const char *filename) {
   } while (ret > 0);
 }
 
+static int create_esf_raw_imu_messages(uint8_t *dest,
+                                       uint32_t starting_msss,
+                                       double sample_interval_seconds,
+                                       int num_samples) {
+  ubx_esf_raw msg_esf_raw;
+  memset(&msg_esf_raw, 0, sizeof(ubx_esf_raw));
+
+  msg_esf_raw.msss = starting_msss;
+  msg_esf_raw.length = 4 + 8 * 6 * num_samples;
+  msg_esf_raw.class_id = UBX_CLASS_ESF;
+  msg_esf_raw.msg_id = UBX_MSG_ESF_RAW;
+  int sensor_idx;
+  int sample_idx = 0;
+  int n_bytes;
+  const double ubx_clock_tick_seconds = 39.06525e-6;
+  long spacing = lround(sample_interval_seconds / ubx_clock_tick_seconds);
+
+  uint8_t sensor_tag[] = {ESF_X_AXIS_ACCEL_SPECIFIC_FORCE,
+                          ESF_Y_AXIS_ACCEL_SPECIFIC_FORCE,
+                          ESF_Z_AXIS_ACCEL_SPECIFIC_FORCE,
+                          ESF_X_AXIS_GYRO_ANG_RATE,
+                          ESF_Y_AXIS_GYRO_ANG_RATE,
+                          ESF_Z_AXIS_GYRO_ANG_RATE};
+  for (sample_idx = 0; sample_idx < num_samples; sample_idx++) {
+    for (sensor_idx = 0; sensor_idx < 6; sensor_idx++) {
+      msg_esf_raw.data[sample_idx * 6 + sensor_idx] =
+          (sensor_tag[sensor_idx] << 24) | 0;
+      msg_esf_raw.sensor_time_tag[sample_idx * 6 + sensor_idx] =
+          1234 + sample_idx * spacing;
+    }
+  }
+
+  dest[0] = UBX_SYNC_CHAR_1;
+  dest[1] = UBX_SYNC_CHAR_2;
+  n_bytes = ubx_encode_esf_raw(&msg_esf_raw, &dest[2]);
+  ubx_checksum(&dest[2], n_bytes, (u8 *)&dest[2 + n_bytes]);
+  n_bytes += 4;
+  return n_bytes;
+}
+
 static int create_esf_meas_messages(uint8_t *dest,
                                     uint32_t calib_time_tag,
                                     bool calib_tag_valid,
@@ -861,9 +976,115 @@ START_TEST(test_nav_status) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_nav_status, NULL);
 
-  test_UBX(&state, RELATIVE_PATH_PREFIX "/data/nav_status.ubx");
+  // Open a temporary file for this test
+  strncpy(tmp_file_name, "XXXXXX", FILENAME_MAX);
+  int fd = mkstemp(tmp_file_name);
+  fp = fdopen(fd, "wb");
+  uint8_t buffer[512];
+  memset(buffer, 0, 512);
+  int n_bytes;
+
+  // Create an obs message to set week number
+  ubx_rxm_rawx msg_rawx;
+  memset(&msg_rawx, 0, sizeof(ubx_rxm_rawx));
+  msg_rawx.rcv_wn = 1234;
+  msg_rawx.rcv_tow = 567.8;
+  msg_rawx.class_id = UBX_CLASS_RXM;
+  msg_rawx.msg_id = UBX_MSG_RXM_RAWX;
+  msg_rawx.length = 16;
+  buffer[0] = UBX_SYNC_CHAR_1;
+  buffer[1] = UBX_SYNC_CHAR_2;
+  n_bytes = ubx_encode_rawx(&msg_rawx, &buffer[2]);
+  ubx_checksum(&buffer[2], n_bytes, (u8 *)&buffer[2 + n_bytes]);
+  n_bytes += 4;
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // Create IMU messages
+  n_bytes = create_esf_raw_imu_messages(buffer, 4711, 0.01, 1);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // Create NAV-STATUS message
+  ubx_nav_status msg_nav_status;
+  msg_nav_status.class_id = UBX_CLASS_NAV;
+  msg_nav_status.msg_id = UBX_MSG_NAV_STATUS;
+  msg_nav_status.msss = 1234;
+  msg_nav_status.i_tow = 5670;
+  msg_nav_status.fix_type = 3;
+  msg_nav_status.status_flags = 0xF;
+  msg_nav_status.fix_status = 0;
+  msg_nav_status.status_flags_ext = 0;
+  msg_nav_status.ttff_ms = 567;
+  msg_nav_status.length = 16;
+  buffer[0] = UBX_SYNC_CHAR_1;
+  buffer[1] = UBX_SYNC_CHAR_2;
+  n_bytes = ubx_encode_nav_status(&msg_nav_status, &buffer[2]);
+  ubx_checksum(&buffer[2], n_bytes, (u8 *)&buffer[2 + n_bytes]);
+  n_bytes += 4;
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+  fclose(fp);
+
+  // Run tests
+  test_UBX(&state, tmp_file_name);
 
   ck_assert(state.last_tow_ms < WEEK_MS);
+}
+END_TEST
+
+START_TEST(test_imu_timestamps) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_imu_timestamp, NULL);
+
+  // Open a temporary file for this test
+  strncpy(tmp_file_name, "XXXXXX", FILENAME_MAX);
+  int fd = mkstemp(tmp_file_name);
+  fp = fdopen(fd, "wb");
+  uint8_t buffer[512];
+
+  // Create IMU messages
+  int n_bytes = create_esf_raw_imu_messages(buffer, 4711, 0.01, 1);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // The next IMU message has an msss which is 100 ms bigger
+  n_bytes = create_esf_raw_imu_messages(buffer, 4721, 0.01, 1);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // Make a burst of IMU messages in a single ESF-RAW message
+  n_bytes = create_esf_raw_imu_messages(buffer, 4731, 0.01, 10);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  // Check IMU time week rollover behavior
+  n_bytes = create_esf_raw_imu_messages(buffer, 604800000, 0.01, 1);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  fclose(fp);
+
+  // Run tests
+  test_UBX(&state, tmp_file_name);
+}
+END_TEST
+
+START_TEST(test_imu_timestamps_msss_rollover) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_msss_rollover, NULL);
+
+  // Open a temporary file for this test
+  strncpy(tmp_file_name, "XXXXXX", FILENAME_MAX);
+  int fd = mkstemp(tmp_file_name);
+  fp = fdopen(fd, "wb");
+  uint8_t buffer[512];
+  memset(buffer, 0, 512);
+
+  // Create IMU messages - MSSS rollover from UINT32_MAX
+  int n_bytes = create_esf_raw_imu_messages(buffer, UINT32_MAX, 0.01, 1);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  n_bytes = create_esf_raw_imu_messages(buffer, 9, 0.01, 1);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  fclose(fp);
+
+  // Run tests
+  test_UBX(&state, tmp_file_name);
 }
 END_TEST
 
@@ -872,56 +1093,6 @@ START_TEST(test_esf_raw) {
   ubx_sbp_init(&state, ubx_sbp_callback_esf_raw, NULL);
 
   test_UBX(&state, RELATIVE_PATH_PREFIX "/data/esf_raw.ubx");
-}
-END_TEST
-
-START_TEST(test_convert_msss_to_tow) {
-  struct ubx_esf_state state = {.tow_offset_set = false,
-                                .time_since_startup_tow_offset = 0.,
-                                .last_sync_msss = 0};
-
-  /* Check that the function returns a number less than 0 if no time of week is
-     known */
-  ck_assert_double_lt(ubx_convert_msss_to_tow(1234, &state), 0.);
-
-  /* Check that the conversion will work under nominal conditions */
-  state.tow_offset_set = true;
-  state.last_sync_msss = 1234;
-  state.time_since_startup_tow_offset = 24 * 3600;
-  u32 msss = 2000;
-  double expected_tow = 24 * 3600 + 0.001 * msss;
-  double tol = 1e-9;
-  ck_assert_double_eq_tol(
-      ubx_convert_msss_to_tow(msss, &state), expected_tow, tol);
-
-  /* Check that the conversion will work if messages are only slightly out of
-     order, i.e. msss is a bit smaller than the last sync mssss */
-  state.tow_offset_set = true;
-  state.last_sync_msss = 1234;
-  state.time_since_startup_tow_offset = 24 * 3600;
-  msss = state.last_sync_msss - 1;
-  expected_tow = 24 * 3600 + 0.001 * msss;
-  ck_assert_double_eq_tol(
-      ubx_convert_msss_to_tow(msss, &state), expected_tow, tol);
-
-  /* Same, but crossing msss overflow */
-  state.tow_offset_set = true;
-  state.last_sync_msss = 1;
-  state.time_since_startup_tow_offset = 24 * 3600;
-  msss = state.last_sync_msss - 10;
-  expected_tow = 24 * 3600 + 0.001 * msss;
-  ck_assert_double_eq_tol(
-      ubx_convert_msss_to_tow(msss, &state), expected_tow, tol);
-
-  /* Check that the conversion will work if msss has a 32bit overflow between
-     last sync and current time */
-  state.tow_offset_set = true;
-  state.last_sync_msss = 0xFFFFFFFF - 100;
-  state.time_since_startup_tow_offset = 1234.0 - 0.001 * state.last_sync_msss;
-  msss = state.last_sync_msss + 500;
-  expected_tow = 1234.5;
-  ck_assert_double_eq_tol(
-      ubx_convert_msss_to_tow(msss, &state), expected_tow, tol);
 }
 END_TEST
 
@@ -958,10 +1129,12 @@ Suite *ubx_suite(void) {
   tcase_add_test(tc_nav, test_nav_pvt_set_sender_id);
   tcase_add_test(tc_nav, test_nav_vel_ecef);
   tcase_add_test(tc_nav, test_nav_status);
+  tcase_add_checked_fixture(tc_nav, NULL, tmp_file_teardown);
   suite_add_tcase(s, tc_nav);
 
   TCase *tc_esf = tcase_create("UBX_ESF");
-  tcase_add_test(tc_esf, test_convert_msss_to_tow);
+  tcase_add_test(tc_esf, test_imu_timestamps);
+  tcase_add_test(tc_esf, test_imu_timestamps_msss_rollover);
   tcase_add_test(tc_esf, test_esf_meas);
   tcase_add_test(tc_esf, test_esf_raw);
   tcase_add_test(tc_esf, test_convert_temperature);

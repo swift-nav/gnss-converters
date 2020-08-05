@@ -13,6 +13,7 @@
 #include <gnss-converters/ubx_sbp.h>
 #include <libsbp/imu.h>
 #include <libsbp/orientation.h>
+#include <libsbp/system.h>
 #include <libsbp/vehicle.h>
 #include <math.h>
 #include <stdint.h>
@@ -560,34 +561,28 @@ static u8 get_odo_velocity_source(u8 data_type) {
   }
 }
 
-static void set_wheeltick_time(u32 msss,
-                               const struct ubx_esf_state *esf_state,
-                               msg_wheeltick_t *msg_wheeltick) {
-  if (esf_state->tow_offset_set) {
-    double tow_s = ubx_convert_msss_to_tow(msss, esf_state);
-    const u8 time_source_gps = 1;
-    msg_wheeltick->flags = time_source_gps;
-    msg_wheeltick->time = (u64)(tow_s * SECS_US);
-  } else {
-    const u8 time_source_local = 2;
-    msg_wheeltick->flags = time_source_local;
-    msg_wheeltick->time = (u64)(msss * SECS_US / SECS_MS);
-  }
+static void set_wheeltick_time(s64 msss, msg_wheeltick_t *msg_wheeltick) {
+  const u8 time_source_local = 2;
+  msg_wheeltick->flags = time_source_local;
+  // The SBP protocol expects CPU local timestamps to wrap around after one
+  // week. We thus wrap the time since startup into gps_time_t struct and
+  // normalize it.
+  const double kMilliseconds = 0.001;
+  gps_time_t tmp = {.tow = kMilliseconds * msss, .wn = 0};
+  normalize_gps_time(&tmp);
+  msg_wheeltick->time = (u64)(tmp.tow * SECS_US);
 }
 
-static void set_odo_time(u32 msss,
-                         const struct ubx_esf_state *esf_state,
-                         msg_odometry_t *msg_odo) {
-  if (esf_state->tow_offset_set) {
-    double tow_s = ubx_convert_msss_to_tow(msss, esf_state);
-    const u8 time_source_gps = 1;
-    msg_odo->flags = time_source_gps;
-    msg_odo->tow = (u32)(tow_s * SECS_MS);
-  } else {
-    const u8 time_source_processor = 2;
-    msg_odo->flags = time_source_processor;
-    msg_odo->tow = msss;
-  }
+static void set_odo_time(s64 msss, msg_odometry_t *msg_odo) {
+  const u8 time_source_processor = 2;
+  msg_odo->flags = time_source_processor;
+  // The SBP protocol expects CPU local timestamps to wrap around after one
+  // week. We thus wrap the time since startup into gps_time_t struct and
+  // normalize it.
+  const double kMilliseconds = 0.001;
+  gps_time_t tmp = {.tow = kMilliseconds * msss, .wn = 0};
+  normalize_gps_time(&tmp);
+  msg_odo->tow = (u32)(tmp.tow * SECS_MS);
 }
 
 static void handle_esf_meas(struct ubx_sbp_state *state, u8 *inbuf) {
@@ -596,6 +591,10 @@ static void handle_esf_meas(struct ubx_sbp_state *state, u8 *inbuf) {
     return;
   }
   u8 num_meas = (esf_meas.flags >> 11) & 0x1F;
+  bool calib_time_tag_valid = (esf_meas.flags & 0b1000) > 3;
+  if (!calib_time_tag_valid) {
+    return;
+  }
 
   int idx;
   for (idx = 0; idx < num_meas; idx++) {
@@ -609,9 +608,17 @@ static void handle_esf_meas(struct ubx_sbp_state *state, u8 *inbuf) {
         return;
       }
 
+      if (state->esf_state.running_odo_msss == -1) {
+        state->esf_state.running_odo_msss = esf_meas.calib_tag;
+      } else {
+        state->esf_state.running_odo_msss +=
+            esf_meas.calib_tag - state->esf_state.last_odo_msss;
+      }
+      state->esf_state.last_odo_msss = esf_meas.calib_tag;
+
       if (data_type == ESF_SPEED) {
         msg_odometry_t msg_odo;
-        set_odo_time(esf_meas.calib_tag, &state->esf_state, &msg_odo);
+        set_odo_time(state->esf_state.running_odo_msss, &msg_odo);
         u8 velocity_source = get_odo_velocity_source(data_type);
         u32 direction = (data_value & 0x800000) >> 23;
         msg_odo.flags |= direction << 5;
@@ -639,8 +646,7 @@ static void handle_esf_meas(struct ubx_sbp_state *state, u8 *inbuf) {
         }
 
         msg_wheeltick_t msg_wheeltick;
-        set_wheeltick_time(
-            esf_meas.calib_tag, &state->esf_state, &msg_wheeltick);
+        set_wheeltick_time(state->esf_state.running_odo_msss, &msg_wheeltick);
         msg_wheeltick.source = get_wheeltick_velocity_source(data_type);
         msg_wheeltick.ticks = state->esf_state.output_tick_count;
         state->cb_ubx_to_sbp(SBP_MSG_WHEELTICK,
@@ -651,22 +657,6 @@ static void handle_esf_meas(struct ubx_sbp_state *state, u8 *inbuf) {
       }
     }
   }
-}
-
-double ubx_convert_msss_to_tow(u32 msss, const struct ubx_esf_state *state) {
-  const double MS_SECS = 1. / SECS_MS;
-  double tow = MS_SECS * msss + state->time_since_startup_tow_offset;
-  if (!state->tow_offset_set) {
-    return -1;
-  }
-  if (msss < state->last_sync_msss - 100) {
-    /* Rollover occured since last sync */
-    const u32 msss_max = UINT32_MAX;
-    const double time_since_startup_rollover = MS_SECS * msss_max + MS_SECS;
-    tow += time_since_startup_rollover;
-  }
-
-  return tow;
 }
 
 int16_t ubx_convert_temperature_to_bmi160(double temperature_degrees) {
@@ -767,46 +757,42 @@ static void maybe_parse_imu_data(u32 data,
 
 static void set_sbp_imu_time(u32 sensortime_this_message,
                              u32 sensortime_first_message,
-                             u32 msss,
+                             s64 msss,
                              msg_imu_raw_t *msg,
                              struct ubx_esf_state *esf_state) {
-  const double first_msg_tow = ubx_convert_msss_to_tow(msss, esf_state);
+  // The SBP protocol expects CPU local timestamps to wrap around after one
+  // week. We thus wrap the time into gps_time_t struct and
+  // normalize it.
   const double first_msg_tss = 0.001 * msss;
+  gps_time_t cpu_local_time_first_message = {.tow = first_msg_tss, .wn = 0};
+  normalize_gps_time(&cpu_local_time_first_message);
 
+  // The msss field contains only the time for the first IMU data packet of this
+  // burst - we derive subsequent timestamps by diffs on the sensor time. The
+  // sensor time has a wraparound at 24 bits that we need to handle.
   s32 sensor_time_diff = sensortime_this_message - sensortime_first_message;
   while (sensor_time_diff < 0) {
     sensor_time_diff += (1 << 24); /* unwrap 24 bit overflow */
   }
 
-  double sensor_tow_s = ubx_sensortime_scale * sensor_time_diff + first_msg_tow;
   double sensor_tss_s = ubx_sensortime_scale * sensor_time_diff + first_msg_tss;
-
-  double sensortime;
-  if (!esf_state->tow_offset_set) {
-    sensortime = sensor_tss_s;
-  } else {
-    sensortime = sensor_tow_s;
-  }
-
   // This constant has been found empirically by comparing the M8L IMU angular
   // rate with a properly time stamped reference.
   const double ubx_imu_gnss_time_offset = 0.05;
-  sensortime -= ubx_imu_gnss_time_offset;
+  gps_time_t imu_time_msss;
+  imu_time_msss.tow = sensor_tss_s - ubx_imu_gnss_time_offset;
+  imu_time_msss.wn = 0;
+  normalize_gps_time(&imu_time_msss);
+  gps_time_match_weeks(&imu_time_msss, &cpu_local_time_first_message);
+  esf_state->last_imu_time_msss = imu_time_msss;
 
-  gps_time_t gps_sensortime;
-  gps_sensortime.tow = sensortime;
-  gps_sensortime.wn = 0;
-  unsafe_normalize_gps_time(&gps_sensortime);
-  sensortime = gps_sensortime.tow;
-
-  struct sbp_imuraw_timespec timespec = convert_tow_to_imuraw_time(sensortime);
+  struct sbp_imuraw_timespec timespec =
+      convert_tow_to_imuraw_time(imu_time_msss.tow);
   msg->tow = timespec.tow;
   msg->tow_f = timespec.tow_f;
 
-  if (!esf_state->tow_offset_set) {
-    const u32 time_invalid_bit = (1 << 31);
-    msg->tow |= time_invalid_bit;
-  }
+  const u32 reference_tss_flags = (1 << 30);
+  msg->tow |= reference_tss_flags;
 }
 
 static bool check_imu_message_complete(const s16 *received_number_msgs,
@@ -869,19 +855,34 @@ static void handle_esf_raw(struct ubx_sbp_state *state, u8 *inbuf) {
   s16 current_msg_number = 0;
   for (int i = 0; i < num_raw; i++) {
     u8 data_type = (esf_raw.data[i] >> 24) & 0xFF;
+    if (!is_imu_data(data_type)) {
+      continue;
+    }
+
+    if (state->esf_state.running_imu_msss == -1) {
+      state->esf_state.running_imu_msss = esf_raw.msss;
+    } else {
+      state->esf_state.running_imu_msss +=
+          esf_raw.msss - state->esf_state.last_imu_msss;
+    }
+    state->esf_state.last_imu_msss = esf_raw.msss;
+
     u32 data = esf_raw.data[i] & 0xFFFFFF;
     set_sbp_imu_time(esf_raw.sensor_time_tag[i],
                      esf_raw.sensor_time_tag[0],
-                     esf_raw.msss,
+                     state->esf_state.running_imu_msss,
                      &msg,
                      &state->esf_state);
     maybe_parse_imu_data(data, data_type, &msg, &state->esf_state);
-    if (is_imu_data(data_type)) {
-      received_number_msgs[data_type]++;
-      assert((received_number_msgs[data_type] == current_msg_number + 1) &&
-             "Assumption of no missing IMU data violated");
-    }
 
+    received_number_msgs[data_type]++;
+    // Before getting the next sample for an axis, we expect to receive all
+    // other axes for the same timestamp.
+    assert((received_number_msgs[data_type] == current_msg_number + 1) &&
+           "Assumption of no missing IMU data violated");
+
+    // Check if the current IMU message is complete (all axes received) and
+    // output an SBP message if it is.
     if (check_imu_message_complete(received_number_msgs, current_msg_number)) {
       if (state->esf_state.imu_raw_msgs_sent % 100 == 0) {
         send_imu_aux(state);
@@ -965,12 +966,39 @@ static void handle_nav_status(struct ubx_sbp_state *state, u8 *inbuf) {
   bool time_good = (nav_status.status_flags & weeknumber_ok) &&
                    (nav_status.status_flags & tow_ok);
 
-  if (gnss_fix_good && time_good) {
-    state->esf_state.time_since_startup_tow_offset =
-        0.001 * nav_status.i_tow - 0.001 * nav_status.msss;
-    state->esf_state.last_sync_msss = nav_status.msss;
-    state->esf_state.tow_offset_set = true;
-    state->last_tow_ms = nav_status.i_tow;
+  if (gnss_fix_good && time_good &&
+      gps_time_valid(&state->esf_state.last_obs_time_gnss)) {
+    gps_time_t nav_status_time_gnss;
+    nav_status_time_gnss.wn = 0;
+    nav_status_time_gnss.tow = 0.001 * nav_status.i_tow;
+    normalize_gps_time(&nav_status_time_gnss);
+    gps_time_match_weeks(&nav_status_time_gnss,
+                         &state->esf_state.last_obs_time_gnss);
+
+    if (gps_time_valid(&state->esf_state.last_imu_time_msss)) {
+      gps_time_t nav_status_time_local;
+      nav_status_time_local.tow = 0.001 * nav_status.msss;
+      nav_status_time_local.wn = 0;
+      normalize_gps_time(&nav_status_time_local);
+      gps_time_match_weeks(&nav_status_time_local,
+                           &state->esf_state.last_imu_time_msss);
+
+      gps_time_t offset;
+      offset.wn = nav_status_time_gnss.wn - nav_status_time_local.wn;
+      offset.tow = nav_status_time_gnss.tow - nav_status_time_local.tow;
+
+      state->last_tow_ms = nav_status.i_tow;
+      msg_gnss_time_offset_t msg;
+      msg.weeks = offset.wn;
+      msg.milliseconds = lround(1000.0 * offset.tow);
+      msg.microseconds = 0;
+      msg.flags = 0;
+      state->cb_ubx_to_sbp(SBP_MSG_GNSS_TIME_OFFSET,
+                           sizeof(msg),
+                           (u8 *)&msg,
+                           state->sender_id,
+                           state->context);
+    }
   }
 }
 
@@ -1000,6 +1028,8 @@ static void handle_rxm_rawx(struct ubx_sbp_state *state,
     return;
   }
 
+  state->esf_state.last_obs_time_gnss.tow = rxm_rawx.rcv_tow;
+  state->esf_state.last_obs_time_gnss.wn = rxm_rawx.rcv_wn;
   update_utc_params(state, &rxm_rawx);
 
   msg_obs_t *sbp_obs = (msg_obs_t *)sbp_obs_buffer;
@@ -1140,6 +1170,10 @@ void ubx_sbp_init(struct ubx_sbp_state *state,
   state->context = context;
   state->use_hnr = false;
   state->last_tow_ms = -1;
+  state->esf_state.last_obs_time_gnss = GPS_TIME_UNKNOWN;
+  state->esf_state.last_imu_time_msss = GPS_TIME_UNKNOWN;
+  state->esf_state.running_imu_msss = -1;
+  state->esf_state.running_odo_msss = -1;
 
   state->esf_state.last_input_tick_count = UINT32_MAX;
 
