@@ -17,6 +17,7 @@
 #include <libsbp/navigation.h>
 #include <libsbp/observation.h>
 #include <libsbp/orientation.h>
+#include <libsbp/sbp.h>
 #include <libsbp/tracking.h>
 
 /* Max number of sats visible in an epoch */
@@ -53,10 +54,8 @@ typedef struct nmea_state_entry {
   int rate;
 } nmea_state_entry_t;
 
-#define SBP_FRAMING_MAX_PAYLOAD_SIZE (255u)
-
 typedef struct sbp2nmea_msg {
-  uint8_t data[SBP_FRAMING_MAX_PAYLOAD_SIZE];
+  uint8_t data[SBP_MAX_PAYLOAD_LEN];
   uint8_t length;
 } sbp2nmea_msg_t;
 

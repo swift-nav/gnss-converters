@@ -689,8 +689,8 @@ void send_observations(struct rtcm3_sbp_state *state) {
   /* Write the SBP observation messages */
   u8 buffer_obs_index = 0;
   for (u8 msg_num = 0; msg_num < total_messages; ++msg_num) {
-    u8 obs_data[SBP_FRAMING_MAX_PAYLOAD_SIZE];
-    memset(obs_data, 0, SBP_FRAMING_MAX_PAYLOAD_SIZE);
+    u8 obs_data[SBP_MAX_PAYLOAD_LEN];
+    memset(obs_data, 0, SBP_MAX_PAYLOAD_LEN);
     msg_obs_t *sbp_obs = (msg_obs_t *)obs_data;
 
     /* Write the header */
@@ -708,7 +708,7 @@ void send_observations(struct rtcm3_sbp_state *state) {
     }
 
     u16 len = SBP_HDR_SIZE + obs_index * SBP_OBS_SIZE;
-    assert(len <= SBP_FRAMING_MAX_PAYLOAD_SIZE);
+    assert(len <= SBP_MAX_PAYLOAD_LEN);
 
     state->cb_rtcm_to_sbp(
         SBP_MSG_OBS, len, obs_data, state->sender_id, state->context);
@@ -1223,13 +1223,13 @@ bool no_1230_received(struct rtcm3_sbp_state *state) {
 }
 
 void send_1029(rtcm_msg_1029 *msg_1029, struct rtcm3_sbp_state *state) {
-  uint8_t message[SBP_FRAMING_MAX_PAYLOAD_SIZE] = RTCM_LOG_PREAMBLE;
+  uint8_t message[SBP_MAX_PAYLOAD_LEN] = RTCM_LOG_PREAMBLE;
   uint8_t preamble_size = sizeof(RTCM_LOG_PREAMBLE) - 1;
   uint8_t max_message_size =
-      SBP_FRAMING_MAX_PAYLOAD_SIZE - sizeof(msg_log_t) - preamble_size;
+      SBP_MAX_PAYLOAD_LEN - sizeof(msg_log_t) - preamble_size;
   uint8_t message_size =
       sizeof(msg_log_t) + msg_1029->utf8_code_units_n + preamble_size >
-              SBP_FRAMING_MAX_PAYLOAD_SIZE
+              SBP_MAX_PAYLOAD_LEN
           ? max_message_size
           : msg_1029->utf8_code_units_n + preamble_size;
 
@@ -1265,12 +1265,12 @@ void send_sbp_log_message(const uint8_t level,
                           uint16_t length,
                           const uint16_t stn_id,
                           const struct rtcm3_sbp_state *state) {
-  u8 frame_buffer[SBP_FRAMING_MAX_PAYLOAD_SIZE];
+  u8 frame_buffer[SBP_MAX_PAYLOAD_LEN];
   msg_log_t *sbp_log_msg = (msg_log_t *)frame_buffer;
   sbp_log_msg->level = level;
 
   /* truncate the message to fit in the payload */
-  u16 max_message_length = SBP_FRAMING_MAX_PAYLOAD_SIZE - sizeof(*sbp_log_msg);
+  u16 max_message_length = SBP_MAX_PAYLOAD_LEN - sizeof(*sbp_log_msg);
   if (length > max_message_length) {
     log_info("Truncating too long log message: %s", message);
     length = max_message_length;
