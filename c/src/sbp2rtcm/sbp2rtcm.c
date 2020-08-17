@@ -125,17 +125,17 @@ int sbp2rtcm_main(int argc, char **argv) {
                         &state,
                         &sbp_nodes.ssr_code_biases);
   sbp_register_callback(&sbp_state,
-                        SBP_MSG_SSR_GRIDDED_CORRECTION,
+                        SBP_MSG_SSR_GRIDDED_CORRECTION_DEP_A,
                         (void *)&sbp2rtcm_sbp_ssr_gridded_correction_cb,
                         &state,
                         &sbp_nodes.ssr_gridded_correction);
   sbp_register_callback(&sbp_state,
-                        SBP_MSG_SSR_GRID_DEFINITION,
+                        SBP_MSG_SSR_GRID_DEFINITION_DEP_A,
                         (void *)&sbp2rtcm_sbp_ssr_grid_definition_cb,
                         &state,
                         &sbp_nodes.ssr_grid_definition);
   sbp_register_callback(&sbp_state,
-                        SBP_MSG_SSR_STEC_CORRECTION,
+                        SBP_MSG_SSR_STEC_CORRECTION_DEP_A,
                         (void *)&sbp2rtcm_sbp_ssr_stec_correction_cb,
                         &state,
                         &sbp_nodes.ssr_stec_correction);

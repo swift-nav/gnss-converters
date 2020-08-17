@@ -972,7 +972,7 @@ void sbp2rtcm_sbp_ssr_gridded_correction_cb(const u16 sender_id,
                                             const u8 msg[],
                                             struct rtcm3_out_state *state) {
   rtcm_msg_swift_proprietary ssr_msg;
-  ssr_msg.msg_type = SBP_MSG_SSR_GRIDDED_CORRECTION;
+  ssr_msg.msg_type = SBP_MSG_SSR_GRIDDED_CORRECTION_DEP_A;
   ssr_msg.sender_id = sender_id;
   ssr_msg.len = len;
   memcpy(ssr_msg.data, msg, len);
@@ -987,7 +987,7 @@ void sbp2rtcm_sbp_ssr_grid_definition_cb(const u16 sender_id,
                                          const u8 msg[],
                                          struct rtcm3_out_state *state) {
   rtcm_msg_swift_proprietary ssr_msg;
-  ssr_msg.msg_type = SBP_MSG_SSR_GRID_DEFINITION;
+  ssr_msg.msg_type = SBP_MSG_SSR_GRID_DEFINITION_DEP_A;
   ssr_msg.sender_id = sender_id;
   ssr_msg.len = len;
   memcpy(ssr_msg.data, msg, len);
@@ -1002,7 +1002,7 @@ void sbp2rtcm_sbp_ssr_stec_correction_cb(const u16 sender_id,
                                          const u8 msg[],
                                          struct rtcm3_out_state *state) {
   rtcm_msg_swift_proprietary ssr_msg;
-  ssr_msg.msg_type = SBP_MSG_SSR_STEC_CORRECTION;
+  ssr_msg.msg_type = SBP_MSG_SSR_STEC_CORRECTION_DEP_A;
   ssr_msg.sender_id = sender_id;
   ssr_msg.len = len;
   memcpy(ssr_msg.data, msg, len);
