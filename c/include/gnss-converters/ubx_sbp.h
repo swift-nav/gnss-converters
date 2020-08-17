@@ -106,6 +106,8 @@ void ubx_set_hnr_flag(struct ubx_sbp_state *state, bool use_hnr);
 int ubx_sbp_process(struct ubx_sbp_state *state,
                     int (*read_stream_func)(u8 *buff, size_t len, void *ctx));
 
+void invalidate_subframes(struct sat_data *sat, unsigned mask);
+
 #ifdef __cplusplus
 }
 #endif

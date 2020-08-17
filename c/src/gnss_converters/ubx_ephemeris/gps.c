@@ -22,11 +22,6 @@
 
 #define GPS_L1CA_PREAMBLE 0x8b
 
-static void invalidate_subframes(struct sat_data *sat) {
-  assert(sat);
-  sat->vmask &= ~0x7U;
-}
-
 static void pack_ephemeris_gps(const ephemeris_t *e, msg_ephemeris_t *m) {
   const ephemeris_kepler_t *k = &e->kepler;
   msg_ephemeris_gps_t *msg = &m->gps;
@@ -100,7 +95,9 @@ void gps_decode_subframe(struct ubx_sbp_state *data,
   u8 iode8_sf3 = (sat->sf[2].words[9] >> 22U) & 0xFFU;
 
   if ((iodc8_sf1 != iode8_sf2) || (iode8_sf2 != iode8_sf3)) {
-    invalidate_subframes(sat);
+    // Invalidate the out of date subframes (i.e. all but sf_idx, which is this
+    // one).
+    invalidate_subframes(sat, /*mask=*/0x7 & ~(1U << sf_idx));
     return;
   }
 
@@ -112,7 +109,10 @@ void gps_decode_subframe(struct ubx_sbp_state *data,
   } else if (tow_6s < WEEK_SECS / 6) {
     tot_tow_s = (tow_6s - 1) * 6;
   } else {
-    invalidate_subframes(sat);
+    // Subframe 1 must be corrupted if the ToW is greater than WEEK_SECS, so
+    // invalidate it (subframe 1 has index 0, so this bit is the very first one,
+    // hence the 0x1 mask).
+    invalidate_subframes(sat, /*mask=*/0x1);
     return;
   }
 
@@ -127,7 +127,7 @@ void gps_decode_subframe(struct ubx_sbp_state *data,
   e.sid.code = CODE_GPS_L1CA;
   decode_ephemeris(frame_words, &e, tot_tow_s);
   if (!e.valid) {
-    invalidate_subframes(sat);
+    invalidate_subframes(sat, /*mask=*/0x7);
     return;
   }
   msg_ephemeris_t msg;
@@ -140,5 +140,5 @@ void gps_decode_subframe(struct ubx_sbp_state *data,
                       (u8 *)&msg.gps,
                       data->sender_id,
                       data->context);
-  invalidate_subframes(sat);
+  invalidate_subframes(sat, /*mask=*/0x7);
 }

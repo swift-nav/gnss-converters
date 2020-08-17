@@ -1218,3 +1218,8 @@ int ubx_sbp_process(struct ubx_sbp_state *state,
 
   return ret;
 }
+
+void invalidate_subframes(struct sat_data *sat, unsigned mask) {
+  assert(sat);
+  sat->vmask &= ~mask;
+}

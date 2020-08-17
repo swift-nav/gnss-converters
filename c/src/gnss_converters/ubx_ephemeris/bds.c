@@ -21,11 +21,6 @@
 
 #include "common.h"
 
-static void invalidate_subframes(struct sat_data *sat, unsigned mask) {
-  assert(sat);
-  sat->vmask &= ~mask;
-}
-
 static void pack_ephemeris_bds(const ephemeris_t *e, msg_ephemeris_t *m) {
   const ephemeris_kepler_t *k = &e->kepler;
   msg_ephemeris_bds_t *msg = &m->bds;

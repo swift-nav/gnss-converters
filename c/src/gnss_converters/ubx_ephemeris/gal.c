@@ -115,19 +115,27 @@ void gal_decode_page(struct ubx_sbp_state *data,
   sat->vmask |= 1U << (wtype - 1);
   assert(wtype <= (int)ARRAY_SIZE(sat->pg));
   memcpy(&sat->pg[wtype - 1].words, words, sizeof(sat->pg[wtype - 1].words));
+
+  // Get the stored IODnavs for the first four subframes - the fifth has no
+  // IODnav
+  int IODnav[4];
+  for (int i = 0; i < (int)ARRAY_SIZE(IODnav); i++) {
+    IODnav[i] = (sat->pg[i].words[0] >> 14U) & 0x3FFU;
+  }
+
+  // If we haven't just read in the fifth subframe, check to see if this
+  // subframe is newer than the old ones
+  if (wtype != 5) {
+    int new_IODnav = (words[0] >> 14U) & 0x3FFU;
+    for (int i = 0; i < (int)ARRAY_SIZE(IODnav); i++) {
+      if (IODnav[i] != new_IODnav) {
+        invalidate_pages(sat, /*mask=*/(1U << i));
+      }
+    }
+  }
+
   if (ALL_PAGES_MASK != (sat->vmask & ALL_PAGES_MASK)) {
     return; /* not all word types 1,2,3,4,5 are available yet */
-  }
-
-  int iod[4];
-  for (int i = 0; i < (int)ARRAY_SIZE(iod); i++) {
-    iod[i] = (words[0] >> 14U) & 0x3FFU;
-  }
-
-  for (int i = 1; i < (int)ARRAY_SIZE(iod); i++) {
-    if (iod[i] != iod[0]) {
-      return; /* received pages are not from the same batch */
-    }
   }
 
   /* Now let's actually decode the ephemeris... */
