@@ -67,6 +67,8 @@ struct ubx_esf_state {
   u32 last_input_tick_count;
   s32 output_tick_count;
   double last_imu_temp;
+  bool temperature_set;
+  bool weeknumber_set;
 };
 
 struct ubx_sbp_state {

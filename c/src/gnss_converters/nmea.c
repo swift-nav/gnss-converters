@@ -373,7 +373,11 @@ void send_gpgga(const sbp2nmea_t *state) {
   }
   NMEA_SENTENCE_PRINTF("%01d,", fix_type);
 
-  if (fix_type != NMEA_GGA_QI_INVALID) {
+  if (fix_type == NMEA_GGA_QI_EST) {
+    NMEA_SENTENCE_PRINTF("%02d,,%.2f,M,0.0,M,",
+                         sbp_pos_llh_cov->n_sats,
+                         sbp_pos_llh_cov->height);
+  } else if (fix_type != NMEA_GGA_QI_INVALID) {
     NMEA_SENTENCE_PRINTF("%02d,%.1f,%.2f,M,0.0,M,",
                          sbp_pos_llh_cov->n_sats,
                          round(10 * sbp_dops->hdop * 0.01) / 10,

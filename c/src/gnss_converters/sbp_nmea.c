@@ -20,54 +20,62 @@
 #include <swiftnav/constants.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/memcpy_s.h>
+#include <swiftnav/pvt_result.h>
 #include <swiftnav/signal.h>
 
 #include "sbp_nmea_internal.h"
 
 struct nmea_meta_entry {
-  uint16_t tow_mask;
+  uint16_t base_tow_mask;
+  uint16_t non_dr_tow_mask;
   void (*send)(const sbp2nmea_t *);
 } nmea_meta[SBP2NMEA_NMEA_CNT] = {
-    [SBP2NMEA_NMEA_GGA] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                       (1 << SBP2NMEA_SBP_DOPS) |
-                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
-                                       (1 << SBP2NMEA_SBP_VEL_NED),
+    [SBP2NMEA_NMEA_GGA] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                            (1 << SBP2NMEA_SBP_VEL_NED),
+                           .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
+                                              (1 << SBP2NMEA_SBP_AGE_CORR),
                            .send = send_gpgga},
-    [SBP2NMEA_NMEA_RMC] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                       (1 << SBP2NMEA_SBP_DOPS) |
-                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
-                                       (1 << SBP2NMEA_SBP_VEL_NED),
+    [SBP2NMEA_NMEA_RMC] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                            (1 << SBP2NMEA_SBP_VEL_NED),
+                           .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
+                                              (1 << SBP2NMEA_SBP_AGE_CORR),
                            .send = send_gprmc},
-    [SBP2NMEA_NMEA_VTG] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                       (1 << SBP2NMEA_SBP_DOPS) |
-                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
-                                       (1 << SBP2NMEA_SBP_VEL_NED),
+    [SBP2NMEA_NMEA_VTG] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                            (1 << SBP2NMEA_SBP_VEL_NED),
+                           .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
+                                              (1 << SBP2NMEA_SBP_AGE_CORR),
                            .send = send_gpvtg},
-    [SBP2NMEA_NMEA_HDT] = {.tow_mask = (1 << SBP2NMEA_SBP_HDG),
+    [SBP2NMEA_NMEA_HDT] = {.base_tow_mask = (1 << SBP2NMEA_SBP_HDG),
+                           .non_dr_tow_mask = 0,
                            .send = send_gphdt},
-    [SBP2NMEA_NMEA_GLL] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                       (1 << SBP2NMEA_SBP_DOPS) |
-                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
-                                       (1 << SBP2NMEA_SBP_VEL_NED),
+    [SBP2NMEA_NMEA_GLL] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                            (1 << SBP2NMEA_SBP_VEL_NED),
+                           .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
+                                              (1 << SBP2NMEA_SBP_AGE_CORR),
                            .send = send_gpgll},
-    [SBP2NMEA_NMEA_ZDA] = {.tow_mask = 0, .send = send_gpzda},
-    [SBP2NMEA_NMEA_GSA] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                       (1 << SBP2NMEA_SBP_DOPS) |
-                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
-                                       (1 << SBP2NMEA_SBP_VEL_NED),
+    [SBP2NMEA_NMEA_ZDA] = {.base_tow_mask = 0,
+                           .non_dr_tow_mask = 0,
+                           .send = send_gpzda},
+    [SBP2NMEA_NMEA_GSA] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                            (1 << SBP2NMEA_SBP_VEL_NED) |
+                                            (1 << SBP2NMEA_SBP_DOPS) |
+                                            (1 << SBP2NMEA_SBP_AGE_CORR),
+                           .non_dr_tow_mask = 0,
                            .send = send_gsa},
-    [SBP2NMEA_NMEA_GST] = {.tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                       (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                       (1 << SBP2NMEA_SBP_DOPS) |
-                                       (1 << SBP2NMEA_SBP_AGE_CORR) |
-                                       (1 << SBP2NMEA_SBP_VEL_NED),
+    [SBP2NMEA_NMEA_GST] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                            (1 << SBP2NMEA_SBP_VEL_NED),
+                           .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
+                                              (1 << SBP2NMEA_SBP_AGE_CORR),
                            .send = send_gpgst},
-    [SBP2NMEA_NMEA_GSV] = {.tow_mask = 0, .send = send_gsv},
+    [SBP2NMEA_NMEA_GSV] = {.base_tow_mask = 0,
+                           .non_dr_tow_mask = 0,
+                           .send = send_gsv},
 };
 
 struct sbp_meta_entry {
@@ -135,9 +143,22 @@ static bool nmea_ready(const sbp2nmea_t *state, sbp2nmea_nmea_id_t nmea_id) {
   /* check that the time stamps of the component messages match that of the UTC
    * time message */
   for (sbp2nmea_sbp_id_t sbp_id = 0; sbp_id < SBP2NMEA_SBP_CNT; ++sbp_id) {
-    if (nmea_meta[nmea_id].tow_mask & (1 << sbp_id)) {
+    if (nmea_meta[nmea_id].base_tow_mask & (1 << sbp_id)) {
       if (get_tow(state, sbp_id) != get_tow(state, SBP2NMEA_SBP_UTC_TIME)) {
         return false;
+      }
+    }
+  }
+
+  if (nmea_meta[nmea_id].non_dr_tow_mask != 0) {
+    msg_pos_llh_cov_t *msg = sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV);
+    if ((msg->flags & POSITION_MODE_MASK) != POSITION_MODE_DEAD_RECKONING) {
+      for (sbp2nmea_sbp_id_t sbp_id = 0; sbp_id < SBP2NMEA_SBP_CNT; ++sbp_id) {
+        if (nmea_meta[nmea_id].non_dr_tow_mask & (1 << sbp_id)) {
+          if (get_tow(state, sbp_id) != get_tow(state, SBP2NMEA_SBP_UTC_TIME)) {
+            return false;
+          }
+        }
       }
     }
   }

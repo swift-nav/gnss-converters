@@ -44,6 +44,13 @@ static void tmp_file_teardown() {
   }
 }
 
+// Struct containing expected results and context information for temperature
+// encoding tests. Passed around using the SBP context mechanism.
+struct temperature_encoding_expectations {
+  const double expected_temperature;
+  int msg_index;
+};
+
 static const uint16_t hnr_pvt_crc[] = {57519};
 static void ubx_sbp_callback_hnr_pvt(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
@@ -345,7 +352,7 @@ static void ubx_sbp_callback_esf_meas(
   msg_index++;
 }
 
-static const u16 esf_raw_crc[] = {0x2AC9,
+static const u16 esf_raw_crc[] = {0x4214,
                                   0x7CAF,
                                   0xFDED,
                                   0x3B13,
@@ -395,7 +402,7 @@ static void ubx_sbp_callback_esf_raw(
 
   u16 crc = crc16_ccitt(tmpbuf, sizeof(tmpbuf), 0);
   crc = crc16_ccitt(buff, length, crc);
-  ck_assert(crc == esf_raw_crc[msg_index]);
+  ck_assert_int_eq(crc, esf_raw_crc[msg_index]);
   msg_index++;
 }
 
@@ -649,6 +656,26 @@ static void ubx_sbp_callback_test_no_conversion_invalid_calibtag(
   ck_assert_msg(false, "No SBP message output expected for this test");
 }
 
+static void ubx_sbp_callback_imu_temperature(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)sender_id;
+  (void)context;
+  (void)length;
+  struct temperature_encoding_expectations *expectations =
+      (struct temperature_encoding_expectations *)context;
+  uint16_t expected_messages[] = {SBP_MSG_IMU_AUX, SBP_MSG_IMU_RAW};
+  ck_assert_int_eq(msg_id, expected_messages[expectations->msg_index]);
+
+  if (expectations->msg_index == 0) {
+    msg_imu_aux_t *msg = (msg_imu_aux_t *)buff;
+    ck_assert_int_eq(
+        msg->temp,
+        (int)round((expectations->expected_temperature - 23.0) * 512.0));
+  }
+
+  expectations->msg_index++;
+}
+
 int read_file_check_ubx(uint8_t *buf, size_t len, void *ctx) {
   (void)ctx;
   return fread(buf, sizeof(uint8_t), len, fp);
@@ -707,6 +734,27 @@ static int create_esf_raw_imu_messages(uint8_t *dest,
   return n_bytes;
 }
 
+static int create_esf_raw_imu_temp_message(uint8_t *dest,
+                                           uint32_t starting_msss,
+                                           uint32_t data) {
+  ubx_esf_raw msg_esf_raw;
+  memset(&msg_esf_raw, 0, sizeof(ubx_esf_raw));
+
+  msg_esf_raw.msss = starting_msss;
+  msg_esf_raw.length = 4 + 8;
+  msg_esf_raw.class_id = UBX_CLASS_ESF;
+  msg_esf_raw.msg_id = UBX_MSG_ESF_RAW;
+
+  msg_esf_raw.data[0] = (ESF_GYRO_TEMP << 24) | data;
+
+  dest[0] = UBX_SYNC_CHAR_1;
+  dest[1] = UBX_SYNC_CHAR_2;
+  int n_bytes = ubx_encode_esf_raw(&msg_esf_raw, &dest[2]);
+  ubx_checksum(&dest[2], n_bytes, (u8 *)&dest[2 + n_bytes]);
+  n_bytes += 4;
+  return n_bytes;
+}
+
 static int create_esf_meas_messages(uint8_t *dest,
                                     uint32_t calib_time_tag,
                                     bool calib_tag_valid,
@@ -734,6 +782,28 @@ static int create_esf_meas_messages(uint8_t *dest,
   dest[0] = UBX_SYNC_CHAR_1;
   dest[1] = UBX_SYNC_CHAR_2;
   n_bytes = ubx_encode_esf_meas(&msg_esf_meas, &dest[2]);
+  ubx_checksum(&dest[2], n_bytes, (u8 *)&dest[2 + n_bytes]);
+  n_bytes += 4;
+  return n_bytes;
+}
+
+static int create_nav_status_message(uint8_t *dest,
+                                     uint32_t msss,
+                                     uint32_t i_tow) {
+  ubx_nav_status msg_nav_status;
+  msg_nav_status.class_id = UBX_CLASS_NAV;
+  msg_nav_status.msg_id = UBX_MSG_NAV_STATUS;
+  msg_nav_status.msss = msss;
+  msg_nav_status.i_tow = i_tow;
+  msg_nav_status.fix_type = 3;
+  msg_nav_status.status_flags = 0xF;
+  msg_nav_status.fix_status = 0;
+  msg_nav_status.status_flags_ext = 0;
+  msg_nav_status.ttff_ms = 567;
+  msg_nav_status.length = 16;
+  dest[0] = UBX_SYNC_CHAR_1;
+  dest[1] = UBX_SYNC_CHAR_2;
+  int n_bytes = ubx_encode_nav_status(&msg_nav_status, &dest[2]);
   ubx_checksum(&dest[2], n_bytes, (u8 *)&dest[2 + n_bytes]);
   n_bytes += 4;
   return n_bytes;
@@ -984,6 +1054,9 @@ START_TEST(test_nav_status) {
   memset(buffer, 0, 512);
   int n_bytes;
 
+  n_bytes = create_nav_status_message(buffer, 1234, 5670);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
   // Create an obs message to set week number
   ubx_rxm_rawx msg_rawx;
   memset(&msg_rawx, 0, sizeof(ubx_rxm_rawx));
@@ -1004,22 +1077,7 @@ START_TEST(test_nav_status) {
   fwrite(buffer, n_bytes, sizeof(char), fp);
 
   // Create NAV-STATUS message
-  ubx_nav_status msg_nav_status;
-  msg_nav_status.class_id = UBX_CLASS_NAV;
-  msg_nav_status.msg_id = UBX_MSG_NAV_STATUS;
-  msg_nav_status.msss = 1234;
-  msg_nav_status.i_tow = 5670;
-  msg_nav_status.fix_type = 3;
-  msg_nav_status.status_flags = 0xF;
-  msg_nav_status.fix_status = 0;
-  msg_nav_status.status_flags_ext = 0;
-  msg_nav_status.ttff_ms = 567;
-  msg_nav_status.length = 16;
-  buffer[0] = UBX_SYNC_CHAR_1;
-  buffer[1] = UBX_SYNC_CHAR_2;
-  n_bytes = ubx_encode_nav_status(&msg_nav_status, &buffer[2]);
-  ubx_checksum(&buffer[2], n_bytes, (u8 *)&buffer[2 + n_bytes]);
-  n_bytes += 4;
+  n_bytes = create_nav_status_message(buffer, 1234, 5670);
   fwrite(buffer, n_bytes, sizeof(char), fp);
   fclose(fp);
 
@@ -1113,6 +1171,66 @@ START_TEST(test_convert_temperature) {
 }
 END_TEST
 
+START_TEST(test_encode_negative_temperature) {
+  struct ubx_sbp_state state;
+  struct temperature_encoding_expectations expectations = {
+      .expected_temperature = -30.0};
+  ubx_sbp_init(&state, ubx_sbp_callback_imu_temperature, (void *)&expectations);
+
+  // Open a temporary file for this test
+  strncpy(tmp_file_name, "XXXXXX", FILENAME_MAX);
+  int fd = mkstemp(tmp_file_name);
+  fp = fdopen(fd, "wb");
+  uint8_t buffer[512];
+  memset(buffer, 0, 512);
+
+  int32_t gyro_temp_centi_celsius = -3000;
+  // Convert to 24 bits signed integer
+  uint32_t *tmp = (uint32_t *)&gyro_temp_centi_celsius;
+  *tmp &= 0xFFFFFF;
+  int n_bytes = create_esf_raw_imu_temp_message(buffer, 1234, *tmp);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  n_bytes = create_esf_raw_imu_messages(buffer, 1234, 0.01, 1);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  fclose(fp);
+
+  // Run tests
+  test_UBX(&state, tmp_file_name);
+}
+END_TEST
+
+START_TEST(test_encode_positive_temperature) {
+  struct ubx_sbp_state state;
+  struct temperature_encoding_expectations expectations = {
+      .expected_temperature = 30.0};
+  ubx_sbp_init(&state, ubx_sbp_callback_imu_temperature, (void *)&expectations);
+
+  // Open a temporary file for this test
+  strncpy(tmp_file_name, "XXXXXX", FILENAME_MAX);
+  int fd = mkstemp(tmp_file_name);
+  fp = fdopen(fd, "wb");
+  uint8_t buffer[512];
+  memset(buffer, 0, 512);
+
+  int32_t gyro_temp_centi_celsius = 3000;
+  // Convert to 24 bits signed integer
+  uint32_t *tmp = (uint32_t *)&gyro_temp_centi_celsius;
+  *tmp &= 0xFFFFFF;
+  int n_bytes = create_esf_raw_imu_temp_message(buffer, 1234, *tmp);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  n_bytes = create_esf_raw_imu_messages(buffer, 1234, 0.01, 1);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  fclose(fp);
+
+  // Run tests
+  test_UBX(&state, tmp_file_name);
+}
+END_TEST
+
 Suite *ubx_suite(void) {
   Suite *s = suite_create("UBX");
 
@@ -1138,6 +1256,8 @@ Suite *ubx_suite(void) {
   tcase_add_test(tc_esf, test_esf_meas);
   tcase_add_test(tc_esf, test_esf_raw);
   tcase_add_test(tc_esf, test_convert_temperature);
+  tcase_add_test(tc_esf, test_encode_negative_temperature);
+  tcase_add_test(tc_esf, test_encode_positive_temperature);
   tcase_add_test(tc_esf, test_wheeltick_sign);
   tcase_add_test(tc_esf, test_odometry_sign);
   tcase_add_test(tc_esf, test_no_conversion_invalid_calibtag);

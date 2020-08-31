@@ -698,10 +698,7 @@ static s16 float_to_s16_clamped(float val) {
   return ret;
 }
 
-static void maybe_parse_imu_data(u32 data,
-                                 u8 data_type,
-                                 msg_imu_raw_t *msg,
-                                 struct ubx_esf_state *esf_state) {
+static void maybe_parse_imu_data(u32 data, u8 data_type, msg_imu_raw_t *msg) {
   s32 parsed_value = convert24b(data);
   if (data_type == ESF_X_AXIS_GYRO_ANG_RATE ||
       data_type == ESF_Y_AXIS_GYRO_ANG_RATE ||
@@ -747,11 +744,6 @@ static void maybe_parse_imu_data(u32 data,
       default:
         break;
     }
-  }
-
-  if (data_type == ESF_GYRO_TEMP) {
-    const double ubx_scale_temp = 0.01;
-    esf_state->last_imu_temp = ubx_scale_temp * data;
   }
 }
 
@@ -822,7 +814,14 @@ static void send_imu_aux(struct ubx_sbp_state *state) {
   /* Convert the IMU temperature to BMI160 format, see
    * https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BMI160-DS000.pdf,
    * section 2.11.8 */
-  msg.temp = ubx_convert_temperature_to_bmi160(state->esf_state.last_imu_temp);
+  if (!state->esf_state.temperature_set) {
+    const int16_t kTemperatureInvalid = 0x8000;
+    msg.temp = kTemperatureInvalid;
+  } else {
+    msg.temp =
+        ubx_convert_temperature_to_bmi160(state->esf_state.last_imu_temp);
+  }
+
   state->cb_ubx_to_sbp(SBP_MSG_IMU_AUX,
                        sizeof(msg),
                        (u8 *)&msg,
@@ -855,6 +854,14 @@ static void handle_esf_raw(struct ubx_sbp_state *state, u8 *inbuf) {
   s16 current_msg_number = 0;
   for (int i = 0; i < num_raw; i++) {
     u8 data_type = (esf_raw.data[i] >> 24) & 0xFF;
+    u32 data = esf_raw.data[i] & 0xFFFFFF;
+    if (data_type == ESF_GYRO_TEMP) {
+      s32 parsed_value = convert24b(data);
+      const double ubx_scale_temp = 0.01;
+      state->esf_state.last_imu_temp = ubx_scale_temp * parsed_value;
+      state->esf_state.temperature_set = true;
+    }
+
     if (!is_imu_data(data_type)) {
       continue;
     }
@@ -867,18 +874,18 @@ static void handle_esf_raw(struct ubx_sbp_state *state, u8 *inbuf) {
     }
     state->esf_state.last_imu_msss = esf_raw.msss;
 
-    u32 data = esf_raw.data[i] & 0xFFFFFF;
     set_sbp_imu_time(esf_raw.sensor_time_tag[i],
                      esf_raw.sensor_time_tag[0],
                      state->esf_state.running_imu_msss,
                      &msg,
                      &state->esf_state);
-    maybe_parse_imu_data(data, data_type, &msg, &state->esf_state);
+    maybe_parse_imu_data(data, data_type, &msg);
 
     received_number_msgs[data_type]++;
     // Before getting the next sample for an axis, we expect to receive all
     // other axes for the same timestamp.
-    assert((received_number_msgs[data_type] == current_msg_number + 1) &&
+    assert((data_type == ESF_GYRO_TEMP ||
+            received_number_msgs[data_type] == current_msg_number + 1) &&
            "Assumption of no missing IMU data violated");
 
     // Check if the current IMU message is complete (all axes received) and
@@ -966,6 +973,10 @@ static void handle_nav_status(struct ubx_sbp_state *state, u8 *inbuf) {
   bool time_good = (nav_status.status_flags & weeknumber_ok) &&
                    (nav_status.status_flags & tow_ok);
 
+  if (time_good) {
+    state->esf_state.weeknumber_set = true;
+  }
+
   if (gnss_fix_good && time_good &&
       gps_time_valid(&state->esf_state.last_obs_time_gnss)) {
     gps_time_t nav_status_time_gnss;
@@ -1028,8 +1039,10 @@ static void handle_rxm_rawx(struct ubx_sbp_state *state,
     return;
   }
 
-  state->esf_state.last_obs_time_gnss.tow = rxm_rawx.rcv_tow;
-  state->esf_state.last_obs_time_gnss.wn = rxm_rawx.rcv_wn;
+  if (state->esf_state.weeknumber_set) {
+    state->esf_state.last_obs_time_gnss.tow = rxm_rawx.rcv_tow;
+    state->esf_state.last_obs_time_gnss.wn = rxm_rawx.rcv_wn;
+  }
   update_utc_params(state, &rxm_rawx);
 
   msg_obs_t *sbp_obs = (msg_obs_t *)sbp_obs_buffer;
