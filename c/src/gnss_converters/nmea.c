@@ -22,6 +22,7 @@
 #include <swiftnav/array_tools.h>
 #include <swiftnav/common.h>
 #include <swiftnav/constants.h>
+#include <swiftnav/geoid_model.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/pvt_result.h>
 #include <swiftnav/signal.h>
@@ -373,15 +374,19 @@ void send_gpgga(const sbp2nmea_t *state) {
   }
   NMEA_SENTENCE_PRINTF("%01d,", fix_type);
 
+  float geoid_height =
+      get_geoid_offset(sbp_pos_llh_cov->lat * D2R, sbp_pos_llh_cov->lon * D2R);
   if (fix_type == NMEA_GGA_QI_EST) {
-    NMEA_SENTENCE_PRINTF("%02d,,%.2f,M,0.0,M,",
+    NMEA_SENTENCE_PRINTF("%02d,,%.2f,M,%.2f,M,",
                          sbp_pos_llh_cov->n_sats,
-                         sbp_pos_llh_cov->height);
+                         sbp_pos_llh_cov->height - (double)geoid_height,
+                         geoid_height);
   } else if (fix_type != NMEA_GGA_QI_INVALID) {
-    NMEA_SENTENCE_PRINTF("%02d,%.1f,%.2f,M,0.0,M,",
+    NMEA_SENTENCE_PRINTF("%02d,%.1f,%.2f,M,%.2f,M,",
                          sbp_pos_llh_cov->n_sats,
                          round(10 * sbp_dops->hdop * 0.01) / 10,
-                         sbp_pos_llh_cov->height);
+                         sbp_pos_llh_cov->height - (double)geoid_height,
+                         geoid_height);
   } else {
     NMEA_SENTENCE_PRINTF(",,,M,,M,");
   }
