@@ -33,7 +33,8 @@ typedef enum sbp2nmea_nmea_id {
   SBP2NMEA_NMEA_GSA = 6,
   SBP2NMEA_NMEA_GST = 7,
   SBP2NMEA_NMEA_GSV = 8,
-  SBP2NMEA_NMEA_CNT = 9,
+  SBP2NMEA_NMEA_PUBX = 9,
+  SBP2NMEA_NMEA_CNT = 10,
 } sbp2nmea_nmea_id_t;
 
 typedef enum sbp2nmea_sbp_id {

@@ -1110,6 +1110,136 @@ void send_gsv(const sbp2nmea_t *state) {
   }
 }
 
+static inline const char *get_pubx_nav_stat(int flags) {
+  uint8_t fix_type = NMEA_GGA_QI_INVALID;
+  if ((flags & POSITION_MODE_MASK) != POSITION_MODE_NONE) {
+    fix_type = get_nmea_quality_indicator(flags);
+  }
+  uint8_t pos_mode = flags & POSITION_MODE_MASK;
+
+  if (fix_type == NMEA_GGA_QI_INVALID) {
+    return "NF";
+  }
+  if (fix_type == NMEA_GGA_QI_EST) {
+    return "DR";
+  }
+  if ((fix_type == NMEA_GGA_QI_DGPS && pos_mode != POSITION_MODE_SBAS) ||
+      fix_type == NMEA_GGA_QI_FLOAT || fix_type == NMEA_GGA_QI_RTK) {
+    return "D3";
+  }
+  return "G3";
+}
+
+void send_pubx(const sbp2nmea_t *state) {
+  const msg_pos_llh_cov_t *sbp_pos_llh_cov =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV);
+  const msg_vel_ned_t *sbp_vel_ned =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_VEL_NED);
+  const msg_utc_time_t *sbp_utc_time =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME);
+  const msg_age_corrections_t *sbp_age =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_AGE_CORR);
+  const msg_dops_t *sbp_dops = sbp2nmea_msg_get(state, SBP2NMEA_SBP_DOPS);
+
+  double lat = fabs(round(sbp_pos_llh_cov->lat * 1e8) / 1e8);
+  double lon = fabs(round(sbp_pos_llh_cov->lon * 1e8) / 1e8);
+
+  char lat_dir = sbp_pos_llh_cov->lat < 0.0 ? 'S' : 'N';
+  assert(lat <= UINT16_MAX);
+  u16 lat_deg = (u16)lat; /* truncation towards zero */
+  double lat_min = (lat - (double)lat_deg) * 60.0;
+
+  char lon_dir = sbp_pos_llh_cov->lon < 0.0 ? 'W' : 'E';
+  assert(lon <= UINT16_MAX);
+  u16 lon_deg = (u16)lon; /* truncation towards zero */
+  double lon_min = (lon - (double)lon_deg) * 60.0;
+
+  u8 fix_type = NMEA_GGA_QI_INVALID;
+  if ((sbp_pos_llh_cov->flags & POSITION_MODE_MASK) != POSITION_MODE_NONE) {
+    fix_type = get_nmea_quality_indicator(sbp_pos_llh_cov->flags);
+  }
+
+  NMEA_SENTENCE_START(120);
+  NMEA_SENTENCE_PRINTF("$PUBX,00,");
+
+  // UTC
+  char utc[NMEA_TS_MAX_LEN];
+  get_utc_time_string(true, false, false, sbp_utc_time, utc, NMEA_TS_MAX_LEN);
+  NMEA_SENTENCE_PRINTF("%s", utc);
+
+  // Lat, Lon, AltRef
+  if (fix_type != NMEA_GGA_QI_INVALID) {
+    NMEA_SENTENCE_PRINTF("%02u%010.7f,%c,%03u%010.7f,%c,%.2f,",
+                         lat_deg,
+                         lat_min,
+                         lat_dir,
+                         lon_deg,
+                         lon_min,
+                         lon_dir,
+                         sbp_pos_llh_cov->height);
+  } else {
+    NMEA_SENTENCE_PRINTF(",,,,");
+  }
+
+  // NavStat
+  const char *nav_stat = get_pubx_nav_stat(sbp_pos_llh_cov->flags);
+  NMEA_SENTENCE_PRINTF("%s,", nav_stat);
+
+  // Hacc, Vacc
+  if (fix_type != NMEA_GGA_QI_INVALID) {
+    float hacc = sqrtf(sbp_pos_llh_cov->cov_n_n + sbp_pos_llh_cov->cov_e_e);
+    float vacc = sqrtf(sbp_pos_llh_cov->cov_d_d);
+    NMEA_SENTENCE_PRINTF("%.1f,%.1f,", hacc, vacc);
+  } else {
+    NMEA_SENTENCE_PRINTF(",,");
+  }
+
+  // SOG COG Vvel
+  double cog, sog_knots, sog_kph;
+  calc_cog_sog(sbp_vel_ned, &cog, &sog_knots, &sog_kph);
+
+  if ((sbp_vel_ned->flags & VELOCITY_MODE_MASK) != VELOCITY_MODE_NONE) {
+    NMEA_SENTENCE_PRINTF("%.2f,", sog_kph); /* Speed */
+    if (NMEA_COG_STATIC_LIMIT_KNOTS < sog_knots) {
+      NMEA_SENTENCE_PRINTF("%.*f,", NMEA_COG_DECIMALS, cog); /* Course */
+    } else {
+      NMEA_SENTENCE_PRINTF(","); /* Course */
+    }
+    NMEA_SENTENCE_PRINTF("%.2f,", ((float)sbp_vel_ned->d) / 1000.0);
+  } else {
+    NMEA_SENTENCE_PRINTF(",,,"); /* Speed, Course, Vvel */
+  }
+
+  // Age corrections
+  if ((fix_type == NMEA_GGA_QI_DGPS &&
+       ((sbp_pos_llh_cov->flags & POSITION_MODE_MASK) != POSITION_MODE_SBAS)) ||
+      (fix_type == NMEA_GGA_QI_FLOAT) || (fix_type == NMEA_GGA_QI_RTK)) {
+    NMEA_SENTENCE_PRINTF("%.1f,",
+                         sbp_age->age * 0.1); /* ID range is 0000 to 1023 */
+  } else {
+    NMEA_SENTENCE_PRINTF(",");
+  }
+
+  // HDOP, VDOP, TDOP
+  if (fix_type == NMEA_GGA_QI_EST || fix_type == NMEA_GGA_QI_INVALID) {
+    NMEA_SENTENCE_PRINTF(",,,");
+  } else {
+    NMEA_SENTENCE_PRINTF("%.1f,%.1f,%.1f,",
+                         round(10 * sbp_dops->hdop * 0.01) / 10,
+                         round(10 * sbp_dops->vdop * 0.01) / 10,
+                         round(10 * sbp_dops->tdop * 0.01) / 10);
+  }
+
+  // GPS, GLONASS sats used, everything is chucked in to the GPS field for the
+  // moment
+  NMEA_SENTENCE_PRINTF("%d,0,", sbp_pos_llh_cov->n_sats);
+
+  // DR used
+  NMEA_SENTENCE_PRINTF("%d,", fix_type == NMEA_GGA_QI_EST);
+
+  NMEA_SENTENCE_DONE(state);
+}
+
 bool check_nmea_rate(u32 rate, u32 gps_tow_ms, float soln_freq) {
   if (rate == 0) {
     return false;

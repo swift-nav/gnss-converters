@@ -76,6 +76,12 @@ struct nmea_meta_entry {
     [SBP2NMEA_NMEA_GSV] = {.base_tow_mask = 0,
                            .non_dr_tow_mask = 0,
                            .send = send_gsv},
+    [SBP2NMEA_NMEA_PUBX] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
+                                             (1 << SBP2NMEA_SBP_GPS_TIME) |
+                                             (1 << SBP2NMEA_SBP_VEL_NED),
+                            .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
+                                               (1 << SBP2NMEA_SBP_AGE_CORR),
+                            .send = send_pubx},
 };
 
 struct sbp_meta_entry {
