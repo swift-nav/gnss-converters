@@ -12,8 +12,10 @@
 
 #include <gnss-converters/ubx_sbp.h>
 #include <libsbp/imu.h>
+#include <libsbp/logging.h>
 #include <libsbp/orientation.h>
 #include <libsbp/system.h>
+#include <libsbp/tracking.h>
 #include <libsbp/vehicle.h>
 #include <math.h>
 #include <stdint.h>
@@ -225,6 +227,10 @@ static code_t convert_ubx_gnssid_sigid(u8 gnss_id, u8 sig_id) {
   /* GPS L2 CM */
   if ((gnss_id == UBX_GNSS_ID_GPS) && (sig_id == 4)) {
     return CODE_GPS_L2CM;
+  }
+  /* SBAS L1 CA */
+  if ((gnss_id == UBX_GNSS_ID_SBAS) && (sig_id == 0)) {
+    return CODE_SBAS_L1CA;
   }
   /* Galileo E1 C */
   if ((gnss_id == UBX_GNSS_ID_GAL) && (sig_id == 0)) {
@@ -523,6 +529,24 @@ static int fill_msg_pos_llh_hnr(const u8 buf[], msg_pos_llh_t *msg) {
   msg->flags = pvt_state.flags;
 
   return 0;
+}
+
+static int fill_msg_fwd(const u8 buf[], const u16 buf_len, msg_fwd_t *msg) {
+  size_t copy_len = (UBX_CLASS_BYTE_COUNT + UBX_MSG_ID_BYTE_COUNT +
+                     UBX_LENGTH_BYTE_COUNT + buf_len);
+  if (copy_len > SBP_MAX_PAYLOAD_LEN - sizeof(*msg)) {
+    log_warn("UBX frame for class 0x%X and ID 0x%X too large to forward: %d; ",
+             buf[0],
+             buf[1],
+             (int)copy_len);
+    return -1;
+  }
+#define SBP_MSG_FWD_PROTOCOL_UBX 0x1
+  msg->source = 0; /* unused */
+  msg->protocol = SBP_MSG_FWD_PROTOCOL_UBX;
+  memcpy(msg->fwd_payload, buf, copy_len);
+#undef SBP_MSG_FWD_PROTOCOL_UBX
+  return copy_len;
 }
 
 static bool is_odo(u8 data_type) {
@@ -956,6 +980,85 @@ static void handle_nav_velecef(struct ubx_sbp_state *state, u8 *inbuf) {
   }
 }
 
+static void handle_nav_sat(struct ubx_sbp_state *state, u8 *inbuf) {
+  ubx_nav_sat nav_sat; /* 1218 bytes (ish) ! */
+  if (ubx_decode_nav_sat(inbuf, &nav_sat) != RC_OK) {
+    return;
+  }
+
+  /* prep SBP_MSG_SV_AZ_EL */
+  u8 azelbuf[SBP_MAX_PAYLOAD_LEN];
+  memset(azelbuf, 0, SBP_MAX_PAYLOAD_LEN);
+  u8 azel_cnt = 0;
+  msg_sv_az_el_t *msg_az_el = (msg_sv_az_el_t *)azelbuf;
+
+  /* prep SBP_MSG_MEASUREMENT_STATE */
+  u8 meas_state_buf[SBP_MAX_PAYLOAD_LEN];
+  memset(meas_state_buf, 0, SBP_MAX_PAYLOAD_LEN);
+  u8 meas_cnt = 0;
+  msg_measurement_state_t *msg_meas_state =
+      (msg_measurement_state_t *)meas_state_buf;
+
+  for (int i = 0; i < nav_sat.num_svs; i++) {
+    ubx_nav_sat_data *data = &nav_sat.data[i];
+
+    u8 sat_id = data->sv_id;
+    u8 code = convert_ubx_gnssid_sigid(data->gnss_id,
+                                       0); /* always zero for UBX-NAV-SAT */
+
+    msg_az_el->azel[azel_cnt].sid.sat = sat_id;
+    msg_az_el->azel[azel_cnt].sid.code = code;
+    msg_az_el->azel[azel_cnt].az = lround((double)data->azim / 2.0);
+    msg_az_el->azel[azel_cnt].el = data->elev;
+    azel_cnt++;
+
+    msg_meas_state->states[meas_cnt].mesid.sat = sat_id;
+    msg_meas_state->states[meas_cnt].mesid.code = code;
+    msg_meas_state->states[meas_cnt].cn0 = lround((double)data->cno * 4.0);
+    meas_cnt++;
+
+    /* send SBP_MSG_SV_AZ_EL if full */
+    if ((azel_cnt + 1) * sizeof(sv_az_el_t) > SBP_MAX_PAYLOAD_LEN) {
+      state->cb_ubx_to_sbp(SBP_MSG_SV_AZ_EL,
+                           azel_cnt * sizeof(sv_az_el_t),
+                           (u8 *)&azelbuf,
+                           state->sender_id,
+                           state->context);
+      memset(azelbuf, 0, SBP_MAX_PAYLOAD_LEN);
+      azel_cnt = 0;
+    }
+
+    /* send SBP_MSG_MEASUREMENT_STATE if full */
+    if ((meas_cnt + 1) * sizeof(measurement_state_t) > SBP_MAX_PAYLOAD_LEN) {
+      state->cb_ubx_to_sbp(SBP_MSG_MEASUREMENT_STATE,
+                           meas_cnt * sizeof(measurement_state_t),
+                           (u8 *)&meas_state_buf,
+                           state->sender_id,
+                           state->context);
+      memset(meas_state_buf, 0, SBP_MAX_PAYLOAD_LEN);
+      meas_cnt = 0;
+    }
+  }
+
+  /* send SBP_MSG_SV_AZ_EL if not empty */
+  if (azel_cnt > 0) {
+    state->cb_ubx_to_sbp(SBP_MSG_SV_AZ_EL,
+                         azel_cnt * sizeof(sv_az_el_t),
+                         (u8 *)&azelbuf,
+                         state->sender_id,
+                         state->context);
+  }
+
+  /* send SBP_MSG_MEASUREMENT_STATE if not empty */
+  if (meas_cnt > 0) {
+    state->cb_ubx_to_sbp(SBP_MSG_MEASUREMENT_STATE,
+                         meas_cnt * sizeof(measurement_state_t),
+                         (u8 *)&meas_state_buf,
+                         state->sender_id,
+                         state->context);
+  }
+}
+
 static void handle_nav_status(struct ubx_sbp_state *state, u8 *inbuf) {
   ubx_nav_status nav_status;
   if (ubx_decode_nav_status(inbuf, &nav_status) != RC_OK) {
@@ -1110,7 +1213,23 @@ static void handle_rxm_sfrbx(struct ubx_sbp_state *state, u8 *buf, int sz) {
   }
 }
 
-void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
+static void handle_mon_hw(struct ubx_sbp_state *state,
+                          u8 *inbuf,
+                          const u16 buf_len) {
+  u8 outbuf[SBP_MAX_PAYLOAD_LEN];
+  memset(outbuf, 0, SBP_MAX_PAYLOAD_LEN);
+  msg_fwd_t *msg = (msg_fwd_t *)outbuf;
+  int written = fill_msg_fwd(inbuf, buf_len, msg);
+  if (written > 0) {
+    state->cb_ubx_to_sbp(SBP_MSG_FWD,
+                         sizeof(msg_fwd_t) + written,
+                         (u8 *)msg,
+                         state->sender_id,
+                         state->context);
+  }
+}
+
+void ubx_handle_frame(u8 *frame, u16 frame_len, struct ubx_sbp_state *state) {
   u8 class_id = frame[0];
   u8 msg_id = frame[1];
 
@@ -1145,6 +1264,9 @@ void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
         case UBX_MSG_NAV_VELECEF:
           handle_nav_velecef(state, frame);
           break;
+        case UBX_MSG_NAV_SAT:
+          handle_nav_sat(state, frame);
+          break;
         case UBX_MSG_NAV_STATUS:
           handle_nav_status(state, frame);
           break;
@@ -1163,6 +1285,15 @@ void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state) {
       }
       break;
 
+    case UBX_CLASS_MON:
+      switch (msg_id) {
+        case UBX_MSG_MON_HW:
+          handle_mon_hw(state, frame, frame_len);
+          break;
+        default:
+          break;
+      }
+      break;
     default:
       break;
   }
@@ -1227,7 +1358,7 @@ int ubx_sbp_process(struct ubx_sbp_state *state,
     return ret;
   }
 
-  ubx_handle_frame(inbuf, state);
+  ubx_handle_frame(inbuf, (u16)ret, state);
 
   return ret;
 }

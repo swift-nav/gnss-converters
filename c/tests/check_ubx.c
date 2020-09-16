@@ -18,6 +18,7 @@
 #include <libsbp/orientation.h>
 #include <libsbp/sbas.h>
 #include <libsbp/system.h>
+#include <libsbp/tracking.h>
 #include <libsbp/vehicle.h>
 
 #include <math.h>
@@ -101,7 +102,7 @@ static void ubx_sbp_callback_hnr_pvt_disabled(
   msg_index++;
 }
 
-static const uint16_t rxm_rawx_crc[] = {14708, 41438, 2564, 52301, 10854};
+static const uint16_t rxm_rawx_crc[] = {49772, 41438, 2564, 52301, 10854};
 static void ubx_sbp_callback_rxm_rawx(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
@@ -204,6 +205,47 @@ static void ubx_sbp_callback_rxm_sfrbx_sbas(
 
   ck_assert(msg_id == SBP_MSG_SBAS_RAW);
   ck_assert(length == 34);
+}
+
+static void ubx_sbp_callback_nav_sat(
+    u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
+  (void)context;
+  (void)buff;
+  (void)sender_id;
+  (void)length;
+  static int msg_index = 0;
+  const u16 msg_order[] = {SBP_MSG_SV_AZ_EL, SBP_MSG_MEASUREMENT_STATE};
+  ck_assert_msg(msg_id == msg_order[msg_index++],
+                "Unexpected SBP message created");
+  if (msg_id == SBP_MSG_SV_AZ_EL) {
+    msg_sv_az_el_t *msg = (msg_sv_az_el_t *)buff;
+    ck_assert_uint_eq(msg->azel[0].sid.sat, 0);
+    ck_assert_uint_eq(msg->azel[0].sid.code, CODE_GPS_L1CA);
+    ck_assert_uint_eq(msg->azel[0].az, 4);
+    ck_assert_int_eq(msg->azel[0].el, -1);
+    ck_assert_uint_eq(msg->azel[1].sid.sat, 1);
+    ck_assert_uint_eq(msg->azel[1].sid.code, CODE_GAL_E1C);
+    ck_assert_uint_eq(msg->azel[1].az, 2);
+    ck_assert_int_eq(msg->azel[1].el, 1);
+    ck_assert_uint_eq(msg->azel[2].sid.sat, 2);
+    ck_assert_uint_eq(msg->azel[2].sid.code, CODE_BDS2_B1);
+    ck_assert_uint_eq(msg->azel[2].az, 30);
+    ck_assert_int_eq(msg->azel[2].el, 3);
+    ck_assert_int_eq(length, 12);
+  }
+  if (msg_id == SBP_MSG_MEASUREMENT_STATE) {
+    msg_measurement_state_t *msg = (msg_measurement_state_t *)buff;
+    ck_assert_uint_eq(msg->states[0].mesid.sat, 0);
+    ck_assert_uint_eq(msg->states[0].mesid.code, CODE_GPS_L1CA);
+    ck_assert_uint_eq(msg->states[0].cn0, 12);
+    ck_assert_uint_eq(msg->states[1].mesid.sat, 1);
+    ck_assert_uint_eq(msg->states[1].mesid.code, CODE_GAL_E1C);
+    ck_assert_uint_eq(msg->states[1].cn0, 16);
+    ck_assert_uint_eq(msg->states[2].mesid.sat, 2);
+    ck_assert_uint_eq(msg->states[2].mesid.code, CODE_BDS2_B1);
+    ck_assert_uint_eq(msg->states[2].cn0, 80);
+    ck_assert_uint_eq(length, 9);
+  }
 }
 
 static void ubx_sbp_callback_nav_status(
@@ -787,6 +829,47 @@ static int create_esf_meas_messages(uint8_t *dest,
   return n_bytes;
 }
 
+static int create_nav_sat_message(uint8_t *dest) {
+  ubx_nav_sat msg_nav_sat;
+  memset(&msg_nav_sat, 0, sizeof(msg_nav_sat));
+
+  msg_nav_sat.class_id = 0x01;
+  msg_nav_sat.msg_id = 0x35;
+  msg_nav_sat.length = 44;
+  msg_nav_sat.i_tow = 433200;
+  msg_nav_sat.version = 1;
+  msg_nav_sat.num_svs = 3;
+  msg_nav_sat.reserved1 = 0x0000;
+  msg_nav_sat.data[0].gnss_id = 0;
+  msg_nav_sat.data[0].sv_id = 0;
+  msg_nav_sat.data[0].cno = 3;
+  msg_nav_sat.data[0].elev = -1;
+  msg_nav_sat.data[0].azim = 8;
+  msg_nav_sat.data[0].pr_res = 3;
+  msg_nav_sat.data[0].flags = 0x00000000;
+  msg_nav_sat.data[1].gnss_id = 2;
+  msg_nav_sat.data[1].sv_id = 1;
+  msg_nav_sat.data[1].cno = 4;
+  msg_nav_sat.data[1].elev = 1;
+  msg_nav_sat.data[1].azim = 4;
+  msg_nav_sat.data[1].pr_res = 5;
+  msg_nav_sat.data[1].flags = 0x00000000;
+  msg_nav_sat.data[2].gnss_id = 3;
+  msg_nav_sat.data[2].sv_id = 2;
+  msg_nav_sat.data[2].cno = 20;
+  msg_nav_sat.data[2].elev = 3;
+  msg_nav_sat.data[2].azim = 60;
+  msg_nav_sat.data[2].pr_res = 2;
+  msg_nav_sat.data[2].flags = 0x00000000;
+
+  dest[0] = UBX_SYNC_CHAR_1;
+  dest[1] = UBX_SYNC_CHAR_2;
+  int n_bytes = ubx_encode_nav_sat(&msg_nav_sat, &dest[2]);
+  ubx_checksum(&dest[2], n_bytes, (u8 *)&dest[2 + n_bytes]);
+  n_bytes += 4;
+  return n_bytes;
+}
+
 static int create_nav_status_message(uint8_t *dest,
                                      uint32_t msss,
                                      uint32_t i_tow) {
@@ -1042,6 +1125,28 @@ START_TEST(test_no_conversion_invalid_calibtag) {
 }
 END_TEST
 
+START_TEST(test_nav_sat) {
+  struct ubx_sbp_state state;
+  ubx_sbp_init(&state, ubx_sbp_callback_nav_sat, NULL);
+
+  // Open a temporary file for this test
+  strncpy(tmp_file_name, "XXXXXX", FILENAME_MAX);
+  int fd = mkstemp(tmp_file_name);
+  fp = fdopen(fd, "wb");
+  uint8_t buffer[512];
+  memset(buffer, 0, 512);
+  int n_bytes;
+
+  n_bytes = create_nav_sat_message(buffer);
+  fwrite(buffer, n_bytes, sizeof(char), fp);
+
+  fclose(fp);
+
+  // Run tests
+  test_UBX(&state, tmp_file_name);
+}
+END_TEST
+
 START_TEST(test_nav_status) {
   struct ubx_sbp_state state;
   ubx_sbp_init(&state, ubx_sbp_callback_nav_status, NULL);
@@ -1246,6 +1351,7 @@ Suite *ubx_suite(void) {
   tcase_add_test(tc_nav, test_nav_pvt_fix_type);
   tcase_add_test(tc_nav, test_nav_pvt_set_sender_id);
   tcase_add_test(tc_nav, test_nav_vel_ecef);
+  tcase_add_test(tc_nav, test_nav_sat);
   tcase_add_test(tc_nav, test_nav_status);
   tcase_add_checked_fixture(tc_nav, NULL, tmp_file_teardown);
   suite_add_tcase(s, tc_nav);

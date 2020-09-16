@@ -26,6 +26,16 @@
 extern "C" {
 #endif
 
+/** UBX Frame:
+ * SYNC_CHAR_1 | SYNC_CHAR_2 | CLASS | MSG_ID | 2-byte Length | Payload |
+ * CHCKSUM_BYTE_1 | CHCKSUM_BYTE_2
+ */
+#define UBX_SYNC_BYTE_COUNT (2)
+#define UBX_CLASS_BYTE_COUNT (1)
+#define UBX_MSG_ID_BYTE_COUNT (1)
+#define UBX_LENGTH_BYTE_COUNT (2)
+#define UBX_CHECKSUM_BYTE_COUNT (2)
+
 #define UBX_BUFFER_SIZE 4096
 #define UBX_FRAME_SIZE 4096
 
@@ -102,7 +112,7 @@ void ubx_sbp_init(struct ubx_sbp_state *state,
                                         u16 sender_id,
                                         void *context),
                   void *context);
-void ubx_handle_frame(u8 *frame, struct ubx_sbp_state *state);
+void ubx_handle_frame(u8 *frame, u16 frame_len, struct ubx_sbp_state *state);
 void ubx_set_sender_id(struct ubx_sbp_state *state, u16 sender_id);
 void ubx_set_hnr_flag(struct ubx_sbp_state *state, bool use_hnr);
 int ubx_sbp_process(struct ubx_sbp_state *state,
