@@ -1178,7 +1178,7 @@ void send_pubx(const sbp2nmea_t *state) {
                          lon_dir,
                          sbp_pos_llh_cov->height);
   } else {
-    NMEA_SENTENCE_PRINTF(",,,,");
+    NMEA_SENTENCE_PRINTF(",,,,,");
   }
 
   // NavStat
@@ -1235,7 +1235,7 @@ void send_pubx(const sbp2nmea_t *state) {
   NMEA_SENTENCE_PRINTF("%d,0,", sbp_pos_llh_cov->n_sats);
 
   // DR used
-  NMEA_SENTENCE_PRINTF("%d,", fix_type == NMEA_GGA_QI_EST);
+  NMEA_SENTENCE_PRINTF("%d", fix_type == NMEA_GGA_QI_EST);
 
   NMEA_SENTENCE_DONE(state);
 }
