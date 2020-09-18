@@ -301,7 +301,7 @@ void test_NMEA(const char *filename,
   sbp2nmea_t state;
   memset(&state, 0, sizeof(state));
 
-  sbp2nmea_init(&state, cb_sbp_to_nmea, NULL);
+  sbp2nmea_init(&state, SBP2NMEA_MODE_GNSS, cb_sbp_to_nmea, NULL);
   sbp2nmea_base_id_set(&state, 33);
   sbp2nmea_soln_freq_set(&state, 10);
   sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GGA);

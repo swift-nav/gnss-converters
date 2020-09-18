@@ -22,6 +22,7 @@
 
 /* Max number of sats visible in an epoch */
 #define MAX_SATS 256
+#define MAX_FUSED_WAGON_MSGS (SBP_MAX_PAYLOAD_LEN / sizeof(uint16_t))
 
 typedef enum sbp2nmea_nmea_id {
   SBP2NMEA_NMEA_GGA = 0,
@@ -47,7 +48,13 @@ typedef enum sbp2nmea_sbp_id {
   SBP2NMEA_SBP_HDG = 6,
   SBP2NMEA_SBP_SV_AZ_EL = 7,
   SBP2NMEA_SBP_MEASUREMENT_STATE = 8,
-  SBP2NMEA_SBP_CNT = 9,
+  SBP2NMEA_SBP_GROUP_META = 9,
+  SBP2NMEA_SBP_SOLN_META = 10,
+  SBP2NMEA_SBP_GPS_TIME_GNSS = 11,
+  SBP2NMEA_SBP_UTC_TIME_GNSS = 12,
+  SBP2NMEA_SBP_POS_LLH_COV_GNSS = 13,
+  SBP2NMEA_SBP_VEL_NED_GNSS = 14,
+  SBP2NMEA_SBP_CNT = 15,
 } sbp2nmea_sbp_id_t;
 
 typedef struct nmea_state_entry {
@@ -64,12 +71,23 @@ typedef struct sbp_state_entry {
   sbp2nmea_msg_t msg;
 } sbp_state_entry_t;
 
+typedef enum sbp2nmea_mode {
+  SBP2NMEA_MODE_BEST,
+  SBP2NMEA_MODE_GNSS,
+  SBP2NMEA_MODE_FUSED,
+} sbp2nmea_mode_t;
+
 typedef struct sbp2nmea_state {
   uint8_t num_obs;
   uint8_t obs_seq_count;
   uint8_t obs_seq_total;
   sbp_gnss_signal_t nav_sids[MAX_SATS];
   sbp_gps_time_t obs_time;
+
+  sbp2nmea_mode_t requested_mode;
+  sbp2nmea_mode_t actual_mode;
+  bool fused_wagon_seen_msgs[MAX_FUSED_WAGON_MSGS];
+  bool fused_wagon_complete;
 
   uint16_t base_sender_id;
 
@@ -87,6 +105,7 @@ extern "C" {
 #endif
 
 void sbp2nmea_init(sbp2nmea_t *state,
+                   sbp2nmea_mode_t mode,
                    void (*cb_sbp_to_nmea)(char *msg, void *ctx),
                    void *ctx);
 
@@ -104,7 +123,9 @@ const sbp_gnss_signal_t *sbp2nmea_nav_sids_get(const sbp2nmea_t *state);
 
 void sbp2nmea_to_str(const sbp2nmea_t *state, char *sentence);
 
-void *sbp2nmea_msg_get(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id);
+void *sbp2nmea_msg_get(const sbp2nmea_t *state,
+                       sbp2nmea_sbp_id_t id,
+                       bool consider_mode);
 
 uint8_t sbp2nmea_msg_length(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id);
 

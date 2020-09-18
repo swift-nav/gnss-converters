@@ -26,61 +26,74 @@
 #include "sbp_nmea_internal.h"
 
 struct nmea_meta_entry {
-  uint16_t base_tow_mask;
-  uint16_t non_dr_tow_mask;
+  uint16_t gnss_tow_mask;
+  bool available_in_fused;
   void (*send)(const sbp2nmea_t *);
 } nmea_meta[SBP2NMEA_NMEA_CNT] = {
-    [SBP2NMEA_NMEA_GGA] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                            (1 << SBP2NMEA_SBP_VEL_NED),
-                           .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
-                                              (1 << SBP2NMEA_SBP_AGE_CORR),
+    [SBP2NMEA_NMEA_GGA] = {.gnss_tow_mask =
+                               (1 << SBP2NMEA_SBP_POS_LLH_COV_GNSS) |
+                               (1 << SBP2NMEA_SBP_GPS_TIME_GNSS) |
+                               (1 << SBP2NMEA_SBP_VEL_NED_GNSS) |
+                               (1 << SBP2NMEA_SBP_DOPS) |
+                               (1 << SBP2NMEA_SBP_AGE_CORR),
+                           .available_in_fused = true,
                            .send = send_gpgga},
-    [SBP2NMEA_NMEA_RMC] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                            (1 << SBP2NMEA_SBP_VEL_NED),
-                           .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
-                                              (1 << SBP2NMEA_SBP_AGE_CORR),
+    [SBP2NMEA_NMEA_RMC] = {.gnss_tow_mask =
+                               (1 << SBP2NMEA_SBP_POS_LLH_COV_GNSS) |
+                               (1 << SBP2NMEA_SBP_GPS_TIME_GNSS) |
+                               (1 << SBP2NMEA_SBP_VEL_NED_GNSS) |
+                               (1 << SBP2NMEA_SBP_DOPS) |
+                               (1 << SBP2NMEA_SBP_AGE_CORR),
+                           .available_in_fused = true,
                            .send = send_gprmc},
-    [SBP2NMEA_NMEA_VTG] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                            (1 << SBP2NMEA_SBP_VEL_NED),
-                           .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
-                                              (1 << SBP2NMEA_SBP_AGE_CORR),
+    [SBP2NMEA_NMEA_VTG] = {.gnss_tow_mask =
+                               (1 << SBP2NMEA_SBP_POS_LLH_COV_GNSS) |
+                               (1 << SBP2NMEA_SBP_GPS_TIME_GNSS) |
+                               (1 << SBP2NMEA_SBP_VEL_NED_GNSS) |
+                               (1 << SBP2NMEA_SBP_DOPS) |
+                               (1 << SBP2NMEA_SBP_AGE_CORR),
+                           .available_in_fused = true,
                            .send = send_gpvtg},
-    [SBP2NMEA_NMEA_HDT] = {.base_tow_mask = (1 << SBP2NMEA_SBP_HDG),
-                           .non_dr_tow_mask = 0,
+    [SBP2NMEA_NMEA_HDT] = {.gnss_tow_mask = (1 << SBP2NMEA_SBP_HDG),
+                           .available_in_fused = false,
                            .send = send_gphdt},
-    [SBP2NMEA_NMEA_GLL] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                            (1 << SBP2NMEA_SBP_VEL_NED),
-                           .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
-                                              (1 << SBP2NMEA_SBP_AGE_CORR),
+    [SBP2NMEA_NMEA_GLL] = {.gnss_tow_mask =
+                               (1 << SBP2NMEA_SBP_POS_LLH_COV_GNSS) |
+                               (1 << SBP2NMEA_SBP_GPS_TIME_GNSS) |
+                               (1 << SBP2NMEA_SBP_VEL_NED_GNSS) |
+                               (1 << SBP2NMEA_SBP_DOPS) |
+                               (1 << SBP2NMEA_SBP_AGE_CORR),
+                           .available_in_fused = true,
                            .send = send_gpgll},
-    [SBP2NMEA_NMEA_ZDA] = {.base_tow_mask = 0,
-                           .non_dr_tow_mask = 0,
+    [SBP2NMEA_NMEA_ZDA] = {.gnss_tow_mask = 0,
+                           .available_in_fused = true,
                            .send = send_gpzda},
-    [SBP2NMEA_NMEA_GSA] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                            (1 << SBP2NMEA_SBP_VEL_NED) |
-                                            (1 << SBP2NMEA_SBP_DOPS) |
-                                            (1 << SBP2NMEA_SBP_AGE_CORR),
-                           .non_dr_tow_mask = 0,
+    [SBP2NMEA_NMEA_GSA] = {.gnss_tow_mask =
+                               (1 << SBP2NMEA_SBP_POS_LLH_COV_GNSS) |
+                               (1 << SBP2NMEA_SBP_GPS_TIME_GNSS) |
+                               (1 << SBP2NMEA_SBP_VEL_NED_GNSS) |
+                               (1 << SBP2NMEA_SBP_DOPS) |
+                               (1 << SBP2NMEA_SBP_AGE_CORR),
+                           .available_in_fused = false,
                            .send = send_gsa},
-    [SBP2NMEA_NMEA_GST] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                            (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                            (1 << SBP2NMEA_SBP_VEL_NED),
-                           .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
-                                              (1 << SBP2NMEA_SBP_AGE_CORR),
+    [SBP2NMEA_NMEA_GST] = {.gnss_tow_mask =
+                               (1 << SBP2NMEA_SBP_POS_LLH_COV_GNSS) |
+                               (1 << SBP2NMEA_SBP_GPS_TIME_GNSS) |
+                               (1 << SBP2NMEA_SBP_VEL_NED_GNSS) |
+                               (1 << SBP2NMEA_SBP_DOPS) |
+                               (1 << SBP2NMEA_SBP_AGE_CORR),
+                           .available_in_fused = true,
                            .send = send_gpgst},
-    [SBP2NMEA_NMEA_GSV] = {.base_tow_mask = 0,
-                           .non_dr_tow_mask = 0,
+    [SBP2NMEA_NMEA_GSV] = {.gnss_tow_mask = 0,
+                           .available_in_fused = false,
                            .send = send_gsv},
-    [SBP2NMEA_NMEA_PUBX] = {.base_tow_mask = (1 << SBP2NMEA_SBP_POS_LLH_COV) |
-                                             (1 << SBP2NMEA_SBP_GPS_TIME) |
-                                             (1 << SBP2NMEA_SBP_VEL_NED),
-                            .non_dr_tow_mask = (1 << SBP2NMEA_SBP_DOPS) |
-                                               (1 << SBP2NMEA_SBP_AGE_CORR),
+    [SBP2NMEA_NMEA_PUBX] = {.gnss_tow_mask =
+                                (1 << SBP2NMEA_SBP_POS_LLH_COV_GNSS) |
+                                (1 << SBP2NMEA_SBP_GPS_TIME_GNSS) |
+                                (1 << SBP2NMEA_SBP_VEL_NED_GNSS) |
+                                (1 << SBP2NMEA_SBP_DOPS) |
+                                (1 << SBP2NMEA_SBP_AGE_CORR),
+                            .available_in_fused = true,
                             .send = send_pubx},
 };
 
@@ -98,12 +111,23 @@ struct sbp_meta_entry {
     [SBP2NMEA_SBP_HDG] = {.offset_tow = offsetof(msg_baseline_heading_t, tow)},
     [SBP2NMEA_SBP_SV_AZ_EL] = {.offset_tow = 0},
     [SBP2NMEA_SBP_MEASUREMENT_STATE] = {.offset_tow = 0},
+    [SBP2NMEA_SBP_GROUP_META] = {.offset_tow = 0},
+    [SBP2NMEA_SBP_SOLN_META] = {.offset_tow = 0},
+    [SBP2NMEA_SBP_GPS_TIME_GNSS] = {.offset_tow =
+                                        offsetof(msg_gps_time_t, tow)},
+    [SBP2NMEA_SBP_UTC_TIME_GNSS] = {.offset_tow =
+                                        offsetof(msg_utc_time_t, tow)},
+    [SBP2NMEA_SBP_POS_LLH_COV_GNSS] = {.offset_tow =
+                                           offsetof(msg_pos_llh_cov_t, tow)},
+    [SBP2NMEA_SBP_VEL_NED_GNSS] = {.offset_tow = offsetof(msg_vel_ned_t, tow)},
 };
 
-static uint32_t get_tow(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id) {
+static uint32_t get_tow(const sbp2nmea_t *state,
+                        sbp2nmea_sbp_id_t id,
+                        bool consider_mode) {
   uint32_t result;
   memcpy(&result,
-         sbp2nmea_msg_get(state, id) + sbp_meta[id].offset_tow,
+         sbp2nmea_msg_get(state, id, consider_mode) + sbp_meta[id].offset_tow,
          sizeof(uint32_t));
   return result;
 }
@@ -120,14 +144,30 @@ static double sbp_gpsdifftime(const sbp_gps_time_t *sbp_end,
 }
 
 static bool nmea_ready(const sbp2nmea_t *state, sbp2nmea_nmea_id_t nmea_id) {
+  if (state->requested_mode == SBP2NMEA_MODE_FUSED &&
+      !nmea_meta[nmea_id].available_in_fused) {
+    return false;
+  }
+
+  if (state->actual_mode == SBP2NMEA_MODE_FUSED &&
+      nmea_meta[nmea_id].available_in_fused) {
+    if (!state->fused_wagon_complete) {
+      return false;
+    }
+
+    return state->nmea_state[nmea_id].last_tow !=
+           get_tow(state, SBP2NMEA_SBP_UTC_TIME, false);
+  }
+
   if (state->nmea_state[nmea_id].last_tow ==
-      get_tow(state, SBP2NMEA_SBP_UTC_TIME)) {
+      get_tow(state, SBP2NMEA_SBP_UTC_TIME_GNSS, false)) {
     /* this message was already sent on this epoch */
     return false;
   }
 
   if (SBP2NMEA_NMEA_GSA == nmea_id) {
-    msg_gps_time_t *msg = sbp2nmea_msg_get(state, SBP2NMEA_SBP_GPS_TIME);
+    msg_gps_time_t *msg =
+        sbp2nmea_msg_get(state, SBP2NMEA_SBP_GPS_TIME_GNSS, false);
     if (NULL == msg) {
       return false;
     }
@@ -149,22 +189,10 @@ static bool nmea_ready(const sbp2nmea_t *state, sbp2nmea_nmea_id_t nmea_id) {
   /* check that the time stamps of the component messages match that of the UTC
    * time message */
   for (sbp2nmea_sbp_id_t sbp_id = 0; sbp_id < SBP2NMEA_SBP_CNT; ++sbp_id) {
-    if (nmea_meta[nmea_id].base_tow_mask & (1 << sbp_id)) {
-      if (get_tow(state, sbp_id) != get_tow(state, SBP2NMEA_SBP_UTC_TIME)) {
+    if (nmea_meta[nmea_id].gnss_tow_mask & (1 << sbp_id)) {
+      if (get_tow(state, sbp_id, false) !=
+          get_tow(state, SBP2NMEA_SBP_UTC_TIME_GNSS, false)) {
         return false;
-      }
-    }
-  }
-
-  if (nmea_meta[nmea_id].non_dr_tow_mask != 0) {
-    msg_pos_llh_cov_t *msg = sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV);
-    if ((msg->flags & POSITION_MODE_MASK) != POSITION_MODE_DEAD_RECKONING) {
-      for (sbp2nmea_sbp_id_t sbp_id = 0; sbp_id < SBP2NMEA_SBP_CNT; ++sbp_id) {
-        if (nmea_meta[nmea_id].non_dr_tow_mask & (1 << sbp_id)) {
-          if (get_tow(state, sbp_id) != get_tow(state, SBP2NMEA_SBP_UTC_TIME)) {
-            return false;
-          }
-        }
       }
     }
   }
@@ -174,12 +202,15 @@ static bool nmea_ready(const sbp2nmea_t *state, sbp2nmea_nmea_id_t nmea_id) {
 
 /* Send all the NMEA messages that have become ready to send */
 static void check_nmea_send(sbp2nmea_t *state) {
-  const u32 tow = get_tow(state, SBP2NMEA_SBP_UTC_TIME);
+  const u32 tow_from_mode = get_tow(state, SBP2NMEA_SBP_UTC_TIME, true);
+  const u32 tow_from_gnss = get_tow(state, SBP2NMEA_SBP_UTC_TIME_GNSS, false);
   const float freq = state->soln_freq;
 
   /* Send each NMEA message if all its component SBP messages have been received
    * and current time matches the send rate */
   for (sbp2nmea_nmea_id_t id = 0; id < SBP2NMEA_NMEA_CNT; ++id) {
+    u32 tow = nmea_meta[id].available_in_fused ? tow_from_mode : tow_from_gnss;
+
     if (!nmea_ready(state, id)) {
       continue;
     }
@@ -212,14 +243,57 @@ static bool sbp2nmea_discard_sbp(const sbp2nmea_sbp_id_t sbp_id,
   return false;
 }
 
+static sbp2nmea_sbp_id_t recode_legacy_sbp_id(const sbp2nmea_t *state,
+                                              sbp2nmea_sbp_id_t sbp_id) {
+  if (state->requested_mode == SBP2NMEA_MODE_GNSS) {
+    if (sbp_id == SBP2NMEA_SBP_GPS_TIME) {
+      return SBP2NMEA_SBP_GPS_TIME_GNSS;
+    }
+    if (sbp_id == SBP2NMEA_SBP_UTC_TIME) {
+      return SBP2NMEA_SBP_UTC_TIME_GNSS;
+    }
+    if (sbp_id == SBP2NMEA_SBP_POS_LLH_COV) {
+      return SBP2NMEA_SBP_POS_LLH_COV_GNSS;
+    }
+    if (sbp_id == SBP2NMEA_SBP_VEL_NED) {
+      return SBP2NMEA_SBP_VEL_NED_GNSS;
+    }
+  }
+  return sbp_id;
+}
+
+static void update_mode(sbp2nmea_t *state, sbp2nmea_sbp_id_t sbp_id) {
+  if (state->requested_mode == SBP2NMEA_MODE_BEST &&
+      state->actual_mode == SBP2NMEA_MODE_GNSS &&
+      sbp_id == SBP2NMEA_SBP_GROUP_META) {
+    state->actual_mode = SBP2NMEA_MODE_FUSED;
+  }
+}
+
+static void check_fused_wagon_complete(sbp2nmea_t *state,
+                                       sbp2nmea_sbp_id_t sbp_id) {
+  if (state->actual_mode != SBP2NMEA_MODE_FUSED) {
+    return;
+  }
+  if (sbp_id == SBP2NMEA_SBP_GROUP_META) {
+    state->fused_wagon_complete = false;
+  } else if (sbp_id == SBP2NMEA_SBP_SOLN_META) {
+    state->fused_wagon_complete = true;
+  }
+}
+
 void sbp2nmea(sbp2nmea_t *state,
               const u8 len,
               const void *sbp_msg,
               sbp2nmea_sbp_id_t sbp_id) {
+  sbp_id = recode_legacy_sbp_id(state, sbp_id);
+  update_mode(state, sbp_id);
+  check_fused_wagon_complete(state, sbp_id);
+
   if (sbp2nmea_discard_sbp(sbp_id, len, sbp_msg)) {
     return;
   }
-  MEMCPY_S(sbp2nmea_msg_get(state, sbp_id),
+  MEMCPY_S(sbp2nmea_msg_get(state, sbp_id, false),
            sizeof(state->sbp_state[sbp_id].msg),
            sbp_msg,
            len);
@@ -284,7 +358,23 @@ void sbp2nmea_to_str(const sbp2nmea_t *state, char *sentence) {
   state->cb_sbp_to_nmea(sentence, state->ctx);
 }
 
-void *sbp2nmea_msg_get(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id) {
+void *sbp2nmea_msg_get(const sbp2nmea_t *state,
+                       sbp2nmea_sbp_id_t id,
+                       bool consider_mode) {
+  static const sbp2nmea_sbp_id_t id_map[4][2] = {
+      {SBP2NMEA_SBP_GPS_TIME_GNSS, SBP2NMEA_SBP_GPS_TIME},
+      {SBP2NMEA_SBP_UTC_TIME_GNSS, SBP2NMEA_SBP_UTC_TIME},
+      {SBP2NMEA_SBP_POS_LLH_COV_GNSS, SBP2NMEA_SBP_POS_LLH_COV},
+      {SBP2NMEA_SBP_VEL_NED_GNSS, SBP2NMEA_SBP_VEL_NED}};
+
+  if (consider_mode) {
+    for (size_t i = 0; i < ARRAY_SIZE(id_map); i++) {
+      if (id == id_map[i][state->actual_mode == SBP2NMEA_MODE_GNSS]) {
+        id = id_map[i][state->actual_mode == SBP2NMEA_MODE_FUSED];
+      }
+    }
+  }
+
   return (void *)&state->sbp_state[id].msg.data;
 }
 
@@ -305,9 +395,12 @@ void sbp2nmea_soln_freq_set(sbp2nmea_t *state, float soln_freq) {
 }
 
 void sbp2nmea_init(sbp2nmea_t *state,
+                   sbp2nmea_mode_t mode,
                    void (*cb_sbp_to_nmea)(char *msg, void *ctx),
                    void *ctx) {
   memset(state, 0, sizeof(*state));
   state->cb_sbp_to_nmea = cb_sbp_to_nmea;
   state->ctx = ctx;
+  state->requested_mode = mode;
+  state->actual_mode = SBP2NMEA_MODE_GNSS;
 }

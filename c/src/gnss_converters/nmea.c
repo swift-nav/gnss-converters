@@ -329,12 +329,26 @@ void send_gpgga(const sbp2nmea_t *state) {
      $GPGGA,hhmmss.ss,1560.000000,...
    */
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
   const msg_utc_time_t *sbp_utc_time =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME, true);
   const msg_age_corrections_t *sbp_age =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_AGE_CORR);
-  const msg_dops_t *sbp_dops = sbp2nmea_msg_get(state, SBP2NMEA_SBP_DOPS);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_AGE_CORR, false);
+  const msg_dops_t *sbp_dops =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_DOPS, false);
+  const msg_soln_meta_t *sbp_soln_meta =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_SOLN_META, false);
+
+  uint16_t hdop;
+  uint16_t age;
+
+  if (state->actual_mode == SBP2NMEA_MODE_GNSS) {
+    hdop = sbp_dops->hdop;
+    age = sbp_age->age;
+  } else {
+    hdop = sbp_soln_meta->hdop;
+    age = sbp_soln_meta->age_corrections;
+  }
 
   double lat = fabs(round(sbp_pos_llh_cov->lat * 1e8) / 1e8);
   double lon = fabs(round(sbp_pos_llh_cov->lon * 1e8) / 1e8);
@@ -384,7 +398,7 @@ void send_gpgga(const sbp2nmea_t *state) {
   } else if (fix_type != NMEA_GGA_QI_INVALID) {
     NMEA_SENTENCE_PRINTF("%02d,%.1f,%.2f,M,%.2f,M,",
                          sbp_pos_llh_cov->n_sats,
-                         round(10 * sbp_dops->hdop * 0.01) / 10,
+                         round(10 * hdop * 0.01) / 10,
                          sbp_pos_llh_cov->height - (double)geoid_height,
                          geoid_height);
   } else {
@@ -396,7 +410,7 @@ void send_gpgga(const sbp2nmea_t *state) {
       (fix_type == NMEA_GGA_QI_FLOAT) || (fix_type == NMEA_GGA_QI_RTK)) {
     NMEA_SENTENCE_PRINTF(
         "%.1f,%04d",
-        sbp_age->age * 0.1,
+        age * 0.1,
         sbp2nmea_base_id_get(state) & 0x3FF); /* ID range is 0000 to 1023 */
   } else {
     NMEA_SENTENCE_PRINTF(",");
@@ -550,7 +564,8 @@ void send_gsa_print(u16 *prns,
  */
 void send_gsa(const sbp2nmea_t *state) {
   assert(state);
-  const msg_dops_t *sbp_dops = sbp2nmea_msg_get(state, SBP2NMEA_SBP_DOPS);
+  const msg_dops_t *sbp_dops =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_DOPS, false);
   const u8 n_obs = sbp2nmea_num_obs_get(state);
   const sbp_gnss_signal_t *nav_sids = sbp2nmea_nav_sids_get(state);
 
@@ -665,11 +680,11 @@ static void calc_cog_sog(const msg_vel_ned_t *sbp_vel_ned,
 void send_gprmc(const sbp2nmea_t *state) {
   assert(state);
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
   const msg_vel_ned_t *sbp_vel_ned =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_VEL_NED);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_VEL_NED, true);
   const msg_utc_time_t *sbp_utc_time =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME, true);
   /* See the relevant comment for the similar code in nmea_gpgga() function
      for the reasoning behind (... * 1e8 / 1e8) trick */
   double lat = fabs(round(sbp_pos_llh_cov->lat * 1e8) / 1e8);
@@ -743,9 +758,9 @@ void send_gprmc(const sbp2nmea_t *state) {
 void send_gpvtg(const sbp2nmea_t *state) {
   assert(state);
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
   const msg_vel_ned_t *sbp_vel_ned =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_VEL_NED);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_VEL_NED, true);
 
   double cog, sog_knots, sog_kph;
   calc_cog_sog(sbp_vel_ned, &cog, &sog_knots, &sog_kph);
@@ -791,7 +806,7 @@ void send_gpvtg(const sbp2nmea_t *state) {
 void send_gphdt(const sbp2nmea_t *state) {
   assert(state);
   const msg_baseline_heading_t *sbp_baseline_heading =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_HDG);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_HDG, false);
   NMEA_SENTENCE_START(40);
   NMEA_SENTENCE_PRINTF("$GPHDT,"); /* Command */
   if ((POSITION_MODE_MASK & sbp_baseline_heading->flags) ==
@@ -816,9 +831,9 @@ void send_gphdt(const sbp2nmea_t *state) {
 void send_gpgll(const sbp2nmea_t *state) {
   assert(state);
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
   const msg_utc_time_t *sbp_utc_time =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME, true);
   /* See the relevant comment for the similar code in nmea_gpgga() function
      for the reasoning behind (... * 1e8 / 1e8) trick */
   double lat = fabs(round(sbp_pos_llh_cov->lat * 1e8) / 1e8);
@@ -870,7 +885,7 @@ void send_gpgll(const sbp2nmea_t *state) {
 void send_gpzda(const sbp2nmea_t *state) {
   assert(state);
   const msg_utc_time_t *sbp_utc_time =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME, true);
 
   NMEA_SENTENCE_START(40);
   NMEA_SENTENCE_PRINTF("$GPZDA,"); /* Command */
@@ -890,9 +905,9 @@ void send_gpzda(const sbp2nmea_t *state) {
 void send_gpgst(const sbp2nmea_t *state) {
   assert(state);
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
   const msg_utc_time_t *sbp_utc_time =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME, true);
   const u8 n_obs = sbp2nmea_num_obs_get(state);
   const sbp_gnss_signal_t *nav_sids = sbp2nmea_nav_sids_get(state);
   NMEA_SENTENCE_START(120);
@@ -1047,9 +1062,9 @@ static void nmea_gsv_print(const u8 n_used,
  */
 void send_gsv(const sbp2nmea_t *state) {
   const msg_measurement_state_t *sbp_meas_state =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_MEASUREMENT_STATE);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_MEASUREMENT_STATE, false);
   const msg_sv_az_el_t *sbp_azel =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_SV_AZ_EL);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_SV_AZ_EL, false);
 
   const u8 n_used =
       sbp2nmea_msg_length(state, SBP2NMEA_SBP_SV_AZ_EL) / sizeof(sv_az_el_t);
@@ -1132,14 +1147,17 @@ static inline const char *get_pubx_nav_stat(int flags) {
 
 void send_pubx(const sbp2nmea_t *state) {
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
   const msg_vel_ned_t *sbp_vel_ned =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_VEL_NED);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_VEL_NED, true);
   const msg_utc_time_t *sbp_utc_time =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME, true);
   const msg_age_corrections_t *sbp_age =
-      sbp2nmea_msg_get(state, SBP2NMEA_SBP_AGE_CORR);
-  const msg_dops_t *sbp_dops = sbp2nmea_msg_get(state, SBP2NMEA_SBP_DOPS);
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_AGE_CORR, false);
+  const msg_dops_t *sbp_dops =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_DOPS, false);
+  const msg_soln_meta_t *soln_meta =
+      sbp2nmea_msg_get(state, SBP2NMEA_SBP_SOLN_META, false);
 
   double lat = fabs(round(sbp_pos_llh_cov->lat * 1e8) / 1e8);
   double lon = fabs(round(sbp_pos_llh_cov->lon * 1e8) / 1e8);
@@ -1214,8 +1232,14 @@ void send_pubx(const sbp2nmea_t *state) {
   if ((fix_type == NMEA_GGA_QI_DGPS &&
        ((sbp_pos_llh_cov->flags & POSITION_MODE_MASK) != POSITION_MODE_SBAS)) ||
       (fix_type == NMEA_GGA_QI_FLOAT) || (fix_type == NMEA_GGA_QI_RTK)) {
-    NMEA_SENTENCE_PRINTF("%.1f,",
-                         sbp_age->age * 0.1); /* ID range is 0000 to 1023 */
+    if (state->actual_mode == SBP2NMEA_MODE_GNSS) {
+      NMEA_SENTENCE_PRINTF("%.1f,",
+                           sbp_age->age * 0.1); /* ID range is 0000 to 1023 */
+    } else {
+      NMEA_SENTENCE_PRINTF(
+          "%.1f,",
+          soln_meta->age_corrections * 0.1); /* ID range is 0000 to 1023 */
+    }
   } else {
     NMEA_SENTENCE_PRINTF(",");
   }
@@ -1224,10 +1248,16 @@ void send_pubx(const sbp2nmea_t *state) {
   if (fix_type == NMEA_GGA_QI_EST || fix_type == NMEA_GGA_QI_INVALID) {
     NMEA_SENTENCE_PRINTF(",,,");
   } else {
-    NMEA_SENTENCE_PRINTF("%.1f,%.1f,%.1f,",
-                         round(10 * sbp_dops->hdop * 0.01) / 10,
-                         round(10 * sbp_dops->vdop * 0.01) / 10,
-                         round(10 * sbp_dops->tdop * 0.01) / 10);
+    if (state->actual_mode == SBP2NMEA_MODE_GNSS) {
+      NMEA_SENTENCE_PRINTF("%.1f,%.1f,%.1f,",
+                           round(10 * sbp_dops->hdop * 0.01) / 10,
+                           round(10 * sbp_dops->vdop * 0.01) / 10,
+                           round(10 * sbp_dops->tdop * 0.01) / 10);
+    } else {
+      NMEA_SENTENCE_PRINTF("%.1f,%.1f,,",
+                           round(10 * soln_meta->hdop * 0.01) / 10,
+                           round(10 * soln_meta->vdop * 0.01) / 10);
+    }
   }
 
   // GPS, GLONASS sats used, everything is chucked in to the GPS field for the
