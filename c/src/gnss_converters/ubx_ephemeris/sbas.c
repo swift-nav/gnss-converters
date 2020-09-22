@@ -74,7 +74,7 @@ void sbas_decode_subframe(struct ubx_sbp_state *data,
   assert(data);
   assert(prn >= SBAS_FIRST_PRN);
   assert(prn < (SBAS_FIRST_PRN + NUM_SATS_SBAS));
-  assert(8 == sz);
+  assert(8 == sz || 9 == sz);
 
   u8 buffer[32];
 
