@@ -169,7 +169,6 @@ void gal_decode_page(struct ubx_sbp_state *data,
   decode_gal_ephemeris(page, &e);
 
   e.sid.code = CODE_GAL_E1B;
-  e.valid = 1;
 
   msg_ephemeris_t msg;
   /* I/NAV message as per UBX-13003221-R17

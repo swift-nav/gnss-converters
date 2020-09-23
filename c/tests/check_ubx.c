@@ -102,7 +102,7 @@ static void ubx_sbp_callback_hnr_pvt_disabled(
   msg_index++;
 }
 
-static const uint16_t rxm_rawx_crc[] = {49772, 41438, 2564, 52301, 10854};
+static const uint16_t rxm_rawx_crc[] = {49772, 41438, 50010, 52301, 10854};
 static void ubx_sbp_callback_rxm_rawx(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;

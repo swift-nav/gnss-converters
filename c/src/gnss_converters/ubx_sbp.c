@@ -298,7 +298,7 @@ static bool pack_carrier_phase(double L_in, carrier_phase_t *L_out) {
 
   L_out->i = (s32)Li;
   u16 frac_part_cp = (u16)round(Lf * SBP_OBS_LF_MULTIPLIER);
-  if (frac_part_cp >= UINT8_MAX) {
+  if (frac_part_cp > UINT8_MAX) {
     frac_part_cp = 0;
     L_out->i += 1;
   }
@@ -318,7 +318,7 @@ static bool pack_doppler(double D_in, doppler_t *D_out) {
 
   D_out->i = (s16)Di;
   u16 frac_part_d = (u16)round(Df * SBP_OBS_DF_MULTIPLIER);
-  if (frac_part_d >= UINT8_MAX) {
+  if (frac_part_d > UINT8_MAX) {
     frac_part_d = 0;
     D_out->i += 1;
   }
