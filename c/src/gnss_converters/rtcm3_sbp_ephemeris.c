@@ -221,6 +221,9 @@ bool rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
   }
   sbp_glo_eph->common.toe.wn = toe.wn;
   sbp_glo_eph->common.toe.tow = (u32)rint(toe.tow);
+  if (msg_eph->sat_id == 0) {
+    return false;
+  }
   sbp_glo_eph->common.sid.sat = msg_eph->sat_id;
   sbp_glo_eph->common.sid.code = CODE_GLO_L1OF;
   sbp_glo_eph->common.ura = convert_glo_ft_to_meters(msg_eph->ura);
