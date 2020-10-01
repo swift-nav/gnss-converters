@@ -884,7 +884,7 @@ static s32 rtcm_gps_eph_cb(u8 *buffer, u16 length, void *context) {
     ck_assert_uint_eq(msg_eph.sat_id, 1);
     ck_assert_uint_eq(msg_eph.wn, 16);
     ck_assert_uint_eq(msg_eph.ura, 0);
-    ck_assert_uint_eq(msg_eph.kepler.codeL2, 3);
+    ck_assert_uint_eq(msg_eph.kepler.codeL2, 1);
     ck_assert_int_eq(msg_eph.kepler.inc_dot, -1278);
     ck_assert_uint_eq(msg_eph.kepler.iode, 82);
     ck_assert_uint_eq(msg_eph.toe, 19800);
@@ -909,7 +909,7 @@ static s32 rtcm_gps_eph_cb(u8 *buffer, u16 length, void *context) {
     ck_assert_int_eq(msg_eph.kepler.omegadot, -23477);
     ck_assert_int_eq(msg_eph.kepler.tgd_gps_s, 12);
     ck_assert_uint_eq(msg_eph.health_bits, 0);
-    ck_assert_uint_eq(msg_eph.kepler.L2_data_bit, 1);
+    ck_assert_uint_eq(msg_eph.kepler.L2_data_bit, 0);
     ck_assert_uint_eq(msg_eph.fit_interval, 0);
   }
   return message_size;

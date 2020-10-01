@@ -35,8 +35,8 @@ void sbp_to_rtcm3_gps_eph(const msg_ephemeris_gps_t *sbp_gps_eph,
       rtcm3_encode_fit_interval_gps(sbp_gps_eph->common.fit_interval);
 
   // SBP doesn't include this information so it is hardcoded
-  msg_eph->kepler.codeL2 = 3;         /* L2C enabled */
-  msg_eph->kepler.L2_data_bit = true; /* L2P Nav data off */
+  msg_eph->kepler.codeL2 = 1;          /* P-code enabled */
+  msg_eph->kepler.L2_data_bit = false; /* L2P Nav data on */
 
   msg_eph->health_bits = sbp_gps_eph->common.health_bits;
   msg_eph->kepler.tgd_gps_s = (int32_t)(round(sbp_gps_eph->tgd / C_1_2P31));
