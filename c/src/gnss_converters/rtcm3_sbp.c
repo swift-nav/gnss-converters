@@ -308,7 +308,9 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
       rtcm_msg_1033 msg_1033;
       if (RC_OK == rtcm3_decode_1033(&payload[byte], &msg_1033) &&
           no_1230_received(state)) {
-        msg_glo_biases_t sbp_glo_cpb;
+        msg_glo_biases_t sbp_glo_cpb = {
+            0,
+        };
         rtcm3_1033_to_sbp(&msg_1033, &sbp_glo_cpb);
         state->cb_rtcm_to_sbp(SBP_MSG_GLO_BIASES,
                               (u8)sizeof(sbp_glo_cpb),
@@ -321,7 +323,9 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
     case 1230: {
       rtcm_msg_1230 msg_1230;
       if (RC_OK == rtcm3_decode_1230(&payload[byte], &msg_1230)) {
-        msg_glo_biases_t sbp_glo_cpb;
+        msg_glo_biases_t sbp_glo_cpb = {
+            0,
+        };
         rtcm3_1230_to_sbp(&msg_1230, &sbp_glo_cpb);
         state->cb_rtcm_to_sbp(SBP_MSG_GLO_BIASES,
                               (u8)sizeof(sbp_glo_cpb),
