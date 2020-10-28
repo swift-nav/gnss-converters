@@ -1501,8 +1501,7 @@ void rtcm3_msm_to_sbp(const rtcm_msm_message *msg,
         bool constel_valid =
             sid_valid && !constellation_mask[code_to_constellation(sid.code)];
         bool supported = sid_valid && !unsupported_signal(&sid);
-        if (sid_valid && constel_valid && supported && data->flags.valid_pr &&
-            data->flags.valid_cp) {
+        if (sid_valid && constel_valid && supported) {
           if (new_sbp_obs->header.n_obs >= MAX_OBS_PER_EPOCH) {
             send_buffer_full_error(state);
             return;

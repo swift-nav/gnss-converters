@@ -1475,11 +1475,20 @@ static void sbp_roundtrip_cb(
     ck_assert_ptr_ne(orig_obs, NULL);
     /* check that the sbp->msm->sbp converted observation is identical to the
      * original */
-    ck_assert_uint_eq(orig_obs->P, converted_obs->P);
-    ck_assert_uint_eq(orig_obs->L.i, converted_obs->L.i);
-    ck_assert_uint_eq(orig_obs->L.f, converted_obs->L.f);
-    ck_assert_uint_eq(orig_obs->D.i, converted_obs->D.i);
-    ck_assert_uint_eq(orig_obs->D.f, converted_obs->D.f);
+    if ((converted_obs->flags & MSG_OBS_FLAGS_CODE_VALID) ==
+        MSG_OBS_FLAGS_CODE_VALID) {
+      ck_assert_uint_eq(orig_obs->P, converted_obs->P);
+    }
+    if ((converted_obs->flags & MSG_OBS_FLAGS_PHASE_VALID) ==
+        MSG_OBS_FLAGS_PHASE_VALID) {
+      ck_assert_uint_eq(orig_obs->L.i, converted_obs->L.i);
+      ck_assert_uint_eq(orig_obs->L.f, converted_obs->L.f);
+    }
+    if ((converted_obs->flags & MSG_OBS_FLAGS_DOPPLER_VALID) ==
+        MSG_OBS_FLAGS_DOPPLER_VALID) {
+      ck_assert_uint_eq(orig_obs->D.i, converted_obs->D.i);
+      ck_assert_uint_eq(orig_obs->D.f, converted_obs->D.f);
+    }
     ck_assert_uint_eq(orig_obs->cn0, converted_obs->cn0);
     ck_assert_uint_eq(orig_obs->lock, converted_obs->lock);
     ck_assert_uint_eq(orig_obs->flags, converted_obs->flags);
@@ -1494,16 +1503,30 @@ START_TEST(test_sbp_to_msm_roundtrip) {
   sbp2rtcm_set_leap_second(18, &out_state);
   rtcm2sbp_set_leap_second(18, &state);
 
-  /* set the FCNs for couple of GLO satellites */
-  sbp_gnss_signal_t sid = {2, CODE_GLO_L1OF};
-  sbp2rtcm_set_glo_fcn(sid, 4, &out_state);
-  rtcm2sbp_set_glo_fcn(sid, 4, &state);
-  sid.sat = 3;
-  sbp2rtcm_set_glo_fcn(sid, 13, &out_state);
-  rtcm2sbp_set_glo_fcn(sid, 13, &state);
-  sid.sat = 11;
-  sbp2rtcm_set_glo_fcn(sid, 8, &out_state);
-  rtcm2sbp_set_glo_fcn(sid, 8, &state);
+  u8 freq_nums[NUM_SATS_GLO];
+  for (u8 prn = 0; prn < NUM_SATS_GLO; ++prn) {
+    freq_nums[prn] = MSM_GLO_FCN_UNKNOWN;
+  }
+  freq_nums[2] = 4;
+  freq_nums[3] = 13;
+  freq_nums[4] = 14;
+  freq_nums[9] = 6;
+  freq_nums[10] = 1;
+  freq_nums[11] = 8;
+  freq_nums[18] = 5;
+  freq_nums[19] = 11;
+
+  /* set the FCNs for all GLO satellites */
+  for (u8 prn = 1; prn < 20; ++prn) {
+    if (freq_nums[prn] != MSM_GLO_FCN_UNKNOWN) {
+      sbp_gnss_signal_t sid = {prn, CODE_GLO_L1OF};
+      sbp2rtcm_set_glo_fcn(sid, freq_nums[prn], &out_state);
+      rtcm2sbp_set_glo_fcn(sid, freq_nums[prn], &state);
+      sid.code = CODE_GLO_L1OF;
+      sbp2rtcm_set_glo_fcn(sid, freq_nums[prn], &out_state);
+      rtcm2sbp_set_glo_fcn(sid, freq_nums[prn], &state);
+    }
+  }
 
   rtcm2sbp_set_gps_time(&current_time, &state);
 
