@@ -1,7 +1,7 @@
 # yamllint disable rule:line-length
 ---
 sudo: required
-dist: trusty
+dist: bionic
 
 language: c
 
@@ -15,10 +15,13 @@ matrix:
       addons:
         apt:
           sources:
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-6.0 main'
+            - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-6.0 main'
               key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+            - sourceline: 'deb https://apt.kitware.com/ubuntu/ bionic main'
+              key_url: https://apt.kitware.com/keys/kitware-archive-latest.asc
             - ubuntu-toolchain-r-test
           packages:
+            - cmake
             - g++-6
       env: GCCVER=6 TESTENV=gcc6
 
@@ -26,10 +29,13 @@ matrix:
       addons:
         apt:
           sources:
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-6.0 main'
+            - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-6.0 main'
               key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+            - sourceline: 'deb https://apt.kitware.com/ubuntu/ bionic main'
+              key_url: https://apt.kitware.com/keys/kitware-archive-latest.asc
             - ubuntu-toolchain-r-test
           packages:
+            - cmake
             - g++-6
             - lcov
       env: GCCVER=6 TESTENV=codecov
@@ -43,10 +49,13 @@ matrix:
       addons:
         apt:
           sources:
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-6.0 main'
+            - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-6.0 main'
               key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+            - sourceline: 'deb https://apt.kitware.com/ubuntu/ bionic main'
+              key_url: https://apt.kitware.com/keys/kitware-archive-latest.asc
             - ubuntu-toolchain-r-test
           packages:
+            - cmake
             - clang-6.0
       env: TESTENV=rust CC=clang-6.0 CXX=clang++-6.0
 
@@ -80,7 +89,7 @@ before_install:
       git clone https://github.com/swift-nav/libsbp.git;
       mkdir libsbp/c/build;
       cd libsbp/c/build;
-      cmake ../;
+      /usr/bin/cmake ../;
       sudo make install;
       cd ../../../;
     fi
@@ -91,6 +100,7 @@ before_install:
       export CXX_COMPILER=$CXX;
       $CC --version;
       $CXX --version;
+      /usr/bin/cmake --version;
       git submodule update --init --recursive;
     fi
   - if [[ "$TESTENV" == "rust" ]]; then
@@ -103,6 +113,9 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
       choco uninstall -y mingw;
       choco install -y --no-progress mingw --version=6.4.0;
+    fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ "$TESTENV" == "rust" ]]; then
+      export CMAKE=/usr/bin/cmake;
     fi
 
 after_success:

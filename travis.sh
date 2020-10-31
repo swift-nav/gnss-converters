@@ -21,7 +21,7 @@ function build_c() {
     cd c
     mkdir build
     cd build
-    cmake -DCMAKE_INSTALL_PREFIX=./test_install ../
+    /usr/bin/cmake -DCMAKE_INSTALL_PREFIX=./test_install ../
     make -j8 VERBOSE=1
     make install
     cd ../
@@ -32,7 +32,7 @@ function build_codecov() {
     cd c
     mkdir build
     cd build
-    cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ../
+    /usr/bin/cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ../
     make -j8 ccov-all
     cd ../
     cd ../
