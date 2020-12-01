@@ -5,4 +5,8 @@ if (gnss-converters_BUILD_BINARIES)
   add_subdirectory(rtcm3tosbp)
   add_subdirectory(sbp2rtcm)
   add_subdirectory(ubx2sbp)
+
+  if (nov2sbp_BUILD)
+    add_subdirectory(nov2sbp)
+  endif()
 endif()

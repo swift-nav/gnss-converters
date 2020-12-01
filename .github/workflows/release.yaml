@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: run id to pull artifacts from
+        required: true
+        default: ~
+      github_ref:
+        description: github tag of the release
+        required: true
+        default: ~
+
+jobs:
+
+  release:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Poll GitHub actions artifacts
+        uses: nick-invision/retry@v2
+        with:
+          retry_wait_seconds: 30
+          timeout_minutes: 30
+          max_attempts: 60
+          command: |
+            expected_total_count=3;
+            total_count=$(
+              curl -sSL -H 'Accept: application/vnd.github.v3+json' -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+                'https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.event.inputs.run_id }}/artifacts' \
+                | jq .total_count);
+            test "$expected_total_count" -eq "$total_count"
+
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.github_ref }}
+          release_name: Release ${{ github.event.inputs.github_ref }}
+          draft: false
+          prerelease: false
+
+      - name: Download Ubuntu artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          name: ubuntu-rust-artifacts
+          workflow: CI
+          run_id: ${{ github.event.inputs.run_id }}
+
+      - run: |
+          echo "RELEASE_ARCHIVE=$(cat release-archive.filename)" >>$GITHUB_ENV
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.RELEASE_ARCHIVE }}
+          asset_name: ${{ env.RELEASE_ARCHIVE }}
+          asset_content_type: application/gzip
+
+      - name: Download macOS artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          name: macos-rust-artifacts
+          workflow: CI
+          run_id: ${{ github.event.inputs.run_id }}
+
+      - run: |
+          echo "RELEASE_ARCHIVE=$(cat release-archive.filename)" >>$GITHUB_ENV
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.RELEASE_ARCHIVE }}
+          asset_name: ${{ env.RELEASE_ARCHIVE }}
+          asset_content_type: application/gzip
+
+      - name: Download Windows artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          name: windows-rust-artifacts
+          workflow: CI
+          run_id: ${{ github.event.inputs.run_id }}
+
+      - run: |
+          echo "RELEASE_ARCHIVE=$(cat release-archive.filename)" >>$GITHUB_ENV
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.RELEASE_ARCHIVE }}
+          asset_name: ${{ env.RELEASE_ARCHIVE }}
+          asset_content_type: application/zip

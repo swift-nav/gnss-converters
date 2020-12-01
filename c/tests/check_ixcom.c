@@ -26,7 +26,7 @@
 #include "check_suites.h"
 #include "config.h"
 
-FILE *fp;
+static FILE *fp;
 
 int read_file_check_ixcom(uint8_t *buf, size_t len, void *ctx) {
   (void)ctx;

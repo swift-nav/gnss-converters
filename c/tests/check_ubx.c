@@ -35,7 +35,7 @@
 #include "check_ubx.h"
 #include "config.h"
 
-FILE *fp;
+static FILE *fp;
 static char tmp_file_name[FILENAME_MAX] = {0};
 
 static void tmp_file_teardown() {
@@ -52,16 +52,23 @@ struct temperature_encoding_expectations {
   int msg_index;
 };
 
-static const uint16_t hnr_pvt_crc[] = {57519};
+static const uint16_t hnr_pvt_crc[] = {57519, 39729};
 static void ubx_sbp_callback_hnr_pvt(
     u16 msg_id, u8 length, u8 *buff, u16 sender_id, void *context) {
   (void)context;
   static int msg_index = 0;
+  const u16 msg_order[] = {SBP_MSG_POS_LLH, SBP_MSG_ORIENT_EULER};
+  ck_assert_msg(msg_id == msg_order[msg_index],
+                "Unexpected SBP message created");
 
   /* This test depends on nav_pvt working correctly, since the first message is
    * a nav_pvt message */
-  ck_assert(msg_id == SBP_MSG_POS_LLH);
-  ck_assert(length == sizeof(msg_pos_llh_t));
+  if (msg_id == SBP_MSG_POS_LLH) {
+    ck_assert(length == sizeof(msg_pos_llh_t));
+  }
+  if (msg_id == SBP_MSG_ORIENT_EULER) {
+    ck_assert(length == sizeof(msg_orient_euler_t));
+  }
 
   uint8_t tmpbuf[5];
   tmpbuf[0] = (uint8_t)msg_id;
@@ -1169,7 +1176,8 @@ START_TEST(test_nav_status) {
   msg_rawx.rcv_tow = 567.8;
   msg_rawx.class_id = UBX_CLASS_RXM;
   msg_rawx.msg_id = UBX_MSG_RXM_RAWX;
-  msg_rawx.length = 16;
+  msg_rawx.num_meas = 1;
+  msg_rawx.length = 16 + 32 * msg_rawx.num_meas;
   buffer[0] = UBX_SYNC_CHAR_1;
   buffer[1] = UBX_SYNC_CHAR_2;
   n_bytes = ubx_encode_rawx(&msg_rawx, &buffer[2]);

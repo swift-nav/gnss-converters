@@ -1554,6 +1554,8 @@ static msg_ephemeris_gps_t get_example_gps_eph() {
 // Compare two GPS orbits to make sure they are the same
 static void compare_gps_ephs(const msg_ephemeris_gps_t *first,
                              const msg_ephemeris_gps_t *second) {
+  (void)first;
+  (void)second;
   assert(first->common.sid.sat == second->common.sid.sat);
   assert(first->common.sid.code == second->common.sid.code);
   assert(first->common.toe.wn == second->common.toe.wn);
@@ -1619,6 +1621,8 @@ static msg_ephemeris_glo_t get_example_glo_eph() {
 // Compare two GLO orbits to make sure they are the same
 static void compare_glo_ephs(const msg_ephemeris_glo_t *first,
                              const msg_ephemeris_glo_t *second) {
+  (void)first;
+  (void)second;
   assert(first->common.sid.sat == second->common.sid.sat);
   assert(first->common.sid.code == second->common.sid.code);
   assert(first->common.toe.wn == second->common.toe.wn);
@@ -1688,6 +1692,8 @@ static msg_ephemeris_bds_t get_example_bds_eph() {
 // Compare two BDS orbits to make sure they are the same
 static void compare_bds_ephs(const msg_ephemeris_bds_t *first,
                              const msg_ephemeris_bds_t *second) {
+  (void)first;
+  (void)second;
   assert(first->common.sid.sat == second->common.sid.sat);
   assert(first->common.sid.code == second->common.sid.code);
   assert(first->common.toe.wn == second->common.toe.wn);
@@ -1764,6 +1770,8 @@ static msg_ephemeris_gal_t get_example_gal_eph() {
 // Compare two GAL orbits to make sure they are the same
 static void compare_gal_ephs(const msg_ephemeris_gal_t *first,
                              const msg_ephemeris_gal_t *second) {
+  (void)first;
+  (void)second;
   assert(first->common.sid.sat == second->common.sid.sat);
   assert(first->common.sid.code == second->common.sid.code);
   assert(first->common.toe.wn == second->common.toe.wn);

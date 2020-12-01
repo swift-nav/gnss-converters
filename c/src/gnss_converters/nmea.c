@@ -426,7 +426,9 @@ gnss_signal_t sbp_to_gnss(sbp_gnss_signal_t sid) {
   return other;
 }
 
-int gsa_cmp(const void *a, const void *b) { return (*(u16 *)a - *(u16 *)b); }
+int gsa_cmp(const void *a, const void *b) {
+  return (*(const u16 *)a - *(const u16 *)b);
+}
 
 static u16 nmea_get_id(const sbp_gnss_signal_t sid) {
   u16 id = -1;
@@ -1028,6 +1030,7 @@ static void nmea_gsv_print(const u8 n_used,
 
       NMEA_SENTENCE_PRINTF(",%02u", sv_id);
 
+      // NOLINTNEXTLINE
       if (data[n].has_azel) {
         NMEA_SENTENCE_PRINTF(",%02d,%03u", data[n].el, data[n].az);
       } else {

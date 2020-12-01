@@ -123,13 +123,16 @@ const sbp_gnss_signal_t *sbp2nmea_nav_sids_get(const sbp2nmea_t *state);
 
 void sbp2nmea_to_str(const sbp2nmea_t *state, char *sentence);
 
-void *sbp2nmea_msg_get(const sbp2nmea_t *state,
-                       sbp2nmea_sbp_id_t id,
-                       bool consider_mode);
+const void *sbp2nmea_msg_get(const sbp2nmea_t *state,
+                             sbp2nmea_sbp_id_t id,
+                             bool consider_mode);
 
 uint8_t sbp2nmea_msg_length(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id);
 
-void sbp2nmea_msg_length_set(sbp2nmea_t *state, u8 len, sbp2nmea_sbp_id_t id);
+void sbp2nmea_msg_set(sbp2nmea_t *state,
+                      u8 len,
+                      const void *sbp_msg,
+                      sbp2nmea_sbp_id_t id);
 
 void sbp2nmea_rate_set(sbp2nmea_t *state, int rate, sbp2nmea_nmea_id_t id);
 

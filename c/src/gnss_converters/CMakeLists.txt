@@ -18,6 +18,10 @@ add_library(gnss_converters
   ubx_sbp.c
 )
 
+swift_set_language_standards(gnss_converters)
+swift_set_compile_options(gnss_converters REMOVE -Wconversion -Wstack-protector)
+target_compile_options(gnss_converters PRIVATE "-UNDEBUG")
+
 target_link_libraries(gnss_converters PUBLIC m swiftnav sbp rtcm ubx ixcom)
 target_include_directories(gnss_converters PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(gnss_converters PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

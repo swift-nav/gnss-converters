@@ -1,2 +1,9 @@
-[target.'cfg(not(target_os = "windows"))']
-rustflags = ["-C", "link-args=-lc"]
+[target.'cfg(target_os = "linux")']
+rustflags = ["-C", "link-args=-lc", "-C", "link-args=-lstdc++", "-C", "link-args=-lgcc_s"]
+
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "link-args=-lc", "-C", "link-args=-lc++"]
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-g++"
+rustflags = ["-C", "link-args=-lshell32", "-C", "link-args=-l:libstdc++.a"]

@@ -472,19 +472,19 @@ void sbp_callback_bds_orbit_clock(
     bds_orbit_clock_processed = true;
 
     ck_assert(sbp_orbit_clock->time.wn == 2013);
-    ck_assert(sbp_orbit_clock->time.tow == 171680);
-    ck_assert(sbp_orbit_clock->sid.sat == 5);
+    ck_assert(sbp_orbit_clock->time.tow == 172805);
+    ck_assert(sbp_orbit_clock->sid.sat == 2);
     ck_assert(sbp_orbit_clock->sid.code == CODE_BDS2_B1);
     ck_assert(sbp_orbit_clock->update_interval == 2);
     ck_assert(sbp_orbit_clock->iod_ssr == 0);
-    ck_assert(sbp_orbit_clock->iod == 13149072);
-    ck_assert(sbp_orbit_clock->radial == 6195);
-    ck_assert(sbp_orbit_clock->along == -12409);
-    ck_assert(sbp_orbit_clock->cross == 36140);
-    ck_assert(sbp_orbit_clock->dot_radial == -166);
-    ck_assert(sbp_orbit_clock->dot_along == 3);
-    ck_assert(sbp_orbit_clock->dot_cross == 11);
-    ck_assert(sbp_orbit_clock->c0 == -15800);
+    ck_assert(sbp_orbit_clock->iod == 235);
+    ck_assert(sbp_orbit_clock->radial == 47787);
+    ck_assert(sbp_orbit_clock->along == -3652);
+    ck_assert(sbp_orbit_clock->cross == -13030);
+    ck_assert(sbp_orbit_clock->dot_radial == -58);
+    ck_assert(sbp_orbit_clock->dot_along == -15);
+    ck_assert(sbp_orbit_clock->dot_cross == -11);
+    ck_assert(sbp_orbit_clock->c0 == -2083);
     ck_assert(sbp_orbit_clock->c1 == 0);
     ck_assert(sbp_orbit_clock->c2 == 0);
   }
@@ -673,7 +673,7 @@ END_TEST
 
 START_TEST(test_ssr_bds_orbit_clock) {
   current_time.wn = 2013;
-  test_RTCM3(RELATIVE_PATH_PREFIX "/data/clk.rtcm",
+  test_RTCM3(RELATIVE_PATH_PREFIX "/data/bds-clk.rtcm",
              sbp_callback_bds_orbit_clock,
              current_time);
   ck_assert(bds_orbit_clock_processed);

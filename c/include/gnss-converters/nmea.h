@@ -40,7 +40,7 @@ extern "C" {
 #define FULL_CIRCLE_DEG 360.0f
 
 /* Convert millimeters to meters */
-#define MM2M(x) (x / 1000.0)
+#define MM2M(x) ((x) / 1000.0)
 
 /* Message heading scale factor */
 #define MSG_HEADING_SCALE_FACTOR 1000.0

@@ -26,32 +26,10 @@
 
 #include "gnss-converters/sbp_rtcm3.h"
 
-/* Write the RTCM frame to STDOUT. */
-static s32 cb_sbp_to_rtcm(u8 *buffer, u16 n, void *context) {
-  (void)(context);
+typedef int (*readfn_ptr)(uint8_t *, uint32_t, void *);
+typedef int (*writefn_ptr)(uint8_t *, uint16_t, void *);
 
-  ssize_t numwritten = write(STDOUT_FILENO, buffer, n);
-  if (numwritten < n) {
-    fprintf(stderr, "Write failure at %d, %s. Aborting!\n", __LINE__, __FILE__);
-    exit(EXIT_FAILURE);
-  }
-
-  return numwritten;
-}
-
-static s32 sbp_read_stdin(u8 *buff, u32 n, void *context) {
-  (void)context;
-  ssize_t read_bytes = read(STDIN_FILENO, buff, n);
-  if (read_bytes < 0) {
-    fprintf(stderr, "Read failure at %d, %s. Aborting!\n", __LINE__, __FILE__);
-    exit(EXIT_FAILURE);
-  }
-  if (n > 0 && read_bytes == 0) {
-    /* EOF */
-    exit(EXIT_SUCCESS);
-  }
-  return read_bytes;
-}
+writefn_ptr g_writefn;
 
 typedef struct {
   sbp_msg_callbacks_node_t base_pos;
@@ -72,9 +50,29 @@ typedef struct {
   sbp_msg_callbacks_node_t log;
 } sbp_nodes_t;
 
-int sbp2rtcm_main(int argc, char **argv) {
-  (void)(argc);
-  (void)(argv);
+static void help(char *arg, const char *additional_opts_help) {
+  fprintf(stderr, "Usage: %s [options]%s\n", arg, additional_opts_help);
+  fprintf(stderr, "  -h this message\n");
+}
+
+int sbp2rtcm_main(int argc,
+                  char **argv,
+                  const char *additional_opts_help,
+                  readfn_ptr readfn,
+                  writefn_ptr writefn,
+                  void *context) {
+  int opt = -1;
+  while ((opt = getopt(argc, argv, "h")) != -1) {
+    switch (opt) {
+      case 'h':
+        help(argv[0], additional_opts_help);
+        return 0;
+      default:
+        break;
+    }
+  }
+
+  g_writefn = writefn;
 
   /* set time from systime, account for UTC<->GPS leap second difference */
   time_t ct_utc_unix = time(NULL);
@@ -82,12 +80,13 @@ int sbp2rtcm_main(int argc, char **argv) {
   double gps_utc_offset = get_gps_utc_offset(&noleapsec, NULL);
 
   struct rtcm3_out_state state;
-  sbp2rtcm_init(&state, cb_sbp_to_rtcm, NULL);
+  sbp2rtcm_init(&state, g_writefn, context);
   sbp2rtcm_set_leap_second((s8)lrint(gps_utc_offset), &state);
 
   sbp_nodes_t sbp_nodes;
   sbp_state_t sbp_state;
   sbp_state_init(&sbp_state);
+  sbp_state_set_io_context(&sbp_state, context);
 
   sbp_register_callback(&sbp_state,
                         SBP_MSG_BASE_POS_ECEF,
@@ -166,7 +165,7 @@ int sbp2rtcm_main(int argc, char **argv) {
                         &sbp_nodes.log);
 
   while (!feof(stdin)) {
-    sbp_process(&sbp_state, &sbp_read_stdin);
+    sbp_process(&sbp_state, readfn);
   }
   return 0;
 }

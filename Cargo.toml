@@ -21,14 +21,33 @@ path = "rust/sbp2rtcm.rs"
 name = "ixcom2sbp"
 path = "rust/ixcom2sbp.rs"
 
+[[bin]]
+name = "nov2sbp"
+path = "rust/nov2sbp.rs"
+required-features = ["nov2sbp"]
+
 [lib]
 name = "gnss_converters"
 path = "rust/lib.rs"
 
+[features]
+default = []
+nov2sbp = []
+
 [dependencies]
 libc = "0.2"
+lazy_static = "1"
 
 [build-dependencies]
 num_cpus = "1"
 cmake = "0.1"
 cc = "1.0"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = "z"
+lto = true
+codegen-units = 1

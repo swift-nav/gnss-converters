@@ -70,7 +70,7 @@ pipeline {
                     steps {
                         gitPrep()
                         script {
-                            builder.cmake(workDir: "c", cmakeAddArgs: "-DTHIRD_PARTY_INCLUDES_AS_SYSTEM=true")
+                            builder.cmake(workDir: "c", cmakeAddArgs: "-DTHIRD_PARTY_INCLUDES_AS_SYSTEM=true -Dnov2sbp_BUILD=true")
                             builder.make(workDir: "c/build")
                             builder.make(workDir: "c/build", target: "clang-format-all")
                         }

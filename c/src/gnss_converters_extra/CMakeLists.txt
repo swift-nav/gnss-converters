@@ -2,6 +2,10 @@ add_library(gnss_converters_extra
   sbp_conv.c
 )
 
+swift_set_language_standards(gnss_converters_extra)
+swift_set_compile_options(gnss_converters_extra)
+target_compile_options(gnss_converters_extra PRIVATE "-UNDEBUG")
+
 target_link_libraries(gnss_converters_extra PUBLIC gnss_converters rtcm sbp swiftnav)
 target_include_directories(gnss_converters_extra PUBLIC ${PROJECT_SOURCE_DIR}/include)
 

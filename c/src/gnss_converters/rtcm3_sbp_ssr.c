@@ -68,14 +68,7 @@ static bool rtcm_ssr_header_to_sbp_orbit_clock(
   sbp_orbit_clock->iod_ssr = header->iod_ssr;
   *length += sizeof(sbp_orbit_clock->iod_ssr);
 
-  /* For Beidou, AODE is not unique so orbit/clock providers (CNES,..) use an
-   * IOD based on the CRC to discriminate between consecutive broadcast
-   * ephemeris. We dont use both so we only turn into SBP one or the other */
-  if (header->constellation == CONSTELLATION_BDS) {
-    sbp_orbit_clock->iod = orbit->iodcrc;
-  } else {
-    sbp_orbit_clock->iod = orbit->iode;
-  }
+  sbp_orbit_clock->iod = orbit->iode;
   *length += sizeof(sbp_orbit_clock->iod);
 
   return true;

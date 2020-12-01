@@ -127,7 +127,8 @@ static uint32_t get_tow(const sbp2nmea_t *state,
                         bool consider_mode) {
   uint32_t result;
   memcpy(&result,
-         sbp2nmea_msg_get(state, id, consider_mode) + sbp_meta[id].offset_tow,
+         (const uint8_t *)sbp2nmea_msg_get(state, id, consider_mode) +
+             sbp_meta[id].offset_tow,
          sizeof(uint32_t));
   return result;
 }
@@ -166,7 +167,7 @@ static bool nmea_ready(const sbp2nmea_t *state, sbp2nmea_nmea_id_t nmea_id) {
   }
 
   if (SBP2NMEA_NMEA_GSA == nmea_id) {
-    msg_gps_time_t *msg =
+    const msg_gps_time_t *msg =
         sbp2nmea_msg_get(state, SBP2NMEA_SBP_GPS_TIME_GNSS, false);
     if (NULL == msg) {
       return false;
@@ -231,7 +232,7 @@ static bool sbp2nmea_discard_sbp(const sbp2nmea_sbp_id_t sbp_id,
    * satellite IDs */
   if (SBP2NMEA_SBP_MEASUREMENT_STATE == sbp_id) {
     const measurement_state_t *states =
-        ((msg_measurement_state_t *)sbp_msg)->states;
+        ((const msg_measurement_state_t *)sbp_msg)->states;
     const u8 n_state = len / sizeof(measurement_state_t);
     for (u8 i = 0; i < n_state; i++) {
       if (IS_GLO(states[i].mesid) && states[i].mesid.sat > NUM_SATS_GLO) {
@@ -293,11 +294,7 @@ void sbp2nmea(sbp2nmea_t *state,
   if (sbp2nmea_discard_sbp(sbp_id, len, sbp_msg)) {
     return;
   }
-  MEMCPY_S(sbp2nmea_msg_get(state, sbp_id, false),
-           sizeof(state->sbp_state[sbp_id].msg),
-           sbp_msg,
-           len);
-  sbp2nmea_msg_length_set(state, len, sbp_id);
+  sbp2nmea_msg_set(state, len, sbp_msg, sbp_id);
   check_nmea_send(state);
 }
 
@@ -358,9 +355,9 @@ void sbp2nmea_to_str(const sbp2nmea_t *state, char *sentence) {
   state->cb_sbp_to_nmea(sentence, state->ctx);
 }
 
-void *sbp2nmea_msg_get(const sbp2nmea_t *state,
-                       sbp2nmea_sbp_id_t id,
-                       bool consider_mode) {
+const void *sbp2nmea_msg_get(const sbp2nmea_t *state,
+                             sbp2nmea_sbp_id_t id,
+                             bool consider_mode) {
   static const sbp2nmea_sbp_id_t id_map[4][2] = {
       {SBP2NMEA_SBP_GPS_TIME_GNSS, SBP2NMEA_SBP_GPS_TIME},
       {SBP2NMEA_SBP_UTC_TIME_GNSS, SBP2NMEA_SBP_UTC_TIME},
@@ -375,14 +372,21 @@ void *sbp2nmea_msg_get(const sbp2nmea_t *state,
     }
   }
 
-  return (void *)&state->sbp_state[id].msg.data;
+  return (const void *)&state->sbp_state[id].msg.data;
 }
 
 u8 sbp2nmea_msg_length(const sbp2nmea_t *state, sbp2nmea_sbp_id_t id) {
   return state->sbp_state[id].msg.length;
 }
 
-void sbp2nmea_msg_length_set(sbp2nmea_t *state, u8 len, sbp2nmea_sbp_id_t id) {
+void sbp2nmea_msg_set(sbp2nmea_t *state,
+                      u8 len,
+                      const void *sbp_msg,
+                      sbp2nmea_sbp_id_t id) {
+  MEMCPY_S(&state->sbp_state[id].msg.data,
+           sizeof(state->sbp_state[id].msg.data),
+           sbp_msg,
+           len);
   state->sbp_state[id].msg.length = len;
 }
 

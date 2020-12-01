@@ -1,7 +1,7 @@
 gnss-converters
 ===========
 
-[![Build status][1]][2]
+[![CI](https://github.com/swift-nav/gnss-converters-private/actions/workflows/ci.yaml/badge.svg)](https://github.com/swift-nav/gnss-converters-private/actions/workflows/ci.yaml)
 [![codecov.io status][3]][4]
 
 ## Quick install
@@ -18,14 +18,27 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 Install build dependencies, and a nightly toolchain for Rust:
 
 ```
-sudo apt install build-essential cmake clang
-rustup install nightly-2020-05-25
+sudo apt install build-essential cmake clang sqlite3
 ```
 
 Then build and install with `cargo`:
+
 ```
-git clone --recursive --jobs=4 https://github.com/swift-nav/gnss-converters.git
-cargo +nightly-2020-05-25 install --path gnss-converters --bins
+git clone --recursive git@github.com:swift-nav/gnss-converters-private.git
+cd gnss-converters-private
+cargo install --path .
+```
+
+To build and install the `nov2sbp` tool as well, also run:
+
+```
+cargo install --path . --bin nov2sbp --features nov2sbp
+```
+
+Or to build and install everything at once, run:
+
+```
+cargo install --path . --all-features
 ```
 
 The following tools will be installed in `~/.cargo/bin` (which should be in the path):
@@ -34,6 +47,7 @@ The following tools will be installed in `~/.cargo/bin` (which should be in the 
 - rtcm3tosbp
 - ubx2sbp
 - ixcom2sbp
+- nov2sbp
 
 ## Build locally
 
@@ -55,7 +69,8 @@ make -j8
 ```
 
 Here is an example of how to run the C tool.  This should (eventually)
-result in some colorful json on your terminal:
+result in some colorful json on your terminal (the ntripping tool
+can be found [on GitHub](https://github.com/swift-nav/ntripping)):
 
 ```
 ntripping --url http://bmookerji:bmookerji@tiburon.geo.berkeley.edu:2101/MONB_RTCM3 | ./rtcm3tosbp | sbp2json | jq .
@@ -68,9 +83,7 @@ stack install --resolver lts-10.10 sbp rtcm
 ```
 
 
-[1]: https://img.shields.io/travis/swift-nav/gnss-converters.svg?label=travis-build&logo=travis&style=flat-square
-[2]: https://travis-ci.org/swift-nav/gnss-converters
-[3]: https://img.shields.io/codecov/c/github/swift-nav/gnss-converters.svg?label=codecov.io&logo=codecov&style=flat-square
-[4]: https://codecov.io/gh/swift-nav/gnss-converters
-[5]: https://github.com/swift-nav/gnss-converters/releases
+[3]: https://img.shields.io/codecov/c/github/swift-nav/gnss-converters-private.svg?label=codecov.io&logo=codecov&style=flat-square
+[4]: https://codecov.io/gh/swift-nav/gnss-converters-private
+[5]: https://github.com/swift-nav/gnss-converters-private/releases
 [6]: https://www.rust-lang.org/tools/install

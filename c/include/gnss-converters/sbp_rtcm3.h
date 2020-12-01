@@ -81,74 +81,74 @@ void sbp2rtcm_set_rcv_ant_descriptors(const char *ant_descriptor,
                                       const char *rcv_descriptor,
                                       struct rtcm3_out_state *state);
 
-void sbp2rtcm_base_pos_ecef_cb(const u16 sender_id,
-                               const u8 len,
+void sbp2rtcm_base_pos_ecef_cb(u16 sender_id,
+                               u8 len,
                                const u8 msg[],
                                struct rtcm3_out_state *state);
 
-void sbp2rtcm_glo_biases_cb(const u16 sender_id,
-                            const u8 len,
+void sbp2rtcm_glo_biases_cb(u16 sender_id,
+                            u8 len,
                             const u8 msg[],
                             struct rtcm3_out_state *state);
 
-void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
-                         const u8 len,
+void sbp2rtcm_sbp_obs_cb(u16 sender_id,
+                         u8 len,
                          const u8 msg[],
                          struct rtcm3_out_state *state);
 
-void sbp2rtcm_sbp_osr_cb(const u16 sender_id,
-                         const u8 len,
+void sbp2rtcm_sbp_osr_cb(u16 sender_id,
+                         u8 len,
                          const u8 msg[],
                          struct rtcm3_out_state *state);
 
-void sbp2rtcm_sbp_ssr_orbit_clock_cb(const u16 sender_id,
-                                     const u8 len,
+void sbp2rtcm_sbp_ssr_orbit_clock_cb(u16 sender_id,
+                                     u8 len,
                                      const u8 msg[],
                                      struct rtcm3_out_state *state);
 
-void sbp2rtcm_sbp_ssr_phase_biases_cb(const u16 sender_id,
-                                      const u8 len,
+void sbp2rtcm_sbp_ssr_phase_biases_cb(u16 sender_id,
+                                      u8 len,
                                       const u8 msg[],
                                       struct rtcm3_out_state *state);
 
-void sbp2rtcm_sbp_ssr_code_biases_cb(const u16 sender_id,
-                                     const u8 len,
+void sbp2rtcm_sbp_ssr_code_biases_cb(u16 sender_id,
+                                     u8 len,
                                      const u8 msg[],
                                      struct rtcm3_out_state *state);
 
-void sbp2rtcm_sbp_ssr_gridded_correction_cb(const u16 sender_id,
-                                            const u8 len,
+void sbp2rtcm_sbp_ssr_gridded_correction_cb(u16 sender_id,
+                                            u8 len,
                                             const u8 msg[],
                                             struct rtcm3_out_state *state);
 
-void sbp2rtcm_sbp_ssr_grid_definition_cb(const u16 sender_id,
-                                         const u8 len,
+void sbp2rtcm_sbp_ssr_grid_definition_cb(u16 sender_id,
+                                         u8 len,
                                          const u8 msg[],
                                          struct rtcm3_out_state *state);
 
-void sbp2rtcm_sbp_ssr_stec_correction_cb(const u16 sender_id,
-                                         const u8 len,
+void sbp2rtcm_sbp_ssr_stec_correction_cb(u16 sender_id,
+                                         u8 len,
                                          const u8 msg[],
                                          struct rtcm3_out_state *state);
 
-void sbp2rtcm_sbp_gps_eph_cb(const u16 sender_id,
-                             const u8 len,
+void sbp2rtcm_sbp_gps_eph_cb(u16 sender_id,
+                             u8 len,
                              const u8 msg[],
                              struct rtcm3_out_state *state);
-void sbp2rtcm_sbp_glo_eph_cb(const u16 sender_id,
-                             const u8 len,
+void sbp2rtcm_sbp_glo_eph_cb(u16 sender_id,
+                             u8 len,
                              const u8 msg[],
                              struct rtcm3_out_state *state);
-void sbp2rtcm_sbp_bds_eph_cb(const u16 sender_id,
-                             const u8 len,
+void sbp2rtcm_sbp_bds_eph_cb(u16 sender_id,
+                             u8 len,
                              const u8 msg[],
                              struct rtcm3_out_state *state);
-void sbp2rtcm_sbp_gal_eph_cb(const u16 sender_id,
-                             const u8 len,
+void sbp2rtcm_sbp_gal_eph_cb(u16 sender_id,
+                             u8 len,
                              const u8 msg[],
                              struct rtcm3_out_state *state);
-void sbp2rtcm_sbp_log_cb(const u16 sender_id,
-                         const u8 len,
+void sbp2rtcm_sbp_log_cb(u16 sender_id,
+                         u8 len,
                          const u8 msg[],
                          struct rtcm3_out_state *state);
 

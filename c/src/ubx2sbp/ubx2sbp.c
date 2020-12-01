@@ -16,28 +16,20 @@
 #include <string.h>
 
 #include <gnss-converters/ubx_sbp.h>
+#include "ubx2sbp_main.h"
 
 sbp_state_t sbp_state;
 
-static int read_stdin(uint8_t *buf, size_t len, void *context) {
-  (void)context;
-  return read(STDIN_FILENO, buf, len);
-}
-
-static s32 write_sbp_stdout(u8 *buff, u32 n, void *context) {
-  (void)context;
-  return write(STDOUT_FILENO, buff, sizeof(u8) * n);
-}
+writefn_ptr g_writefn;
 
 static void sbp_write(
     u16 msg_id, u8 length, u8 *buf, u16 sender_id, void *ctx) {
   (void)ctx;
-  sbp_send_message(
-      &sbp_state, msg_id, sender_id, length, buf, write_sbp_stdout);
+  sbp_send_message(&sbp_state, msg_id, sender_id, length, buf, g_writefn);
 }
 
-static void help(char *arg) {
-  fprintf(stderr, "Usage: %s [options]\n", arg);
+static void help(char *arg, const char *additional_opts_help) {
+  fprintf(stderr, "Usage: %s [options]%s\n", arg, additional_opts_help);
   fprintf(stderr, "  -h this message\n");
   fprintf(stderr, "\n");
   fprintf(
@@ -50,13 +42,21 @@ static void help(char *arg) {
           "messages are still necessary.\n");
 }
 
-int ubx2sbp_main(int argc, char **argv) {
+int ubx2sbp_main(int argc,
+                 char **argv,
+                 const char *additional_opts_help,
+                 readfn_ptr readfn,
+                 writefn_ptr writefn,
+                 void *context) {
   /* TODO(STAR-917) accept sender id as a cmdline argument */
 
   sbp_state_init(&sbp_state);
+  sbp_state_set_io_context(&sbp_state, context);
+
+  g_writefn = writefn;
 
   struct ubx_sbp_state state;
-  ubx_sbp_init(&state, &sbp_write, NULL);
+  ubx_sbp_init(&state, &sbp_write, context);
 
   int opt;
   int option_index = 0;
@@ -75,11 +75,11 @@ int ubx2sbp_main(int argc, char **argv) {
         break;
 
       case 's':
-        ubx_set_sender_id(&state, strtol(optarg, NULL, 0));
+        ubx_set_sender_id(&state, (u16)strtol(optarg, NULL, 0));
         break;
 
       case 'h':
-        help(argv[0]);
+        help(argv[0], additional_opts_help);
         return 0;
 
       default:
@@ -89,7 +89,7 @@ int ubx2sbp_main(int argc, char **argv) {
 
   int ret;
   do {
-    ret = ubx_sbp_process(&state, &read_stdin);
+    ret = ubx_sbp_process(&state, readfn);
   } while (ret >= 0);
 
   return 0;

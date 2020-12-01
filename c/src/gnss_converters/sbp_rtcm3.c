@@ -90,55 +90,55 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
                                 u8 *buff) {
   switch (message_type) {
     case 1004: {
-      rtcm_obs_message *msg_1004 = (rtcm_obs_message *)rtcm_msg;
+      const rtcm_obs_message *msg_1004 = (const rtcm_obs_message *)rtcm_msg;
       return rtcm3_encode_1004(msg_1004, buff);
     }
     case 1005: {
-      rtcm_msg_1005 *msg_1005 = (rtcm_msg_1005 *)rtcm_msg;
+      const rtcm_msg_1005 *msg_1005 = (const rtcm_msg_1005 *)rtcm_msg;
       return rtcm3_encode_1005(msg_1005, buff);
     }
     case 1006: {
-      rtcm_msg_1006 *msg_1006 = (rtcm_msg_1006 *)rtcm_msg;
+      const rtcm_msg_1006 *msg_1006 = (const rtcm_msg_1006 *)rtcm_msg;
       return rtcm3_encode_1006(msg_1006, buff);
     }
     case 1008: {
-      rtcm_msg_1008 *msg_1008 = (rtcm_msg_1008 *)rtcm_msg;
+      const rtcm_msg_1008 *msg_1008 = (const rtcm_msg_1008 *)rtcm_msg;
       return rtcm3_encode_1008(msg_1008, buff);
     }
     case 1012: {
-      rtcm_obs_message *msg_1012 = (rtcm_obs_message *)rtcm_msg;
+      const rtcm_obs_message *msg_1012 = (const rtcm_obs_message *)rtcm_msg;
       return rtcm3_encode_1012(msg_1012, buff);
     }
     case 1019: {
-      rtcm_msg_eph *msg_1019 = (rtcm_msg_eph *)rtcm_msg;
+      const rtcm_msg_eph *msg_1019 = (const rtcm_msg_eph *)rtcm_msg;
       return rtcm3_encode_gps_eph(msg_1019, buff);
     }
     case 1020: {
-      rtcm_msg_eph *msg_1020 = (rtcm_msg_eph *)rtcm_msg;
+      const rtcm_msg_eph *msg_1020 = (const rtcm_msg_eph *)rtcm_msg;
       return rtcm3_encode_glo_eph(msg_1020, buff);
     }
     case 1029: {
-      rtcm_msg_1029 *msg_1029 = (rtcm_msg_1029 *)rtcm_msg;
+      const rtcm_msg_1029 *msg_1029 = (const rtcm_msg_1029 *)rtcm_msg;
       return rtcm3_encode_1029(msg_1029, buff);
     }
     case 1033: {
-      rtcm_msg_1033 *msg_1033 = (rtcm_msg_1033 *)rtcm_msg;
+      const rtcm_msg_1033 *msg_1033 = (const rtcm_msg_1033 *)rtcm_msg;
       return rtcm3_encode_1033(msg_1033, buff);
     }
     case 1042: {
-      rtcm_msg_eph *msg_1042 = (rtcm_msg_eph *)rtcm_msg;
+      const rtcm_msg_eph *msg_1042 = (const rtcm_msg_eph *)rtcm_msg;
       return rtcm3_encode_bds_eph(msg_1042, buff);
     }
     case 1045: {
-      rtcm_msg_eph *msg_1045 = (rtcm_msg_eph *)rtcm_msg;
+      const rtcm_msg_eph *msg_1045 = (const rtcm_msg_eph *)rtcm_msg;
       return rtcm3_encode_gal_eph_fnav(msg_1045, buff);
     }
     case 1046: {
-      rtcm_msg_eph *msg_1046 = (rtcm_msg_eph *)rtcm_msg;
+      const rtcm_msg_eph *msg_1046 = (const rtcm_msg_eph *)rtcm_msg;
       return rtcm3_encode_gal_eph_inav(msg_1046, buff);
     }
     case 1230: {
-      rtcm_msg_1230 *msg_1230 = (rtcm_msg_1230 *)rtcm_msg;
+      const rtcm_msg_1230 *msg_1230 = (const rtcm_msg_1230 *)rtcm_msg;
       return rtcm3_encode_1230(msg_1230, buff);
     }
     case 1074:
@@ -146,7 +146,7 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
     case 1094:
     case 1114:
     case 1124: {
-      rtcm_msm_message *msg_msm = (rtcm_msm_message *)rtcm_msg;
+      const rtcm_msm_message *msg_msm = (const rtcm_msm_message *)rtcm_msg;
       return rtcm3_encode_msm4(msg_msm, buff);
     }
     case 1075:
@@ -154,12 +154,12 @@ static u16 encode_rtcm3_payload(const void *rtcm_msg,
     case 1095:
     case 1115:
     case 1125: {
-      rtcm_msm_message *msg_msm = (rtcm_msm_message *)rtcm_msg;
+      const rtcm_msm_message *msg_msm = (const rtcm_msm_message *)rtcm_msg;
       return rtcm3_encode_msm5(msg_msm, buff);
     }
     case 4062: {
-      rtcm_msg_swift_proprietary *swift_msg =
-          (rtcm_msg_swift_proprietary *)rtcm_msg;
+      const rtcm_msg_swift_proprietary *swift_msg =
+          (const rtcm_msg_swift_proprietary *)rtcm_msg;
       return rtcm3_encode_4062(swift_msg, buff);
     }
     default:
@@ -820,7 +820,7 @@ void sbp2rtcm_sbp_obs_cb(const u16 sender_id,
                          const u8 len,
                          const u8 msg[],
                          struct rtcm3_out_state *state) {
-  msg_obs_t *sbp_obs = (msg_obs_t *)msg;
+  const msg_obs_t *sbp_obs = (const msg_obs_t *)msg;
 
   if (state->sender_id != sender_id) {
     /* sender changed, send existing buffer and reset */
@@ -1018,7 +1018,7 @@ void sbp2rtcm_sbp_gps_eph_cb(const u16 sender_id,
                              struct rtcm3_out_state *state) {
   (void)len;
   (void)sender_id;
-  msg_ephemeris_gps_t *sbp_gps_eph = (msg_ephemeris_gps_t *)msg;
+  const msg_ephemeris_gps_t *sbp_gps_eph = (const msg_ephemeris_gps_t *)msg;
 
   rtcm_msg_eph msg_gps_eph;
   u8 frame[RTCM3_MAX_MSG_LEN];  // Max RTCM message length is 1023 Bytes
@@ -1035,7 +1035,7 @@ void sbp2rtcm_sbp_glo_eph_cb(const u16 sender_id,
                              struct rtcm3_out_state *state) {
   (void)len;
   (void)sender_id;
-  msg_ephemeris_glo_t *sbp_glo_eph = (msg_ephemeris_glo_t *)msg;
+  const msg_ephemeris_glo_t *sbp_glo_eph = (const msg_ephemeris_glo_t *)msg;
 
   rtcm_msg_eph msg_glo_eph;
   u8 frame[RTCM3_MAX_MSG_LEN];  // Max RTCM message length is 1023 Bytes
@@ -1052,7 +1052,7 @@ void sbp2rtcm_sbp_bds_eph_cb(const u16 sender_id,
                              struct rtcm3_out_state *state) {
   (void)len;
   (void)sender_id;
-  msg_ephemeris_bds_t *sbp_bds_eph = (msg_ephemeris_bds_t *)msg;
+  const msg_ephemeris_bds_t *sbp_bds_eph = (const msg_ephemeris_bds_t *)msg;
 
   rtcm_msg_eph msg_bds_eph;
   u8 frame[RTCM3_MAX_MSG_LEN];  // Max RTCM message length is 1023 Bytes
@@ -1071,7 +1071,7 @@ void sbp2rtcm_sbp_gal_eph_cb(const u16 sender_id,
                              struct rtcm3_out_state *state) {
   (void)len;
   (void)sender_id;
-  msg_ephemeris_gal_t *sbp_gal_eph = (msg_ephemeris_gal_t *)msg;
+  const msg_ephemeris_gal_t *sbp_gal_eph = (const msg_ephemeris_gal_t *)msg;
 
   rtcm_msg_eph msg_gal_eph;
   u8 frame[RTCM3_MAX_MSG_LEN];  // Max RTCM message length is 1023 Bytes
@@ -1094,7 +1094,7 @@ void sbp2rtcm_sbp_log_cb(const u16 sender_id,
   if (len < 2) {
     return;
   }
-  msg_log_t *sbp_msg_log = (msg_log_t *)msg;
+  const msg_log_t *sbp_msg_log = (const msg_log_t *)msg;
   rtcm_msg_1029 rtcm_msg_log;
 
   state->sender_id = sender_id;

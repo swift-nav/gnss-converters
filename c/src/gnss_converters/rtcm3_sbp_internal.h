@@ -60,13 +60,13 @@
 /* Third party receiver bias value - these have been sourced from RTCM1230
  * message, the data can be found with the unit tests*/
 #define TRIMBLE_BIAS_M 19.06
-#define NOVATEL_BIAS_M -71.94
+#define NOVATEL_BIAS_M (-71.94)
 #define SEPTENTRIO_BIAS_M 0.0
 #define TOPCON_BIAS_M 0.0
-#define HEMISPHERE_BIAS_L1CA_M -0.2
+#define HEMISPHERE_BIAS_L1CA_M (-0.2)
 #define HEMISPHERE_BIAS_L2P_M 3.4
-#define JAVAD_BIAS_L1CA_M -1.5
-#define JAVAD_BIAS_L2P_M -8.1
+#define JAVAD_BIAS_L1CA_M (-1.5)
+#define JAVAD_BIAS_L2P_M (-8.1)
 #define NAVCOM_BIAS_L1CA_M 0.4
 #define NAVCOM_BIAS_L2P_M 2.1
 
@@ -74,29 +74,29 @@
  * message
  * Note: these are GEO++ simulated values and not direct from the manufacturer
  */
-#define GPP_ASH1_BIAS_L1CA_M -14.7
-#define GPP_ASH1_BIAS_L2P_M -16.2
-#define GPP_HEM_BIAS_L1CA_M -0.3
+#define GPP_ASH1_BIAS_L1CA_M (-14.7)
+#define GPP_ASH1_BIAS_L2P_M (-16.2)
+#define GPP_HEM_BIAS_L1CA_M (-0.3)
 #define GPP_HEM_BIAS_L2P_M 3.5
-#define GPP_JAV_BIAS_L1CA_M -1.5
-#define GPP_JAV_BIAS_L2P_M -8.1
-#define GPP_JPS_BIAS_L1CA_M -3.7
+#define GPP_JAV_BIAS_L1CA_M (-1.5)
+#define GPP_JAV_BIAS_L2P_M (-8.1)
+#define GPP_JPS_BIAS_L1CA_M (-3.7)
 #define GPP_JPS_BIAS_L2P_M 0.7
-#define GPP_NOV_BIAS_L1CA_M -70.7
-#define GPP_NOV_BIAS_L2P_M -66.3
+#define GPP_NOV_BIAS_L1CA_M (-70.7)
+#define GPP_NOV_BIAS_L2P_M (-66.3)
 #define GPP_NAV_BIAS_L1CA_M 0.4
 #define GPP_NAV_BIAS_L2P_M 2.1
 #define GPP_NVR_BIAS_L1CA_M 116.7
 #define GPP_NVR_BIAS_L2P_M 187
-#define GPP_SEP0_BIAS_L1CA_M -119.9
-#define GPP_SEP0_BIAS_L2P_M -116.6
+#define GPP_SEP0_BIAS_L1CA_M (-119.9)
+#define GPP_SEP0_BIAS_L2P_M (-116.6)
 #define GPP_SEP_BIAS_L1CA_M 0.0
 #define GPP_SEP_BIAS_L2P_M 0.0
-#define GPP_SOK_BIAS_L1CA_M -70.7
-#define GPP_SOK_BIAS_L2P_M -66.3
-#define GPP_TPS0_BIAS_L1CA_M -3.7
+#define GPP_SOK_BIAS_L1CA_M (-70.7)
+#define GPP_SOK_BIAS_L2P_M (-66.3)
+#define GPP_TPS0_BIAS_L1CA_M (-3.7)
 #define GPP_TPS0_BIAS_L2P_M 0.7
-#define GPP_TPS_BIAS_L1CA_M -2.56
+#define GPP_TPS_BIAS_L1CA_M (-2.56)
 #define GPP_TPS_BIAS_L2P_M 3.74
 #define GPP_TRM_BIAS_L1CA_M 18.8
 #define GPP_TRM_BIAS_L2P_M 23.2
@@ -149,17 +149,17 @@ bool no_1230_received(struct rtcm3_sbp_state *state);
 
 void send_1029(rtcm_msg_1029 *msg_1029, struct rtcm3_sbp_state *state);
 
-void send_sbp_log_message(const uint8_t level,
+void send_sbp_log_message(uint8_t level,
                           const uint8_t *message,
-                          const uint16_t length,
-                          const uint16_t stn_id,
+                          uint16_t length,
+                          uint16_t stn_id,
                           const struct rtcm3_sbp_state *state);
 
 void send_MSM_warning(const uint8_t *frame, struct rtcm3_sbp_state *state);
 
 void send_buffer_full_error(const struct rtcm3_sbp_state *state);
 
-void send_unsupported_code_warning(const unsupported_code_t unsupported_code,
+void send_unsupported_code_warning(unsupported_code_t unsupported_code,
                                    struct rtcm3_sbp_state *state);
 
 void add_msm_obs_to_buffer(const rtcm_msm_message *new_rtcm_obs,
@@ -188,7 +188,7 @@ bool rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_glo_t *sbp_glo_eph,
                           struct rtcm3_sbp_state *state);
 void rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
-                          const u8 source,
+                          u8 source,
                           msg_ephemeris_gal_t *sbp_gal_eph,
                           struct rtcm3_sbp_state *state);
 void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,

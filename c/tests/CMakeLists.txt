@@ -21,3 +21,5 @@ swift_add_test(test-gnss-converters
   LINK gnss_converters check Threads::Threads
   )
 
+swift_set_language_standards(test-gnss-converters)
+swift_set_compile_options(test-gnss-converters REMOVE -Wconversion -Wfloat-equal)

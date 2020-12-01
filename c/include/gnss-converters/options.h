@@ -28,8 +28,8 @@ extern bool constellation_mask[CONSTELLATION_COUNT];
 extern verbosity_level_t verbosity_level;
 
 void msm_glo_fcn_bias(const rtcm_msm_header *header,
-                      const u8 signal_index,
-                      const u8 glo_fcn,
+                      u8 signal_index,
+                      u8 glo_fcn,
                       double *p_code,
                       double *p_phase);
 

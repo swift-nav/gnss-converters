@@ -34,6 +34,11 @@
 #define SBP_PREAMBLE 0x55
 #define STRCMP_EQ 0
 
+typedef int (*readfn_ptr)(uint8_t *, size_t, void *);
+typedef int (*writefn_ptr)(const uint8_t *, size_t, void *);
+
+writefn_ptr g_writefn;
+
 static struct rtcm3_sbp_state state;
 static void parse_biases(char *arg);
 static void parse_glonass_code_biases(char *arg);
@@ -42,7 +47,7 @@ static void parse_glonass_phase_biases(char *arg);
 static void update_obs_time(const msg_obs_t *msg) {
   gps_time_t obs_time;
   obs_time.tow = msg[0].header.t.tow / 1000.0; /* ms to sec */
-  obs_time.wn = msg[0].header.t.wn;
+  obs_time.wn = (s16)msg[0].header.t.wn;
   /* Some receivers output a TOW 0 whenever it's in a denied environment
    * (teseoV) This stops us updating that as a valid observation time */
   if (fabs(obs_time.tow) > FLOAT_EQUALITY_EPS) {
@@ -70,13 +75,13 @@ static void cb_rtcm_to_sbp(uint16_t msg_id,
   tmpbuf[3] = (uint8_t)sender_id;
   tmpbuf[4] = (uint8_t)(sender_id >> 8);
   tmpbuf[5] = length;
-  ssize_t numwritten = write(STDOUT_FILENO, tmpbuf, sizeof(tmpbuf));
+  ssize_t numwritten = g_writefn(tmpbuf, sizeof(tmpbuf), context);
   if (numwritten < (ssize_t)sizeof(tmpbuf)) {
     fprintf(stderr, "Write failure at %d, %s. Aborting!\n", __LINE__, __FILE__);
     exit(EXIT_FAILURE);
   }
 
-  numwritten = write(STDOUT_FILENO, buffer, length);
+  numwritten = g_writefn(buffer, length, context);
   if (numwritten < length) {
     fprintf(stderr, "Write failure at %d, %s. Aborting!\n", __LINE__, __FILE__);
     exit(EXIT_FAILURE);
@@ -88,7 +93,7 @@ static void cb_rtcm_to_sbp(uint16_t msg_id,
   uint8_t crcbuf[2];
   crcbuf[0] = (uint8_t)crc;
   crcbuf[1] = (uint8_t)(crc >> 8);
-  numwritten = write(STDOUT_FILENO, crcbuf, sizeof(crcbuf));
+  numwritten = g_writefn(crcbuf, sizeof(crcbuf), context);
   if (numwritten < (ssize_t)sizeof(crcbuf)) {
     fprintf(stderr, "Write failure at %d, %s. Aborting!\n", __LINE__, __FILE__);
     exit(EXIT_FAILURE);
@@ -100,13 +105,8 @@ static void cb_base_obs_invalid(const double timediff, void *context) {
   fprintf(stderr, "Invalid base observation! timediff: %lf\n", timediff);
 }
 
-static int read_stdin(uint8_t *buf, size_t len, void *context) {
-  (void)context; /* squash warning */
-  return read(STDIN_FILENO, buf, len);
-}
-
-static void help(char *arg) {
-  fprintf(stderr, "Usage: %s [options]\n", arg);
+static void help(char *arg, const char *additional_opts_help) {
+  fprintf(stderr, "Usage: %s [options]%s\n", arg, additional_opts_help);
   fprintf(stderr, "  -h this message\n");
   fprintf(stderr, "  -b CODE:BIAS adds `bias` to signals with code `code`\n");
   fprintf(stderr,
@@ -130,15 +130,22 @@ static void help(char *arg) {
   fprintf(stderr, "  -v for stderr verbosity\n");
 }
 
-int rtcm3tosbp_main(int argc, char **argv) {
+int rtcm3tosbp_main(int argc,
+                    char **argv,
+                    const char *additional_opts_help,
+                    readfn_ptr readfn,
+                    writefn_ptr writefn,
+                    void *context) {
   /* initialize time from systime */
   time_t ct_utc_unix = time(NULL);
+
+  g_writefn = writefn;
 
   int opt;
   while ((opt = getopt(argc, argv, "hb:c:l:w:d:GRECJS:v")) != -1) {
     switch (opt) {
       case 'h':
-        help(argv[0]);
+        help(argv[0], additional_opts_help);
         return 0;
       case 'b':
         parse_biases(optarg);
@@ -155,7 +162,7 @@ int rtcm3tosbp_main(int argc, char **argv) {
         int num_args = sscanf(optarg, "%hd:%lf", &week_num, &time_of_week);
         if (num_args != 2) {
           fprintf(stderr, "expecting GPS week number and time of week\n");
-          help(argv[0]);
+          help(argv[0], additional_opts_help);
           return -1;
         }
         if (gps_time_valid(&(gps_time_t){time_of_week, week_num})) {
@@ -168,7 +175,7 @@ int rtcm3tosbp_main(int argc, char **argv) {
         int n = sscanf(optarg, "%d:%d:%d:%d", &year, &month, &day, &hour);
         if (n != 4) {
           fprintf(stderr, "expecting [year:month:day:hour]\n");
-          help(argv[0]);
+          help(argv[0], additional_opts_help);
           return -1;
         }
         gps_time_t gps_time = date2gps(year, month, day, hour, 0, 0);
@@ -219,14 +226,14 @@ int rtcm3tosbp_main(int argc, char **argv) {
   current_time.tow = withleapsec.tow;
   current_time.wn = withleapsec.wn;
 
-  rtcm2sbp_init(&state, cb_rtcm_to_sbp, cb_base_obs_invalid, NULL);
+  rtcm2sbp_init(&state, cb_rtcm_to_sbp, cb_base_obs_invalid, context);
   rtcm2sbp_set_gps_time(&current_time, &state);
   rtcm2sbp_set_leap_second((s8)lrint(gps_utc_offset), &state);
 
   /* todo: Do we want to return a non-zero value on an error? */
   ssize_t ret;
   do {
-    ret = rtcm2sbp_process(&state, read_stdin);
+    ret = rtcm2sbp_process(&state, readfn);
   } while (ret > 0);
 
   return 0;

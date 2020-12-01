@@ -16,6 +16,7 @@
 #include <libsbp/gnss.h>
 #include <libsbp/navigation.h>
 #include <libsbp/observation.h>
+#include <libsbp/orientation.h>
 #include <libsbp/sbp.h>
 #include <unistd.h>
 
@@ -98,6 +99,7 @@ struct ubx_sbp_state {
   struct gal_sat_data gal_sat[NUM_SATS_GAL];
   struct glo_sat_data glo_sat[NUM_SATS_GLO];
   u32 last_tow_ms;
+  msg_orient_euler_t last_orient_euler;
 
   bool leap_second_known;
   utc_params_t utc_params;

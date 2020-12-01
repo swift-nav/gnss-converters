@@ -51,8 +51,8 @@
 #define SISA_NAPA 255
 
 bool msm_signal_frequency(const rtcm_msm_header *header,
-                          const u8 signal_index,
-                          const u8 glo_fcn,
+                          u8 signal_index,
+                          u8 glo_fcn,
                           double *p_freq);
 code_t msm_signal_to_code(const rtcm_msm_header *header, u8 signal_index);
 u8 code_to_msm_signal_index(const rtcm_msm_header *header, code_t code);
@@ -61,8 +61,8 @@ u8 msm_sat_to_prn(const rtcm_msm_header *header, u8 satellite_index);
 u8 prn_to_msm_sat_index(const rtcm_msm_header *header, u8 prn);
 u8 prn_to_msm_sat_id(u8 prn, rtcm_constellation_t cons);
 bool msm_get_glo_fcn(const rtcm_msm_header *header,
-                     const u8 sat,
-                     const u8 fcn_from_sat_info,
+                     u8 sat,
+                     u8 fcn_from_sat_info,
                      const u8 glo_sv_id_fcn_map[],
                      u8 *glo_fcn);
 u16 to_msm_msg_num(rtcm_constellation_t cons, msm_enum msm_type);
@@ -82,7 +82,7 @@ u32 rtcm3_decode_fit_interval_gps(u8 fit_interval_flag, u16 iodc);
 u8 rtcm3_encode_fit_interval_gps(u32 fit_interval);
 u8 rtcm3_encode_fit_interval_glo(u32 fit_interval);
 
-float convert_sisa_to_meters(const uint8_t sisa);
-uint8_t convert_meters_to_sisa(const float ura);
+float convert_sisa_to_meters(uint8_t sisa);
+uint8_t convert_meters_to_sisa(float ura);
 
 #endif /* GNSS_CONVERTERS_RTCM3_UTILS_H */

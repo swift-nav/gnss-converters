@@ -14,6 +14,7 @@
 #include <math.h>
 #include <swiftnav/constants.h>
 #include <swiftnav/ephemeris.h>
+#include <swiftnav/float_equality.h>
 #include "rtcm3_sbp_internal.h"
 #include "rtcm3_utils.h"
 
@@ -71,7 +72,7 @@ risk) */
     return -1;
   }
   float m = g_bds_ura_table[ura];
-  if (INVALID_URA_VALUE == m) {
+  if (float_equal(INVALID_URA_VALUE, m)) {
     return 8192.0f;
   }
   return m;
