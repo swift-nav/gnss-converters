@@ -1,7 +1,7 @@
 gnss-converters
 ===========
 
-[![CI](https://github.com/swift-nav/gnss-converters-private/actions/workflows/ci.yaml/badge.svg)](https://github.com/swift-nav/gnss-converters-private/actions/workflows/ci.yaml)
+[![CI](https://github.com/swift-nav/gnss-converters/actions/workflows/ci.yaml/badge.svg)](https://github.com/swift-nav/gnss-converters/actions/workflows/ci.yaml)
 [![codecov.io status][3]][4]
 
 ## Quick install
@@ -15,17 +15,17 @@ First, [install rust][6]:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-Install build dependencies, and a nightly toolchain for Rust:
+Install build dependencies:
 
 ```
-sudo apt install build-essential cmake clang sqlite3
+sudo apt install build-essential cmake clang
 ```
 
 Then build and install with `cargo`:
 
 ```
-git clone --recursive git@github.com:swift-nav/gnss-converters-private.git
-cd gnss-converters-private
+git clone --recursive git@github.com:swift-nav/gnss-converters.git
+cd gnss-converters
 cargo install --path .
 ```
 
@@ -73,7 +73,7 @@ result in some colorful json on your terminal (the ntripping tool
 can be found [on GitHub](https://github.com/swift-nav/ntripping)):
 
 ```
-ntripping --url http://bmookerji:bmookerji@tiburon.geo.berkeley.edu:2101/MONB_RTCM3 | ./rtcm3tosbp | sbp2json | jq .
+ntripping --url http://user:pass@example.com:2101/RTCM3 | ./rtcm3tosbp | sbp2json | jq .
 ```
 
 To install the Haskell tools:
@@ -83,7 +83,7 @@ stack install --resolver lts-10.10 sbp rtcm
 ```
 
 
-[3]: https://img.shields.io/codecov/c/github/swift-nav/gnss-converters-private.svg?label=codecov.io&logo=codecov&style=flat-square
-[4]: https://codecov.io/gh/swift-nav/gnss-converters-private
-[5]: https://github.com/swift-nav/gnss-converters-private/releases
+[3]: https://img.shields.io/codecov/c/github/swift-nav/gnss-converters.svg?label=codecov.io&logo=codecov&style=flat-square
+[4]: https://codecov.io/gh/swift-nav/gnss-converters
+[5]: https://github.com/swift-nav/gnss-converters/releases
 [6]: https://www.rust-lang.org/tools/install

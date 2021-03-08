@@ -14,9 +14,12 @@ use std::boxed::Box;
 use std::env;
 use std::ffi::CString;
 use std::fs::File;
+
 use std::io::{self, BufReader, BufWriter, Read, Write};
+use std::path::Path;
 use std::slice;
 
+use if_chain::if_chain;
 use lazy_static::lazy_static;
 
 use libc::{c_char, c_int, c_void};
@@ -106,29 +109,63 @@ impl CArgs {
     }
 }
 
-pub fn fetch_io(prog_name: &str) -> (Box<dyn Read>, Box<dyn Write>) {
-    let args: Vec<String> = env::args().filter(|s| !s.starts_with('-')).collect();
-    if args.is_empty() && args.len() > 3 {
-        eprintln!("usage: {} <options>{}", _ADDITIONAL_OPTS_HELP, prog_name);
-        std::process::exit(0);
-    }
-    if args.len() == 3 {
+pub fn fetch_io(_prog_name: &str) -> (Box<dyn Read>, Box<dyn Write>) {
+    // Reverse and grab all args until the first option argument
+    let args: Vec<String> = env::args()
+        .skip(1)
+        .rev()
+        .take(2)
+        .take_while(|s| !s.starts_with('-'))
+        .collect();
+    // Reverse again
+    let args: Vec<&String> = args.iter().rev().collect();
+
+    fn file_in_file_out(input: &str, output: &str) -> (Box<dyn Read>, Box<dyn Write>) {
         (
             Box::new(BufReader::new(
-                File::open(args[1].clone()).expect("failed to open input file"),
+                File::open(input).expect("failed to open input file"),
             )),
             Box::new(BufWriter::new(
-                File::create(args[2].clone()).expect("failed to open output file"),
+                File::create(output).expect("failed to open output file"),
             )),
         )
-    } else if args.len() == 2 {
+    }
+
+    fn file_in_stdout(input: &str) -> (Box<dyn Read>, Box<dyn Write>) {
         (
             Box::new(BufReader::new(
-                File::open(args[1].clone()).expect("failed to open input file"),
+                File::open(input).expect("failed to open input file"),
             )),
-            Box::new(STDOUT.lock()),
+            Box::new(BufWriter::new(Box::new(STDOUT.lock()))),
         )
-    } else {
-        (Box::new(STDIN.lock()), Box::new(STDOUT.lock()))
     }
+
+    fn stdin_stdout() -> (Box<dyn Read>, Box<dyn Write>) {
+        (
+            Box::new(BufReader::new(Box::new(STDIN.lock()))),
+            Box::new(BufWriter::new(Box::new(STDOUT.lock()))),
+        )
+    }
+
+    // Case for: <prog> -x <arg> <input_file> <output_file>
+    if_chain! {
+        if args.len() == 2;
+        if Path::new(&args[0]).is_file();
+        then {
+            return file_in_file_out(args[0], args[1]);
+        }
+    }
+
+    // Case for: <prog> -x <arg> <input_file>
+    if_chain! {
+        if args.len() == 2;
+        if ! Path::new(&args[0]).is_file();
+        if Path::new(&args[1]).is_file();
+        then {
+            return file_in_stdout(args[1]);
+        }
+    }
+
+    // Otherwise return stdin and stdout
+    stdin_stdout()
 }

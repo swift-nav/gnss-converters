@@ -698,6 +698,114 @@ START_TEST(test_ssr_bds_phase_bias) {
 }
 END_TEST
 
+typedef struct {
+  u8 expected_sbp_message_lengths[5];
+  size_t total_sbp_messages_sent;
+} test_ssr_phase_bias_context_t;
+
+void test_ssr_phase_bias_callback(
+    u16 msg_id, u8 length, u8 *buffer, u16 sender_id, void *context) {
+  (void)msg_id;
+  (void)buffer;
+  (void)sender_id;
+
+  test_ssr_phase_bias_context_t *ctx = (test_ssr_phase_bias_context_t *)context;
+  ck_assert_int_eq(
+      ctx->expected_sbp_message_lengths[ctx->total_sbp_messages_sent++],
+      length);
+}
+
+START_TEST(test_ssr_phase_bias) {
+  const gps_time_t local_current_time = {.wn = 2013, .tow = 211190.0};
+
+  const size_t max_bias_count =
+      (SBP_MAX_PAYLOAD_LEN - sizeof(msg_ssr_phase_biases_t)) /
+      sizeof(phase_biases_content_t);
+
+  struct rtcm3_sbp_state state;
+  test_ssr_phase_bias_context_t context;
+  time_truth_t time_truth;
+
+  time_truth_init(&time_truth);
+  time_truth_update(&time_truth, TIME_TRUTH_EPH_GAL, local_current_time);
+
+  rtcm2sbp_init(
+      &state, &time_truth, test_ssr_phase_bias_callback, NULL, &context);
+  state.time_from_input_data = local_current_time;
+
+  rtcm_msg_phase_bias rtcm_msg = {
+      .header.message_num = 1270,
+      .header.epoch_time = 171661,
+      .header.constellation = 3,
+      .header.update_interval = 2,
+      .header.multi_message = false,
+      .header.sat_ref_datum = false,
+      .header.iod_ssr = 0,
+      .header.ssr_provider_id = 0,
+      .header.ssr_solution_id = 0,
+      .header.dispersive_bias_consistency = false,
+      .header.melbourne_wubbena_consistency = true,
+      .header.num_sats = 1,
+  };
+
+  /*********************************
+   * TEST CASE #1: no phase biases *
+   *********************************/
+
+  rtcm_msg.sats[0].num_phase_biases = 0;
+
+  context.total_sbp_messages_sent = 0;
+  context.expected_sbp_message_lengths[0] = sizeof(msg_ssr_phase_biases_t);
+
+  rtcm3_ssr_phase_bias_to_sbp(&rtcm_msg, &state);
+  ck_assert_int_eq(context.total_sbp_messages_sent, 1);
+
+  /********************************************
+   * TEST CASE #2: below max phase bias count *
+   ********************************************/
+
+  rtcm_msg.sats[0].num_phase_biases = max_bias_count - 1;
+
+  context.total_sbp_messages_sent = 0;
+  context.expected_sbp_message_lengths[0] =
+      sizeof(msg_ssr_phase_biases_t) +
+      (max_bias_count - 1) * sizeof(phase_biases_content_t);
+
+  rtcm3_ssr_phase_bias_to_sbp(&rtcm_msg, &state);
+  ck_assert_int_eq(context.total_sbp_messages_sent, 1);
+
+  /*****************************************
+   * TEST CASE #3: at max phase bias count *
+   *****************************************/
+
+  rtcm_msg.sats[0].num_phase_biases = max_bias_count;
+
+  context.total_sbp_messages_sent = 0;
+  context.expected_sbp_message_lengths[0] =
+      sizeof(msg_ssr_phase_biases_t) +
+      (max_bias_count) * sizeof(phase_biases_content_t);
+
+  rtcm3_ssr_phase_bias_to_sbp(&rtcm_msg, &state);
+  ck_assert_int_eq(context.total_sbp_messages_sent, 1);
+
+  /*********************************************
+   * TEST CASE #4: beyond max phase bias count *
+   *********************************************/
+
+  rtcm_msg.sats[0].num_phase_biases = max_bias_count + 1;
+
+  context.total_sbp_messages_sent = 0;
+  context.expected_sbp_message_lengths[0] =
+      sizeof(msg_ssr_phase_biases_t) +
+      (max_bias_count) * sizeof(phase_biases_content_t);
+  context.expected_sbp_message_lengths[1] =
+      sizeof(msg_ssr_phase_biases_t) + sizeof(phase_biases_content_t);
+
+  rtcm3_ssr_phase_bias_to_sbp(&rtcm_msg, &state);
+  ck_assert_int_eq(context.total_sbp_messages_sent, 2);
+}
+END_TEST
+
 Suite *rtcm3_ssr_suite(void) {
   Suite *s = suite_create("RTCMv3_ssr");
 
@@ -717,6 +825,7 @@ Suite *rtcm3_ssr_suite(void) {
   tcase_add_test(tc_ssr, test_ssr_bds_orbit_clock);
   tcase_add_test(tc_ssr, test_ssr_bds_code_bias);
   tcase_add_test(tc_ssr, test_ssr_bds_phase_bias);
+  tcase_add_test(tc_ssr, test_ssr_phase_bias);
   suite_add_tcase(s, tc_ssr);
 
   return s;

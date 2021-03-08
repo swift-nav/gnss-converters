@@ -68,15 +68,21 @@ fn invoke_cmake(
         cmake.define("CMAKE_C_COMPILER", c_compiler);
         cmake.define("CMAKE_CXX_COMPILER", cpp_compiler);
     } else if cfg!(target_os = "windows") {
-        cmake.define("CMAKE_CXX_FLAGS", "-static -static-libgcc -static-libstdc++");
-        cmake.define("CMAKE_EXE_LINKER_FLAGS", "-static -static-libgcc -static-libstdc++");
+        cmake.define(
+            "CMAKE_CXX_FLAGS",
+            "-static -static-libgcc -static-libstdc++",
+        );
+        cmake.define(
+            "CMAKE_EXE_LINKER_FLAGS",
+            "-static -static-libgcc -static-libstdc++",
+        );
         cmake.define("CMAKE_C_COMPILER", c_compiler);
         cmake.define("CMAKE_CXX_COMPILER", cpp_compiler);
     } else {
         return Err("unknown target OS".into());
     }
 
-    cmake.always_configure(false);
+    cmake.always_configure(true);
     if let Ok(verbose) = env::var("VERBOSE") {
         if verbose == "1" {
             cmake.build_arg("VERBOSE=1");

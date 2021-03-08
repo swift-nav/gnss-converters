@@ -48,6 +48,9 @@ static bool nmea_gpgsv_processed = false;
 static int msg_count[SBP2NMEA_NMEA_CNT];
 static bool start_count[SBP2NMEA_NMEA_CNT];
 
+static float cog_thd = 0.1f;
+static double cog_stationary_thd = 0;
+
 int32_t read_file(uint8_t *buff, uint32_t n, void *context) {
   FILE *f = (FILE *)context;
   return (int32_t)(fread(buff, 1, n, f));
@@ -92,6 +95,41 @@ void nmea_callback_gpvtg(char msg[], void *ctx) {
       msg[strcspn((char *)msg, "\r\n")] = '\0';
       ck_assert(strcmp((char *)msg,
                        gpvtg_truth[msg_count[SBP2NMEA_NMEA_VTG]++]) == 0);
+    }
+  }
+}
+
+void nmea_callback_gpvtg_cog_forced(char msg[], void *ctx) {
+  (void)ctx;
+  if (strstr((char *)msg, "VTG")) {
+    static int msg_count_cog_forced = 0;
+    static bool start_count_cog_forced = false;
+    if ((strstr((char *)msg, "$GPVTG,206.6,T,,M,0.02,N,0.04,K,A*09") ||
+         start_count_cog_forced) &&
+        msg_count_cog_forced < 10) {
+      nmea_gpvtg_processed = true;
+      start_count_cog_forced = true;
+      msg[strcspn((char *)msg, "\r\n")] = '\0';
+      ck_assert(strcmp((char *)msg,
+                       gpvtg_cog_forced_truth[msg_count_cog_forced++]) == 0);
+    }
+  }
+}
+
+void nmea_callback_gpvtg_cog_forced_stationary_thresh(char msg[], void *ctx) {
+  (void)ctx;
+  if (strstr((char *)msg, "VTG")) {
+    static int msg_count_cog_forced = 0;
+    static bool start_count_cog_forced = false;
+    if ((strstr((char *)msg, "$GPVTG,206.6,T,,M,0.02,N,0.04,K,A*09") ||
+         start_count_cog_forced) &&
+        msg_count_cog_forced < 10) {
+      nmea_gpvtg_processed = true;
+      start_count_cog_forced = true;
+      msg[strcspn((char *)msg, "\r\n")] = '\0';
+      ck_assert(strcmp((char *)msg,
+                       gpvtg_cog_forced_truth_stationary_thresh
+                           [msg_count_cog_forced++]) == 0);
     }
   }
 }
@@ -313,6 +351,8 @@ void test_NMEA(const char *filename,
   sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GSA);
   sbp2nmea_rate_set(&state, 1, SBP2NMEA_NMEA_GST);
   sbp2nmea_rate_set(&state, 10, SBP2NMEA_NMEA_GSV);
+  sbp2nmea_cog_threshold_set(&state, cog_thd);
+  sbp2nmea_cog_stationary_threshold_set(&state, cog_stationary_thd);
 
   sbp_state_t sbp_state_;
   sbp_init(&sbp_state_, &state);
@@ -346,6 +386,19 @@ END_TEST
 
 START_TEST(test_nmea_gpvtg) {
   test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp", nmea_callback_gpvtg);
+  ck_assert(nmea_gpvtg_processed);
+  nmea_gpvtg_processed = false;
+  cog_thd = 0;
+  test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp",
+            nmea_callback_gpvtg_cog_forced);
+  ck_assert(nmea_gpvtg_processed);
+
+  /* Test that we only recompute the COG if the SOG is smaller than the
+  specified threshold */
+  nmea_gpvtg_processed = false;
+  cog_stationary_thd = 0.0057;  // Corresponds to 0.011 knots/s
+  test_NMEA(RELATIVE_PATH_PREFIX "/data/nmea.sbp",
+            nmea_callback_gpvtg_cog_forced_stationary_thresh);
   ck_assert(nmea_gpvtg_processed);
 }
 END_TEST

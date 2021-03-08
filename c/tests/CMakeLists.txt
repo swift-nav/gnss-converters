@@ -13,8 +13,11 @@ set(TEST_SOURCE_FILES
     check_ixcom.c
     check_utils.c
     check_options.c
+    check_rtcm3_time.c
+    check_time_truth.c
     )
-swift_add_test(test-gnss-converters 
+swift_add_test(test-gnss-converters
+  UNIT_TEST
   POST_BUILD
   SRCS ${TEST_SOURCE_FILES}
   INCLUDE ${CMAKE_CURRENT_BINARY_DIR}
@@ -23,3 +26,8 @@ swift_add_test(test-gnss-converters
 
 swift_set_language_standards(test-gnss-converters)
 swift_set_compile_options(test-gnss-converters REMOVE -Wconversion -Wfloat-equal)
+if(I_KNOW_WHAT_I_AM_DOING_AND_HOW_DANGEROUS_IT_IS__GNSS_CONVERTERS_DISABLE_CRC_VALIDATION)
+  target_compile_definitions(test-gnss-converters PRIVATE GNSS_CONVERTERS_DISABLE_CRC_VALIDATION)
+endif()
+
+add_subdirectory(afl)

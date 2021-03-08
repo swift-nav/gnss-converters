@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013-2017 Swift Navigation Inc.
- * Contact: Fergus Noble <fergus@swift-nav.com>
+ * Contact: Swift Navigation <dev@swiftnav.com>
  *
  * This source is subject to the license found in the file 'LICENSE' which must
  * be be distributed together with this source. All other rights reserved.
@@ -45,21 +45,24 @@ extern "C" {
 /* Message heading scale factor */
 #define MSG_HEADING_SCALE_FACTOR 1000.0
 
-#define MS2KNOTS(x, y, z) (sqrt((x) * (x) + (y) * (y) + (z) * (z)) * 1.94385)
+#define MS2KNOTS_FACTOR 1.9438444924406
+
+#define MS2KNOTS(x, y, z) \
+  (sqrt((x) * (x) + (y) * (y) + (z) * (z)) * MS2KNOTS_FACTOR)
 #define MS2KMHR(x, y, z) \
   (sqrt((x) * (x) + (y) * (y) + (z) * (z)) * (3600.0 / 1000.0))
 
 bool check_nmea_rate(u32 rate, u32 gps_tow_ms, float soln_freq);
-void send_gpgga(const sbp2nmea_t *state);
-void send_gprmc(const sbp2nmea_t *state);
-void send_gpvtg(const sbp2nmea_t *state);
-void send_gpgll(const sbp2nmea_t *state);
-void send_gpzda(const sbp2nmea_t *state);
-void send_gpgst(const sbp2nmea_t *state);
-void send_gphdt(const sbp2nmea_t *state);
-void send_gsa(const sbp2nmea_t *state);
-void send_gsv(const sbp2nmea_t *state);
-void send_pubx(const sbp2nmea_t *state);
+void send_gpgga(sbp2nmea_t *state);
+void send_gprmc(sbp2nmea_t *state);
+void send_gpvtg(sbp2nmea_t *state);
+void send_gpgll(sbp2nmea_t *state);
+void send_gpzda(sbp2nmea_t *state);
+void send_gpgst(sbp2nmea_t *state);
+void send_gphdt(sbp2nmea_t *state);
+void send_gsa(sbp2nmea_t *state);
+void send_gsv(sbp2nmea_t *state);
+void send_pubx(sbp2nmea_t *state);
 char get_nmea_status(u8 flags);
 char get_nmea_mode_indicator(u8 flags);
 u8 get_nmea_quality_indicator(u8 flags);

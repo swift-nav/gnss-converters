@@ -33,8 +33,23 @@ namespace Novatel {
 static constexpr uint16_t kNovatelSbpSenderId = 5000;
 static sbp_state_t sbp;
 
-// Time sent in last SBP_MSG_GPS_TIME message
-static msg_gps_time_t last_time = {0, 0, 0, 0};
+// used to track the last known time from various messages
+// (note: use msg_gps_time_t instead of gps_time_t since gps_time_t
+// stores tow as a double)
+typedef struct timestamps_t {
+  // time sent in last SBP_MSG_GPS_TIME message
+  msg_gps_time_t gps_time;
+  // time of last received RAWIMUSX_t message
+  msg_gps_time_t imu_recv_time;
+  // time of last sent SBP_MSG_IMU_AUX message
+  msg_gps_time_t imu_aux_time;
+} timestamps_t;
+
+static timestamps_t time_tracker = {
+    {0, 0, 0, 0},  // gps_time
+    {0, 0, 0, 0},  // imu_recv_time
+    {0, 0, 0, 0}   // imu_aux_time
+};
 
 /**
  * Given an array of mini navmeas types, send as many sbp obs messages
@@ -66,7 +81,7 @@ static void send_sbp_fn(uint32_t msg_id, size_t n_bytes, uint8_t *bytes) {
  * from the last sent message
  */
 static void send_time_message(msg_gps_time_t *time_msg) {
-  if (!gps_time_compare(&last_time, time_msg)) {
+  if (!gps_time_compare(&time_tracker.gps_time, time_msg)) {
     auto ret =
         sbp_send_message(&sbp,
                          SBP_MSG_GPS_TIME,
@@ -77,7 +92,7 @@ static void send_time_message(msg_gps_time_t *time_msg) {
     assert(ret == SBP_OK);
   }
 
-  last_time = *time_msg;
+  time_tracker.gps_time = *time_msg;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -189,15 +204,49 @@ static void write_sbp_raw_imu(const BinaryHeader *header, const void *data) {
       reinterpret_cast<const Message::RAWIMUSX_t *>(data);  // NOLINT
 
   msg_angular_rate_t angular_rate_msg;
-  convert_rawimu_to_angular_rate(header, rawimu, &angular_rate_msg);
-  auto ret = sbp_send_message(
-      &sbp,
-      SBP_MSG_ANGULAR_RATE,
-      kNovatelSbpSenderId,
-      sizeof(angular_rate_msg),
-      reinterpret_cast<uint8_t *>(&angular_rate_msg),  // NOLINT
-      g_writefn);
-  assert(ret == SBP_OK);
+  if (convert_rawimu_to_angular_rate(
+          header, rawimu, &time_tracker.imu_recv_time, &angular_rate_msg)) {
+    auto ret = sbp_send_message(
+        &sbp,
+        SBP_MSG_ANGULAR_RATE,
+        kNovatelSbpSenderId,
+        sizeof(angular_rate_msg),
+        reinterpret_cast<uint8_t *>(&angular_rate_msg),  // NOLINT
+        g_writefn);
+    assert(ret == SBP_OK);
+  }
+
+  msg_imu_raw_t imu_raw_msg;
+  if (convert_rawimu_to_imu_raw(
+          header, rawimu, &time_tracker.imu_recv_time, &imu_raw_msg)) {
+    auto ret =
+        sbp_send_message(&sbp,
+                         SBP_MSG_IMU_RAW,
+                         kNovatelSbpSenderId,
+                         sizeof(imu_raw_msg),
+                         reinterpret_cast<uint8_t *>(&imu_raw_msg),  // NOLINT
+                         g_writefn);
+    assert(ret == SBP_OK);
+  }
+
+  msg_imu_aux_t imu_aux_msg;
+  if (convert_rawimu_to_imu_aux(
+          header, rawimu, &time_tracker.imu_aux_time, &imu_aux_msg)) {
+    auto ret =
+        sbp_send_message(&sbp,
+                         SBP_MSG_IMU_AUX,
+                         kNovatelSbpSenderId,
+                         sizeof(imu_aux_msg),
+                         reinterpret_cast<uint8_t *>(&imu_aux_msg),  // NOLINT
+                         g_writefn);
+    assert(ret == SBP_OK);
+
+    time_tracker.imu_aux_time.tow = static_cast<uint32_t>(header->ms);
+    time_tracker.imu_aux_time.wn = header->week;
+  }
+
+  time_tracker.imu_recv_time.tow = static_cast<uint32_t>(header->ms);
+  time_tracker.imu_recv_time.wn = header->week;
 }
 
 }  // namespace Novatel

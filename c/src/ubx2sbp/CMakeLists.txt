@@ -11,3 +11,5 @@ swift_set_compile_options(ubx2sbp REMOVE -Wconversion)
 
 install(TARGETS ubx2sbp_main DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(TARGETS ubx2sbp DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+
+add_asan_variant(ubx2sbp)

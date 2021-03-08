@@ -35,7 +35,6 @@ extern "C" {
 #define SBP_MAX_OBS_SEQ (15u)
 #define MAX_OBS_IN_SBP ((SBP_MAX_PAYLOAD_LEN - SBP_HDR_SIZE) / SBP_OBS_SIZE)
 #define MAX_OBS_PER_EPOCH (SBP_MAX_OBS_SEQ * MAX_OBS_IN_SBP)
-#define OBS_BUFFER_SIZE (SBP_HDR_SIZE + MAX_OBS_PER_EPOCH * SBP_OBS_SIZE)
 
 struct rtcm3_out_state {
   s8 leap_seconds;

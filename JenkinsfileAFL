@@ -1,0 +1,131 @@
+#!/usr/bin/env groovy
+
+@Library('ci-jenkins') import com.swiftnav.ci.*
+
+def context = new Context(context: this)
+context.setRepo('gnss-converters')
+def builder = context.getBuilder()
+
+String dockerMountArgs = '--privileged -v /mnt/efs/ccache:/home/jenkins/.ccache -v /mnt/efs/refrepo:/mnt/efs/refrepo'
+
+pipeline {
+  agent any
+
+  parameters {
+    choice(name: 'AGENT', choices: ['docker.fast', 'docker.highmem'], description: 'Jenkins Node to run instances on')
+    string(name: 'FUZZ_TIMEOUT', defaultValue: '1h', description: 'Fuzz test duration (ex: "60s", "10m", "6h", "7d")')
+    booleanParam(name: 'SLACK_NOTIFICATION', defaultValue: true, description: 'Slack notification will be sent to #fuzz-testing')
+  }
+
+  environment {
+    AFL_USE_ASAN='1'
+    BRANCH_NAME=env.GIT_BRANCH.minus('origin/')
+    CC='/usr/bin/afl-gcc'
+    CXX='/usr/bin/afl-g++'
+    HANG_TIMEOUT='5000'
+    MEMORY_LIMIT='1500'
+  }
+
+  stages {
+    stage('AFL') {
+      parallel {
+        stage('RTCM to SBP') {
+          agent {
+            dockerfile {
+              filename 'Dockerfile.AFL'
+              label params.AGENT
+              args dockerMountArgs
+            }
+          }
+          steps {
+            script {
+              sh("echo Running on \${NODE_NAME}")
+              sh('echo "" | sudo tee /proc/sys/kernel/core_pattern')
+
+              gitPrep()
+              builder.cmake(
+                workDir: 'c',
+                cmakeAddArgs: '-DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32 -DTHIRD_PARTY_INCLUDES_AS_SYSTEM=true -DI_KNOW_WHAT_I_AM_DOING_AND_HOW_DANGEROUS_IT_IS__GNSS_CONVERTERS_DISABLE_CRC_VALIDATION=true',
+                buildType: 'Release'
+              )
+              builder.make(
+                workDir: 'c/build',
+                target: 'asan-rtcm3tosbp'
+              )
+
+              sh("timeout --preserve-status '${params.FUZZ_TIMEOUT}' ./jenkins/afl-parallel.sh -t '${env.HANG_TIMEOUT}' -m '${env.MEMORY_LIMIT}' -i c/tests/afl/testcases/rtcm3tosbp -o afl_output c/build/src/rtcm3tosbp/asan-rtcm3tosbp -w 1945:27750")
+
+              def crashes = findFiles(glob: 'afl_output/**/crashes/*')
+              def hangs = findFiles(glob: 'afl_output/**/hangs/*')
+
+              if (crashes.length > 0 || hangs.length > 0) {
+                error('Detected a crash and/or hang')
+              }
+            }
+          }
+          post {
+            always {
+              zip(zipFile: 'rtcm3tosbp.zip', dir: 'afl_output', archive: true)
+            }
+            cleanup {
+              cleanWs()
+            }
+          }
+        }
+
+        stage('UBX to SBP') {
+          agent {
+            dockerfile {
+              filename 'Dockerfile.AFL'
+              label params.AGENT
+              args dockerMountArgs
+            }
+          }
+          steps {
+            script {
+              sh("echo Running on \${NODE_NAME}")
+              sh('echo "" | sudo tee /proc/sys/kernel/core_pattern')
+
+              gitPrep()
+              builder.cmake(
+                workDir: 'c',
+                cmakeAddArgs: '-DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32 -DTHIRD_PARTY_INCLUDES_AS_SYSTEM=true -DI_KNOW_WHAT_I_AM_DOING_AND_HOW_DANGEROUS_IT_IS__GNSS_CONVERTERS_DISABLE_CRC_VALIDATION=true',
+                buildType: 'Release'
+              )
+              builder.make(
+                workDir: 'c/build',
+                target: 'asan-ubx2sbp'
+              )
+
+              sh("timeout --preserve-status '${params.FUZZ_TIMEOUT}' ./jenkins/afl-parallel.sh -t '${env.HANG_TIMEOUT}' -m '${env.MEMORY_LIMIT}' -i c/tests/afl/testcases/ubx2sbp -o afl_output c/build/src/ubx2sbp/asan-ubx2sbp -w 1945:27750")
+
+              def crashes = findFiles(glob: 'afl_output/**/crashes/*')
+              def hangs = findFiles(glob: 'afl_output/**/hangs/*')
+
+              if (crashes.length > 0 || hangs.length > 0) {
+                error('Detected a crash and/or hang')
+              }
+            }
+          }
+          post {
+            always {
+              zip(zipFile: 'ubx2sbp.zip', dir: 'afl_output', archive: true)
+            }
+            cleanup {
+              cleanWs()
+            }
+          }
+        }
+      }
+    }
+  }
+  post {
+    always {
+      script {
+        if (params.SLACK_NOTIFICATION) {
+          context.slackNotify(channel: '#fuzz-testing', branches: ['.*'])
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+Testcases for ubx2sbp designed to be small and provoke different paths through ubx2sbp.
+
+All testcases in this directory should be fed through the ubx2sbp command line utility. No command line arguments are required
+
+esf_meas.ubx
+Contains a single UBX-ESF-MEAS frame. When processed should output a single SBP wheeltick message
+
+esf_raw.ubx
+Contains a single UBX-ESF_RAW frame. When processed should output 2 SBP IMU_AUX message followed by 10 IMU_RAW messages
+
+mon_hw.ubx
+Contains a single UBX-MON-HW frame. When processed should output a single SBP FWD message where the payload contains the input frame
+
+nav_att.ubx
+Contains a single UBX-NAV_ATT frame. When processed should output a single SBP orient euler message
+
+nav_pvt.ubx
+Contains a single UBX-NAV_PVT frame. When processed should output a single SBP pos LLH message
+
+nav_sat.ubx
+Contains a single UBX-NAV_SAT frame with details of 2 satellites. When processed should output 1 SBP SV_AZ_EL message and 1 SBP MEAS_STATE message each detailing 2 signals
+
+nav_status.ubx
+needs updating
+
+rxm_rawx.ubx
+Contains a single UBX-RXM-RAWX frame with 2 observations. When processed should output 1 SBP observation message containing 2 observations
+
+rxm_sfrbx_gps.ubx
+Contains 3 UBX-RXM-SFRBX containing the required subframes to generate 1 complete GPS SV ephemeris. When processed should output 1 SBP GPS ephemeris message
+
+rxm_sfrbx_bds.ubx
+Contains 3 UBX-RXM-SFRBX containing the required subframes to generate 1 complete BDS SV ephemeris. When processed should output 1 SBP BDS ephemeris message
+
+rxm_sfrbx_gal.ubx
+Contains 5 UBX-RXM-SFRBX containing the required subframes to generate 1 complete GAL SV ephemeris. When processed should output 1 SBP GAL ephemeris message
+
+rxm_sfrbx_sbas.ubx
+Contains a UBX-NAV-PVT message to set last_tow_ms in ubx2sbp followed by a UBX-RXM-SFRBX containing a single SBAS ephemeris message. When processed should output an SBP POS LLH followed by SBP SBAS RAW message

@@ -48,7 +48,7 @@ static bool rtcm_ssr_header_to_sbp_orbit_clock(
     struct rtcm3_sbp_state *state) {
   sbp_orbit_clock->time = compute_ssr_message_time(header->constellation,
                                                    header->epoch_time * SECS_MS,
-                                                   &state->time_from_rover_obs,
+                                                   &state->time_from_input_data,
                                                    state);
 
   if (!gps_time_sec_valid(&sbp_orbit_clock->time)) {
@@ -195,17 +195,30 @@ void rtcm3_ssr_orbit_clock_to_sbp(rtcm_msg_orbit_clock *msg_orbit_clock,
 
 void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases,
                                 struct rtcm3_sbp_state *state) {
-  uint8_t buffer[SSR_MESSAGE_LENGTH];
+  /**
+   * C99 static assert to guarantee that there will be no buffer overflow
+   * when rtcm_msg_code_bias::sats::num_code_biases returns a value that is
+   * large enough to overflow the msg_ssr_code_biases_t::biases. Otherwise will
+   * need to implement the same measures as has been implemented in
+   * rtcm3_ssr_phase_bias_to_sbp.
+   */
+  const size_t max_bias_count =
+      (SBP_MAX_PAYLOAD_LEN - sizeof(msg_ssr_code_biases_t)) /
+      sizeof(code_biases_content_t);
+  char __static_assert[(max_bias_count >= MAX_SSR_SATELLITES) ? 1 : -1];
+  (void)__static_assert;
+
+  uint8_t buffer[SBP_MAX_PAYLOAD_LEN];
   uint8_t length;
   msg_ssr_code_biases_t *sbp_code_bias = (msg_ssr_code_biases_t *)buffer;
   for (int sat_count = 0; sat_count < msg_code_biases->header.num_sats;
        sat_count++) {
-    memset(buffer, 0, SSR_MESSAGE_LENGTH);
+    memset(buffer, 0, SBP_MAX_PAYLOAD_LEN);
     length = 0;
     sbp_code_bias->time =
         compute_ssr_message_time(msg_code_biases->header.constellation,
                                  msg_code_biases->header.epoch_time * SECS_MS,
-                                 &state->time_from_rover_obs,
+                                 &state->time_from_input_data,
                                  state);
 
     if (!gps_time_sec_valid(&sbp_code_bias->time)) {
@@ -246,85 +259,79 @@ void rtcm3_ssr_code_bias_to_sbp(rtcm_msg_code_bias *msg_code_biases,
 
 void rtcm3_ssr_phase_bias_to_sbp(rtcm_msg_phase_bias *msg_phase_biases,
                                  struct rtcm3_sbp_state *state) {
-  uint8_t buffer[SSR_MESSAGE_LENGTH];
-  uint8_t length;
+  uint8_t buffer[SBP_MAX_PAYLOAD_LEN];
+  const size_t max_bias_count =
+      (sizeof(buffer) - sizeof(msg_ssr_phase_biases_t)) /
+      sizeof(phase_biases_content_t);
   msg_ssr_phase_biases_t *sbp_phase_bias = (msg_ssr_phase_biases_t *)buffer;
+
   for (int sat_count = 0; sat_count < msg_phase_biases->header.num_sats;
        sat_count++) {
-    memset(buffer, 0, SSR_MESSAGE_LENGTH);
-    length = 0;
+    memset(buffer, 0, sizeof(buffer));
     sbp_phase_bias->time =
         compute_ssr_message_time(msg_phase_biases->header.constellation,
                                  msg_phase_biases->header.epoch_time * SECS_MS,
-                                 &state->time_from_rover_obs,
+                                 &state->time_from_input_data,
                                  state);
 
     if (!gps_time_sec_valid(&sbp_phase_bias->time)) {
       /* Invalid time */
       return;
     }
-    length += sizeof(sbp_phase_bias->time);
 
     sbp_phase_bias->sid.code =
         constellation_to_l1_code(msg_phase_biases->header.constellation);
-
     sbp_phase_bias->sid.sat = msg_phase_biases->sats[sat_count].sat_id;
-    length += sizeof(sbp_phase_bias->sid);
-
     sbp_phase_bias->update_interval = msg_phase_biases->header.update_interval;
-    length += sizeof(sbp_phase_bias->update_interval);
-
     sbp_phase_bias->iod_ssr = msg_phase_biases->header.iod_ssr;
-    length += sizeof(sbp_phase_bias->iod_ssr);
-
     sbp_phase_bias->dispersive_bias =
         msg_phase_biases->header.dispersive_bias_consistency;
-    length += sizeof(sbp_phase_bias->dispersive_bias);
-
     sbp_phase_bias->mw_consistency =
         msg_phase_biases->header.melbourne_wubbena_consistency;
-    length += sizeof(sbp_phase_bias->mw_consistency);
-
     sbp_phase_bias->yaw = msg_phase_biases->sats[sat_count].yaw_angle;
-    length += sizeof(sbp_phase_bias->yaw);
-
     sbp_phase_bias->yaw_rate = msg_phase_biases->sats[sat_count].yaw_rate;
-    length += sizeof(sbp_phase_bias->yaw_rate);
 
-    for (int sig_count = 0;
-         sig_count < msg_phase_biases->sats[sat_count].num_phase_biases;
+    size_t sig_count = 0;
+    size_t bias_index = 0;
+    for (; sig_count < msg_phase_biases->sats[sat_count].num_phase_biases;
          sig_count++) {
-      sbp_phase_bias->biases[sig_count].code =
+      sbp_phase_bias->biases[bias_index].code =
           msg_phase_biases->sats[sat_count].signals[sig_count].signal_id;
-      length += sizeof(sbp_phase_bias->biases[sig_count].code);
-
-      sbp_phase_bias->biases[sig_count].integer_indicator =
+      sbp_phase_bias->biases[bias_index].integer_indicator =
           msg_phase_biases->sats[sat_count]
               .signals[sig_count]
               .integer_indicator;
-      length += sizeof(sbp_phase_bias->biases[sig_count].integer_indicator);
-
-      sbp_phase_bias->biases[sig_count].widelane_integer_indicator =
+      sbp_phase_bias->biases[bias_index].widelane_integer_indicator =
           msg_phase_biases->sats[sat_count]
               .signals[sig_count]
               .widelane_indicator;
-      length +=
-          sizeof(sbp_phase_bias->biases[sig_count].widelane_integer_indicator);
-
-      sbp_phase_bias->biases[sig_count].discontinuity_counter =
+      sbp_phase_bias->biases[bias_index].discontinuity_counter =
           msg_phase_biases->sats[sat_count]
               .signals[sig_count]
               .discontinuity_indicator;
-      length += sizeof(sbp_phase_bias->biases[sig_count].discontinuity_counter);
-
-      sbp_phase_bias->biases[sig_count].bias =
+      sbp_phase_bias->biases[bias_index].bias =
           msg_phase_biases->sats[sat_count].signals[sig_count].phase_bias;
-      length += sizeof(sbp_phase_bias->biases[sig_count].bias);
+
+      if (++bias_index >= max_bias_count) {
+        state->cb_rtcm_to_sbp(
+            SBP_MSG_SSR_PHASE_BIASES,
+            sizeof(msg_ssr_phase_biases_t) +
+                max_bias_count * sizeof(phase_biases_content_t),
+            (u8 *)sbp_phase_bias,
+            0,
+            state->context);
+        bias_index = 0;
+      }
     }
-    state->cb_rtcm_to_sbp(SBP_MSG_SSR_PHASE_BIASES,
-                          length,
-                          (u8 *)sbp_phase_bias,
-                          0,
-                          state->context);
+
+    if (sig_count == 0 || bias_index > 0) {
+      state->cb_rtcm_to_sbp(
+          SBP_MSG_SSR_PHASE_BIASES,
+          sizeof(msg_ssr_phase_biases_t) +
+              MIN(sig_count, bias_index) * sizeof(phase_biases_content_t),
+          (u8 *)sbp_phase_bias,
+          0,
+          state->context);
+    }
   }
 }

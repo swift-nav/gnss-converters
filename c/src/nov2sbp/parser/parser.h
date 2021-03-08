@@ -13,6 +13,7 @@
 #ifndef NOVATEL_PARSER_PARSER_H_
 #define NOVATEL_PARSER_PARSER_H_
 
+#include <unistd.h>  // for size_t
 #include "binary_header.h"
 #include "message.h"
 

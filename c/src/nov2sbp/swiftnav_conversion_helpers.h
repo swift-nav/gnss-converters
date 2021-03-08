@@ -29,6 +29,7 @@
 #include <swiftnav/pvt_result.h>
 
 extern "C" {
+#include <libsbp/imu.h>
 #include <libsbp/navigation.h>
 #include <libsbp/observation.h>
 #include <libsbp/orientation.h>
@@ -126,9 +127,26 @@ void convert_insatt_to_orient_euler(const BinaryHeader *header,
 /**
  * Convert Novatel RAWIMUSX message to SBP Angular Rate message
  */
-void convert_rawimu_to_angular_rate(const BinaryHeader *header,
+bool convert_rawimu_to_angular_rate(const BinaryHeader *header,
                                     const Message::RAWIMUSX_t *rawimu,
+                                    const msg_gps_time_t *last_imu_time,
                                     msg_angular_rate_t *angular_rate);
+
+/**
+ * Convert Novatel RAWIMUSX message to SBP Raw IMU Data message
+ */
+bool convert_rawimu_to_imu_raw(const BinaryHeader *header,
+                               const Message::RAWIMUSX_t *rawimu,
+                               const msg_gps_time_t *last_imu_time,
+                               msg_imu_raw_t *imu_raw);
+
+/**
+ * Convert Novatel RAWIMUSX message to SBP Auxiliary IMU Data message
+ */
+bool convert_rawimu_to_imu_aux(const BinaryHeader *header,
+                               const Message::RAWIMUSX_t *rawimu,
+                               const msg_gps_time_t *last_aux_time,
+                               msg_imu_aux_t *imu_aux);
 
 }  // namespace Novatel
 

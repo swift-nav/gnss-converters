@@ -13,16 +13,16 @@
 #ifndef GNSS_CONVERTERS_IXCOM_SBP_INTERFACE_H
 #define GNSS_CONVERTERS_IXCOM_SBP_INTERFACE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stddef.h>
 #include <unistd.h>
 
 #include <libsbp/sbp.h>
 
 #include <ixcom/messages.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define IXCOM_BUFFER_SIZE 4096
 #define IXCOM_FRAME_SIZE 4096

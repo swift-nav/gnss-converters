@@ -116,5 +116,5 @@ size_t sbp_conv(sbp_conv_t conv,
     }
     default: { break; }
   }
-  return fifo_read(&conv->fifo, wbuf, (u8)wlen);
+  return fifo_read(&conv->fifo, wbuf, (u32)wlen);
 }

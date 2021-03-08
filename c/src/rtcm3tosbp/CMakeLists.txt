@@ -11,3 +11,5 @@ swift_set_compile_options(rtcm3tosbp REMOVE -Wconversion)
 
 install(TARGETS rtcm3tosbp_main DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 install(TARGETS rtcm3tosbp DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+
+add_asan_variant(rtcm3tosbp)

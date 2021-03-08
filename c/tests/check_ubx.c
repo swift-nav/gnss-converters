@@ -702,7 +702,9 @@ static void ubx_sbp_callback_test_no_conversion_invalid_calibtag(
   (void)context;
   (void)msg_id;
   (void)buff;
+#ifndef GNSS_CONVERTERS_DISABLE_CRC_VALIDATION
   ck_assert_msg(false, "No SBP message output expected for this test");
+#endif
 }
 
 static void ubx_sbp_callback_imu_temperature(

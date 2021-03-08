@@ -10,6 +10,7 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <ephemeris/sbas.h>
 #include <gnss-converters/ubx_sbp.h>
 #include <libsbp/imu.h>
 #include <libsbp/logging.h>
@@ -30,7 +31,8 @@
 #include <ubx_ephemeris/gal.h>
 #include <ubx_ephemeris/glo.h>
 #include <ubx_ephemeris/gps.h>
-#include <ubx_ephemeris/sbas.h>
+
+#include "swiftnav/bytestream.h"
 
 /* TODO(STAR-918) should probably consolidate these into central .h file */
 #define SBP_OBS_LF_MULTIPLIER 256
@@ -203,12 +205,14 @@ static int read_ubx_frame(u8 *frame, struct ubx_sbp_state *state) {
       return ret == 0 ? -1 : ret;
     }
 
+#ifndef GNSS_CONVERTERS_DISABLE_CRC_VALIDATION
     u8 checksum[2];
     ubx_checksum(frame, 4 + payload_length, (u8 *)&checksum);
     if (memcmp(&checksum, frame + 4 + payload_length, 2) != 0) {
       continue;
     }
-    return payload_length;
+#endif
+    return payload_length + 4;
 
   } while (state->bytes_in_buffer != 0);
 
@@ -346,59 +350,61 @@ void check_overflow(s32 *value) {
   }
 }
 
-static int fill_msg_obs(const ubx_rxm_rawx *rxm_rawx, msg_obs_t *msg) {
+static int fill_msg_obs(const ubx_rxm_rawx *rxm_rawx,
+                        sbp_gps_time_t *obs_time,
+                        uint8_t *n_obs,
+                        packed_obs_content_t *obs) {
   /* convert from sec to ms */
   double ms = UBX_SBP_TOW_MS_SCALING * rxm_rawx->rcv_tow;
   double ns = UBX_SBP_TOW_NS_SCALING * modf(ms, &ms);
-  msg->header.t.tow = (u32)ms;
-  msg->header.t.ns_residual = (s32)ns;
-  if (msg->header.t.ns_residual > 500000) {
-    msg->header.t.ns_residual -= 1000000;
-    msg->header.t.tow += 1;
+  obs_time->tow = (u32)ms;
+  obs_time->ns_residual = (s32)ns;
+  if (obs_time->ns_residual > 500000) {
+    obs_time->ns_residual -= 1000000;
+    obs_time->tow += 1;
   }
 
   if (rxm_rawx->rcv_wn == 0) {
-    msg->header.t.wn = -1;
+    obs_time->wn = -1;
   } else {
-    msg->header.t.wn = rxm_rawx->rcv_wn;
+    obs_time->wn = rxm_rawx->rcv_wn;
   }
   /* Not proper SBP n_obs. Needed to pass total number of measurements
    * to handle_rxm_rawx
    */
-  msg->header.n_obs = rxm_rawx->num_meas;
+  *n_obs = rxm_rawx->num_meas;
 
-  for (int i = 0; i < msg->header.n_obs; i++) {
+  for (int i = 0; i < *n_obs; i++) {
     /* convert units: meter -> 2 cm */
-    msg->obs[i].P =
-        (u32)(UBX_SBP_PSEUDORANGE_SCALING * rxm_rawx->pseudorange_m[i]);
-    pack_carrier_phase(rxm_rawx->carrier_phase_cycles[i], &msg->obs[i].L);
-    pack_doppler(rxm_rawx->doppler_hz[i], &msg->obs[i].D);
+    obs[i].P = (u32)(UBX_SBP_PSEUDORANGE_SCALING * rxm_rawx->pseudorange_m[i]);
+    pack_carrier_phase(rxm_rawx->carrier_phase_cycles[i], &obs[i].L);
+    pack_doppler(rxm_rawx->doppler_hz[i], &obs[i].D);
     /* check for overflow */
     if (rxm_rawx->cno_dbhz[i] > 0x3F) {
-      msg->obs[i].cn0 = 0xFF;
+      obs[i].cn0 = 0xFF;
     } else {
-      msg->obs[i].cn0 = 4 * rxm_rawx->cno_dbhz[i];
+      obs[i].cn0 = 4 * rxm_rawx->cno_dbhz[i];
     }
     /* TODO(STAR-919) converts from u32 ms, to double s; encode_lock_time
      * internally converts back to u32 ms.
      */
-    msg->obs[i].lock =
-        encode_lock_time((double)rxm_rawx->lock_time[i] / SECS_MS);
-    msg->obs[i].flags = 0;
+    obs[i].lock = encode_lock_time((double)rxm_rawx->lock_time[i] / SECS_MS);
+    obs[i].flags = 0;
     /* currently assumes all doppler are valid */
-    msg->obs[i].flags |= SBP_OBS_DOPPLER_MASK;
-    msg->obs[i].flags |= rxm_rawx->track_state[i] & SBP_OBS_TRACK_STATE_MASK;
-    msg->obs[i].sid.sat = rxm_rawx->sat_id[i];
-    msg->obs[i].sid.code =
+    obs[i].flags |= SBP_OBS_DOPPLER_MASK;
+    obs[i].flags |= rxm_rawx->track_state[i] & SBP_OBS_TRACK_STATE_MASK;
+    obs[i].sid.sat = rxm_rawx->sat_id[i];
+    obs[i].sid.code =
         convert_ubx_gnssid_sigid(rxm_rawx->gnss_id[i], rxm_rawx->sig_id[i]);
   }
 
   return 0;
 }
 
-static int fill_msg_orient_euler(const u8 buf[], msg_orient_euler_t *msg) {
+static int fill_msg_orient_euler(swiftnav_bytestream_t *buf,
+                                 msg_orient_euler_t *msg) {
   ubx_nav_att nav_att;
-  if (ubx_decode_nav_att(buf, &nav_att) != RC_OK) {
+  if (ubx_decode_nav_att_bytestream(buf, &nav_att) != RC_OK) {
     return -1;
   }
 
@@ -420,9 +426,9 @@ static int fill_msg_orient_euler(const u8 buf[], msg_orient_euler_t *msg) {
   return 0;
 }
 
-static int fill_msg_pos_llh(const u8 buf[], msg_pos_llh_t *msg) {
+static int fill_msg_pos_llh(swiftnav_bytestream_t *buf, msg_pos_llh_t *msg) {
   ubx_nav_pvt nav_pvt;
-  if (ubx_decode_nav_pvt(buf, &nav_pvt) != RC_OK) {
+  if (ubx_decode_nav_pvt_bytestream(buf, &nav_pvt) != RC_OK) {
     return -1;
   }
 
@@ -484,9 +490,9 @@ static int fill_msg_pos_llh(const u8 buf[], msg_pos_llh_t *msg) {
   return 0;
 }
 
-static int fill_msg_vel_ecef(const u8 buf[], msg_vel_ecef_t *msg) {
+static int fill_msg_vel_ecef(swiftnav_bytestream_t *buf, msg_vel_ecef_t *msg) {
   ubx_nav_velecef nav_velecef;
-  if (ubx_decode_nav_velecef(buf, &nav_velecef) != RC_OK) {
+  if (ubx_decode_nav_velecef_bytestream(buf, &nav_velecef) != RC_OK) {
     return -1;
   }
 
@@ -529,20 +535,20 @@ static void fill_msg_pos_llh_hnr(const ubx_hnr_pvt *hnr_pvt,
   msg->flags = pvt_state.flags;
 }
 
-static int fill_msg_fwd(const u8 buf[], const u16 buf_len, msg_fwd_t *msg) {
-  size_t copy_len = (UBX_CLASS_BYTE_COUNT + UBX_MSG_ID_BYTE_COUNT +
-                     UBX_LENGTH_BYTE_COUNT + buf_len);
-  if (copy_len > SBP_MAX_PAYLOAD_LEN - sizeof(*msg)) {
+static int fill_msg_fwd(swiftnav_bytestream_t *buf, msg_fwd_t *msg) {
+  size_t copy_len = swiftnav_bytestream_remaining(buf);
+  size_t max_copy_len = SBP_MAX_PAYLOAD_LEN - sizeof(*msg);
+  if (copy_len > max_copy_len) {
     log_warn("UBX frame for class 0x%X and ID 0x%X too large to forward: %d; ",
-             buf[0],
-             buf[1],
+             buf->data[buf->offset + 0],
+             buf->data[buf->offset + 1],
              (int)copy_len);
     return -1;
   }
 #define SBP_MSG_FWD_PROTOCOL_UBX 0x1
   msg->source = 0; /* unused */
   msg->protocol = SBP_MSG_FWD_PROTOCOL_UBX;
-  memcpy(msg->fwd_payload, buf, copy_len);
+  swiftnav_bytestream_get_bytes(buf, 0, copy_len, (uint8_t *)msg->fwd_payload);
 #undef SBP_MSG_FWD_PROTOCOL_UBX
   return copy_len;
 }
@@ -607,9 +613,10 @@ static void set_odo_time(s64 msss, msg_odometry_t *msg_odo) {
   msg_odo->tow = (u32)(tmp.tow * SECS_MS);
 }
 
-static void handle_esf_meas(struct ubx_sbp_state *state, u8 *inbuf) {
+static void handle_esf_meas(struct ubx_sbp_state *state,
+                            swiftnav_bytestream_t *inbuf) {
   ubx_esf_meas esf_meas;
-  if (ubx_decode_esf_meas(inbuf, &esf_meas) != RC_OK) {
+  if (ubx_decode_esf_meas_bytestream(inbuf, &esf_meas) != RC_OK) {
     return;
   }
   u8 num_meas = (esf_meas.flags >> 11) & 0x1F;
@@ -769,7 +776,7 @@ static void maybe_parse_imu_data(u32 data, u8 data_type, msg_imu_raw_t *msg) {
   }
 }
 
-static void set_sbp_imu_time(u32 sensortime_this_message,
+static bool set_sbp_imu_time(u32 sensortime_this_message,
                              u32 sensortime_first_message,
                              s64 msss,
                              msg_imu_raw_t *msg,
@@ -779,7 +786,9 @@ static void set_sbp_imu_time(u32 sensortime_this_message,
   // normalize it.
   const double first_msg_tss = 0.001 * msss;
   gps_time_t cpu_local_time_first_message = {.tow = first_msg_tss, .wn = 0};
-  normalize_gps_time(&cpu_local_time_first_message);
+  if (!normalize_gps_time_safe(&cpu_local_time_first_message)) {
+    return false;
+  }
 
   // The msss field contains only the time for the first IMU data packet of this
   // burst - we derive subsequent timestamps by diffs on the sensor time. The
@@ -796,8 +805,13 @@ static void set_sbp_imu_time(u32 sensortime_this_message,
   gps_time_t imu_time_msss;
   imu_time_msss.tow = sensor_tss_s - ubx_imu_gnss_time_offset;
   imu_time_msss.wn = 0;
-  normalize_gps_time(&imu_time_msss);
-  gps_time_match_weeks(&imu_time_msss, &cpu_local_time_first_message);
+  if (!normalize_gps_time_safe(&imu_time_msss)) {
+    return false;
+  }
+  if (!gps_time_match_weeks_safe(&imu_time_msss,
+                                 &cpu_local_time_first_message)) {
+    return false;
+  }
   esf_state->last_imu_time_msss = imu_time_msss;
 
   struct sbp_imuraw_timespec timespec =
@@ -807,6 +821,7 @@ static void set_sbp_imu_time(u32 sensortime_this_message,
 
   const u32 reference_tss_flags = (1 << 30);
   msg->tow |= reference_tss_flags;
+  return true;
 }
 
 static bool check_imu_message_complete(const s16 *received_number_msgs,
@@ -860,11 +875,12 @@ static bool is_imu_data(u8 data_type) {
          (ESF_Z_AXIS_ACCEL_SPECIFIC_FORCE == data_type);
 }
 
-static void handle_esf_raw(struct ubx_sbp_state *state, u8 *inbuf) {
+static void handle_esf_raw(struct ubx_sbp_state *state,
+                           swiftnav_bytestream_t *inbuf) {
   ubx_esf_raw esf_raw;
   msg_imu_raw_t msg;
   memset(&msg, 0, sizeof(msg));
-  if (ubx_decode_esf_raw(inbuf, &esf_raw) != RC_OK) {
+  if (ubx_decode_esf_raw_bytestream(inbuf, &esf_raw) != RC_OK) {
     return;
   }
 
@@ -896,19 +912,23 @@ static void handle_esf_raw(struct ubx_sbp_state *state, u8 *inbuf) {
     }
     state->esf_state.last_imu_msss = esf_raw.msss;
 
-    set_sbp_imu_time(esf_raw.sensor_time_tag[i],
-                     esf_raw.sensor_time_tag[0],
-                     state->esf_state.running_imu_msss,
-                     &msg,
-                     &state->esf_state);
+    if (!set_sbp_imu_time(esf_raw.sensor_time_tag[i],
+                          esf_raw.sensor_time_tag[0],
+                          state->esf_state.running_imu_msss,
+                          &msg,
+                          &state->esf_state)) {
+      return;
+    }
     maybe_parse_imu_data(data, data_type, &msg);
 
     received_number_msgs[data_type]++;
     // Before getting the next sample for an axis, we expect to receive all
     // other axes for the same timestamp.
-    assert((data_type == ESF_GYRO_TEMP ||
-            received_number_msgs[data_type] == current_msg_number + 1) &&
-           "Assumption of no missing IMU data violated");
+    if (!(data_type == ESF_GYRO_TEMP ||
+          received_number_msgs[data_type] == current_msg_number + 1)) {
+      log_warn("Lost IMU data, possibly corrupted ESF-RAW frame");
+      return;
+    }
 
     // Check if the current IMU message is complete (all axes received) and
     // output an SBP message if it is.
@@ -928,11 +948,12 @@ static void handle_esf_raw(struct ubx_sbp_state *state, u8 *inbuf) {
   }
 }
 
-static void handle_hnr_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
+static void handle_hnr_pvt(struct ubx_sbp_state *state,
+                           swiftnav_bytestream_t *inbuf) {
   ubx_hnr_pvt hnr_pvt;
   msg_pos_llh_t sbp_pos_llh;
   msg_orient_euler_t *sbp_orient_euler = &state->last_orient_euler;
-  if (ubx_decode_hnr_pvt(inbuf, &hnr_pvt) != RC_OK) {
+  if (ubx_decode_hnr_pvt_bytestream(inbuf, &hnr_pvt) != RC_OK) {
     return;
   }
 
@@ -958,7 +979,8 @@ static void handle_hnr_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
   }
 }
 
-static void handle_nav_att(struct ubx_sbp_state *state, u8 *inbuf) {
+static void handle_nav_att(struct ubx_sbp_state *state,
+                           swiftnav_bytestream_t *inbuf) {
   msg_orient_euler_t sbp_orient_euler;
   if (fill_msg_orient_euler(inbuf, &sbp_orient_euler) == 0) {
     memcpy(&state->last_orient_euler,
@@ -974,7 +996,8 @@ static void handle_nav_att(struct ubx_sbp_state *state, u8 *inbuf) {
   }
 }
 
-static void handle_nav_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
+static void handle_nav_pvt(struct ubx_sbp_state *state,
+                           swiftnav_bytestream_t *inbuf) {
   msg_pos_llh_t sbp_pos_llh;
   if (fill_msg_pos_llh(inbuf, &sbp_pos_llh) == 0) {
     state->last_tow_ms = sbp_pos_llh.tow;
@@ -988,7 +1011,8 @@ static void handle_nav_pvt(struct ubx_sbp_state *state, u8 *inbuf) {
   }
 }
 
-static void handle_nav_velecef(struct ubx_sbp_state *state, u8 *inbuf) {
+static void handle_nav_velecef(struct ubx_sbp_state *state,
+                               swiftnav_bytestream_t *inbuf) {
   msg_vel_ecef_t sbp_vel_ecef;
   if (fill_msg_vel_ecef(inbuf, &sbp_vel_ecef) == 0) {
     state->cb_ubx_to_sbp(SBP_MSG_VEL_ECEF,
@@ -999,9 +1023,10 @@ static void handle_nav_velecef(struct ubx_sbp_state *state, u8 *inbuf) {
   }
 }
 
-static void handle_nav_sat(struct ubx_sbp_state *state, u8 *inbuf) {
+static void handle_nav_sat(struct ubx_sbp_state *state,
+                           swiftnav_bytestream_t *inbuf) {
   ubx_nav_sat nav_sat; /* 1218 bytes (ish) ! */
-  if (ubx_decode_nav_sat(inbuf, &nav_sat) != RC_OK) {
+  if (ubx_decode_nav_sat_bytestream(inbuf, &nav_sat) != RC_OK) {
     return;
   }
 
@@ -1019,6 +1044,10 @@ static void handle_nav_sat(struct ubx_sbp_state *state, u8 *inbuf) {
       (msg_measurement_state_t *)meas_state_buf;
 
   for (int i = 0; i < nav_sat.num_svs; i++) {
+    if (i >= NAV_DATA_MAX_COUNT) {
+      break;
+    }
+
     ubx_nav_sat_data *data = &nav_sat.data[i];
 
     u8 sat_id = data->sv_id;
@@ -1078,9 +1107,10 @@ static void handle_nav_sat(struct ubx_sbp_state *state, u8 *inbuf) {
   }
 }
 
-static void handle_nav_status(struct ubx_sbp_state *state, u8 *inbuf) {
+static void handle_nav_status(struct ubx_sbp_state *state,
+                              swiftnav_bytestream_t *inbuf) {
   ubx_nav_status nav_status;
-  if (ubx_decode_nav_status(inbuf, &nav_status) != RC_OK) {
+  if (ubx_decode_nav_status_bytestream(inbuf, &nav_status) != RC_OK) {
     return;
   }
   const u8 fix_type_3d = 0x03;
@@ -1104,17 +1134,25 @@ static void handle_nav_status(struct ubx_sbp_state *state, u8 *inbuf) {
     gps_time_t nav_status_time_gnss;
     nav_status_time_gnss.wn = 0;
     nav_status_time_gnss.tow = 0.001 * nav_status.i_tow;
-    normalize_gps_time(&nav_status_time_gnss);
-    gps_time_match_weeks(&nav_status_time_gnss,
-                         &state->esf_state.last_obs_time_gnss);
+    if (!normalize_gps_time_safe(&nav_status_time_gnss)) {
+      return;
+    }
+    if (!gps_time_match_weeks_safe(&nav_status_time_gnss,
+                                   &state->esf_state.last_obs_time_gnss)) {
+      return;
+    }
 
     if (gps_time_valid(&state->esf_state.last_imu_time_msss)) {
       gps_time_t nav_status_time_local;
       nav_status_time_local.tow = 0.001 * nav_status.msss;
       nav_status_time_local.wn = 0;
-      normalize_gps_time(&nav_status_time_local);
-      gps_time_match_weeks(&nav_status_time_local,
-                           &state->esf_state.last_imu_time_msss);
+      if (!normalize_gps_time_safe(&nav_status_time_local)) {
+        return;
+      }
+      if (!gps_time_match_weeks_safe(&nav_status_time_local,
+                                     &state->esf_state.last_imu_time_msss)) {
+        return;
+      }
 
       gps_time_t offset;
       offset.wn = nav_status_time_gnss.wn - nav_status_time_local.wn;
@@ -1154,10 +1192,9 @@ static void update_utc_params(struct ubx_sbp_state *state,
 }
 
 static void handle_rxm_rawx(struct ubx_sbp_state *state,
-                            u8 *inbuf,
-                            u8 *sbp_obs_buffer) {
+                            swiftnav_bytestream_t *inbuf) {
   ubx_rxm_rawx rxm_rawx;
-  if (ubx_decode_rxm_rawx(inbuf, &rxm_rawx) != RC_OK) {
+  if (ubx_decode_rxm_rawx_bytestream(inbuf, &rxm_rawx) != RC_OK) {
     return;
   }
 
@@ -1168,31 +1205,29 @@ static void handle_rxm_rawx(struct ubx_sbp_state *state,
   }
   update_utc_params(state, &rxm_rawx);
 
-  msg_obs_t *sbp_obs = (msg_obs_t *)sbp_obs_buffer;
-  if (fill_msg_obs(&rxm_rawx, sbp_obs) == 0) {
+  sbp_gps_time_t obs_time;
+  uint8_t n_obs;
+  packed_obs_content_t sbp_obs[UBX_MAX_NUM_OBS];
+  if (fill_msg_obs(&rxm_rawx, &obs_time, &n_obs, sbp_obs) == 0) {
     u8 total_messages;
-    /* header.n_obs is assumed to hold the TOTAL number of observations
-     * from fill_msg_obs, NOT n_obs as described in the SBP spec.
-     */
-    if (sbp_obs->header.n_obs > 0) {
-      total_messages = 1 + ((sbp_obs->header.n_obs - 1) / SBP_MAX_NUM_OBS);
+    if (n_obs > 0) {
+      total_messages = 1 + ((n_obs - 1) / SBP_MAX_NUM_OBS);
     } else {
       total_messages = 1;
     }
 
-    u8 sbp_obs_to_send_buffer[256];
+    u8 sbp_obs_to_send_buffer[SBP_MAX_PAYLOAD_LEN];
     msg_obs_t *sbp_obs_to_send = (msg_obs_t *)sbp_obs_to_send_buffer;
-    sbp_obs_to_send->header.t = sbp_obs->header.t;
+    sbp_obs_to_send->header.t = obs_time;
 
     u8 obs_index;
     for (u8 msg_num = 0; msg_num < total_messages; msg_num++) {
       sbp_obs_to_send->header.n_obs = (total_messages << 4) + msg_num;
-      for (obs_index = 0;
-           obs_index < SBP_MAX_NUM_OBS &&
-           (obs_index + msg_num * SBP_MAX_NUM_OBS) < sbp_obs->header.n_obs;
+      for (obs_index = 0; obs_index < SBP_MAX_NUM_OBS &&
+                          (obs_index + msg_num * SBP_MAX_NUM_OBS) < n_obs;
            obs_index++) {
         sbp_obs_to_send->obs[obs_index] =
-            sbp_obs->obs[obs_index + msg_num * SBP_MAX_NUM_OBS];
+            sbp_obs[obs_index + msg_num * SBP_MAX_NUM_OBS];
       }
 
       u32 total_msg_size = sizeof(observation_header_t) +
@@ -1208,13 +1243,15 @@ static void handle_rxm_rawx(struct ubx_sbp_state *state,
   }
 }
 
-static void handle_rxm_sfrbx(struct ubx_sbp_state *state, u8 *buf, int sz) {
+static void handle_rxm_sfrbx(struct ubx_sbp_state *state,
+                             swiftnav_bytestream_t *buf,
+                             int sz) {
   (void)sz;
   assert(state);
   assert(buf);
   assert(sz > 0);
   ubx_rxm_sfrbx sfrbx;
-  if (ubx_decode_rxm_sfrbx(buf, &sfrbx) != RC_OK) {
+  if (ubx_decode_rxm_sfrbx_bytestream(buf, &sfrbx) != RC_OK) {
     return;
   }
 
@@ -1229,17 +1266,37 @@ static void handle_rxm_sfrbx(struct ubx_sbp_state *state, u8 *buf, int sz) {
     glo_decode_string(
         state, prn, sfrbx.freq_id, sfrbx.data_words, sfrbx.num_words);
   } else if (UBX_GNSS_ID_SBAS == sfrbx.gnss_id) {
-    sbas_decode_subframe(state, prn, sfrbx.data_words, sfrbx.num_words);
+    u32 tow_ms = state->last_tow_ms;
+    if (tow_ms > WEEK_MS) {
+      /* TOW not yet set */
+      return;
+    }
+
+    /* Fill in the approximate time of transmission of the start of the SBAS
+     * message. The best guess for it we have is the current solution time
+     * minus 1 s (length of the message) minus 120 ms (~= 36000km / 3e8m/s). */
+    tow_ms -= 1120;
+    if (tow_ms < 0.0) {
+      tow_ms += WEEK_MS;
+    }
+
+    sbas_decode_subframe(&state->eph_data,
+                         tow_ms,
+                         prn,
+                         sfrbx.data_words,
+                         sfrbx.num_words,
+                         state->sender_id,
+                         state->context,
+                         state->cb_ubx_to_sbp);
   }
 }
 
 static void handle_mon_hw(struct ubx_sbp_state *state,
-                          u8 *inbuf,
-                          const u16 buf_len) {
+                          swiftnav_bytestream_t *inbuf) {
   u8 outbuf[SBP_MAX_PAYLOAD_LEN];
   memset(outbuf, 0, SBP_MAX_PAYLOAD_LEN);
   msg_fwd_t *msg = (msg_fwd_t *)outbuf;
-  int written = fill_msg_fwd(inbuf, buf_len, msg);
+  int written = fill_msg_fwd(inbuf, msg);
   if (written > 0) {
     state->cb_ubx_to_sbp(SBP_MSG_FWD,
                          sizeof(msg_fwd_t) + written,
@@ -1249,9 +1306,13 @@ static void handle_mon_hw(struct ubx_sbp_state *state,
   }
 }
 
-void ubx_handle_frame(u8 *frame, u16 frame_len, struct ubx_sbp_state *state) {
-  u8 class_id = frame[0];
-  u8 msg_id = frame[1];
+void ubx_handle_frame(swiftnav_bytestream_t *frame,
+                      struct ubx_sbp_state *state) {
+  if (frame->len < 2) {
+    return;
+  }
+  u8 class_id = frame->data[0];
+  u8 msg_id = frame->data[1];
 
   switch (class_id) {
     case UBX_CLASS_ESF:
@@ -1297,9 +1358,7 @@ void ubx_handle_frame(u8 *frame, u16 frame_len, struct ubx_sbp_state *state) {
 
     case UBX_CLASS_RXM:
       if (msg_id == UBX_MSG_RXM_RAWX) {
-        u8 sbp_obs_buffer[sizeof(msg_obs_t) +
-                          sizeof(packed_obs_content_t) * UBX_MAX_NUM_OBS];
-        handle_rxm_rawx(state, frame, sbp_obs_buffer);
+        handle_rxm_rawx(state, frame);
       } else if (msg_id == UBX_MSG_RXM_SFRBX) {
         handle_rxm_sfrbx(state, frame, UBX_FRAME_SIZE);
       }
@@ -1308,7 +1367,7 @@ void ubx_handle_frame(u8 *frame, u16 frame_len, struct ubx_sbp_state *state) {
     case UBX_CLASS_MON:
       switch (msg_id) {
         case UBX_MSG_MON_HW:
-          handle_mon_hw(state, frame, frame_len);
+          handle_mon_hw(state, frame);
           break;
         default:
           break;
@@ -1378,7 +1437,10 @@ int ubx_sbp_process(struct ubx_sbp_state *state,
     return ret;
   }
 
-  ubx_handle_frame(inbuf, (u16)ret, state);
+  swiftnav_bytestream_t bytestream;
+  swiftnav_bytestream_init(&bytestream, inbuf, ret);
+
+  ubx_handle_frame(&bytestream, state);
 
   return ret;
 }

@@ -25,10 +25,14 @@
 
 #include "sbp_nmea_internal.h"
 
+/* Based on testing calculated Course Over Ground starts deviating noticeably
+ * below this limit. */
+#define NMEA_COG_STATIC_LIMIT_MPS 0.1f
+
 struct nmea_meta_entry {
   uint16_t gnss_tow_mask;
   bool available_in_fused;
-  void (*send)(const sbp2nmea_t *);
+  void (*send)(sbp2nmea_t *);
 } nmea_meta[SBP2NMEA_NMEA_CNT] = {
     [SBP2NMEA_NMEA_GGA] = {.gnss_tow_mask =
                                (1 << SBP2NMEA_SBP_POS_LLH_COV_GNSS) |
@@ -398,13 +402,25 @@ void sbp2nmea_soln_freq_set(sbp2nmea_t *state, float soln_freq) {
   state->soln_freq = soln_freq;
 }
 
+void sbp2nmea_cog_threshold_set(sbp2nmea_t *state, float cog_thd_mps) {
+  state->cog_threshold_mps = cog_thd_mps;
+}
+
+void sbp2nmea_cog_stationary_threshold_set(sbp2nmea_t *state,
+                                           double cog_stationary_thd_mps) {
+  state->cog_update_threshold_mps = cog_stationary_thd_mps;
+}
+
 void sbp2nmea_init(sbp2nmea_t *state,
                    sbp2nmea_mode_t mode,
                    void (*cb_sbp_to_nmea)(char *msg, void *ctx),
                    void *ctx) {
   memset(state, 0, sizeof(*state));
+  state->cog_threshold_mps = NMEA_COG_STATIC_LIMIT_MPS;
   state->cb_sbp_to_nmea = cb_sbp_to_nmea;
   state->ctx = ctx;
   state->requested_mode = mode;
   state->actual_mode = SBP2NMEA_MODE_GNSS;
+  state->last_non_stationary_cog = 0;
+  state->cog_update_threshold_mps = NMEA_COG_STATIC_LIMIT_MPS;
 }

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013-2017 Swift Navigation Inc.
- * Contact: Fergus Noble <fergus@swift-nav.com>
+ * Contact: Swift Navigation <dev@swiftnav.com>
  *
  * This source is subject to the license found in the file 'LICENSE' which must
  * be be distributed together with this source. All other rights reserved.
@@ -63,12 +63,6 @@
 /* Accuracy of Course Over Ground */
 #define NMEA_COG_DECIMALS 1
 #define NMEA_COG_FRAC_DIVISOR pow(10, NMEA_COG_DECIMALS)
-
-/* Based on testing calculated Course Over Ground starts deviating noticeably
- * below this limit. */
-#define NMEA_COG_STATIC_LIMIT_MS 0.1
-#define NMEA_COG_STATIC_LIMIT_KNOTS MS2KNOTS(NMEA_COG_STATIC_LIMIT_MS, 0, 0)
-#define NMEA_COG_STATIC_LIMIT_KPH MS2KMHR(NMEA_COG_STATIC_LIMIT_MS, 0, 0)
 
 typedef enum talker_id_e {
   TALKER_ID_INVALID = -1,
@@ -315,7 +309,7 @@ void get_utc_time_string(bool time,
  *
  * \param state Current SBP2NMEA state
  */
-void send_gpgga(const sbp2nmea_t *state) {
+void send_gpgga(sbp2nmea_t *state) {
   /* GGA sentence is formed by splitting latitude and longitude
      into degrees and minutes parts and then printing them separately
      using printf. Before doing the split we want to take care of
@@ -562,9 +556,9 @@ void send_gsa_print(u16 *prns,
  *       used in a combined solution and each shall have the PDOP, HDOP and VDOP
  *       for the combined satellites used in the position.
  *
- * \param sbp_nmea_state      Pointer to the converter state
+ * \param state Current SBP2NMEA state
  */
-void send_gsa(const sbp2nmea_t *state) {
+void send_gsa(sbp2nmea_t *state) {
   assert(state);
   const msg_dops_t *sbp_dops =
       sbp2nmea_msg_get(state, SBP2NMEA_SBP_DOPS, false);
@@ -640,46 +634,59 @@ void send_gsa(const sbp2nmea_t *state) {
 
 /** Calculate Course and Speed Over Ground values.
  *
- * \param[in]  sbp_vel_ned  pointer to sbp vel ned struct
- * \param[out] cog          true course over ground [deg]
- * \param[out] sog_knots    speed over ground [knots]
- * \param[out] sog_kph      speed over ground [kph]
+ * \param[in]  sbp_vel_ned              pointer to sbp vel ned struct
+ * \param[in]  cog_sog_threshold_mps    if the calculated speed over ground is
+ *                                      lower than this threshold, the
+ *                                      last_non_stationary_cog will be used
+ *                                      instead of the calculated cog [mps]
+ * \param[out] last_non_stationary_cog  stores the last calculated cog value
+ *                                      only updated if cog_sog_threshold_mps
+ *                                      is exceeded
+ * \param[out] cog                      true course over ground [deg]
+ * \param[out] sog_knots                speed over ground [knots]
+ * \param[out] sog_kph                  speed over ground [kph]
  */
 static void calc_cog_sog(const msg_vel_ned_t *sbp_vel_ned,
+                         double cog_update_threshold_mps,
+                         double *last_non_stationary_cog,
                          double *cog,
                          double *sog_knots,
                          double *sog_kph) {
   double vel_north_ms = MM2M(sbp_vel_ned->n);
   double vel_east_ms = MM2M(sbp_vel_ned->e);
 
-  *cog = R2D * atan2(vel_east_ms, vel_north_ms);
-
-  /* Convert negative values to positive */
-  if (*cog < 0.0) {
-    *cog += FULL_CIRCLE_DEG;
-  }
-
-  /* Rounding to specified accuracy */
-  *cog = round(*cog * NMEA_COG_FRAC_DIVISOR) / NMEA_COG_FRAC_DIVISOR;
-
-  /* Avoid having duplicate values for same point (0 and 360) */
-  if (fabs(FULL_CIRCLE_DEG - *cog) < 1 / NMEA_COG_FRAC_DIVISOR) {
-    *cog = 0;
-  }
-
   *sog_knots = MS2KNOTS(vel_north_ms, vel_east_ms, 0);
   *sog_kph = MS2KMHR(vel_north_ms, vel_east_ms, 0);
+
+  if (*sog_knots >= (MS2KNOTS_FACTOR * cog_update_threshold_mps)) {
+    *cog = R2D * atan2(vel_east_ms, vel_north_ms);
+
+    /* Convert negative values to positive */
+    if (*cog < 0.0) {
+      *cog += FULL_CIRCLE_DEG;
+    }
+
+    /* Rounding to specified accuracy */
+    *cog = round(*cog * NMEA_COG_FRAC_DIVISOR) / NMEA_COG_FRAC_DIVISOR;
+
+    /* Avoid having duplicate values for same point (0 and 360) */
+    if (fabs(FULL_CIRCLE_DEG - *cog) < 1 / NMEA_COG_FRAC_DIVISOR) {
+      *cog = 0;
+    }
+    *last_non_stationary_cog = *cog;
+  } else {
+    /* Don't recompute a new cog as we're not going faster than the stationary
+       threshold */
+    *cog = *last_non_stationary_cog;
+  }
 }
 
 /** Assemble an NMEA GPRMC message and send it out NMEA USARTs.
  * NMEA RMC contains Recommended Minimum Specific GNSS Data.
  *
- * \param sbp_pos_llh_cov  pointer to sbp pos llh cov struct
- * \param sbp_vel_ned  pointer to sbp vel ned struct
- * \param sbp_msg_time Pointer to sbp gps time struct
- * \param utc_time     Pointer to UTC time
+ * \param state Current SBP2NMEA states
  */
-void send_gprmc(const sbp2nmea_t *state) {
+void send_gprmc(sbp2nmea_t *state) {
   assert(state);
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
       sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
@@ -706,7 +713,12 @@ void send_gprmc(const sbp2nmea_t *state) {
   char status = get_nmea_status(sbp_pos_llh_cov->flags);
 
   double cog, sog_knots, sog_kph;
-  calc_cog_sog(sbp_vel_ned, &cog, &sog_knots, &sog_kph);
+  calc_cog_sog(sbp_vel_ned,
+               state->cog_update_threshold_mps,
+               &state->last_non_stationary_cog,
+               &cog,
+               &sog_knots,
+               &sog_kph);
 
   NMEA_SENTENCE_START(140);
   NMEA_SENTENCE_PRINTF("$GPRMC,"); /* Command */
@@ -732,7 +744,7 @@ void send_gprmc(const sbp2nmea_t *state) {
 
   if ((sbp_vel_ned->flags & VELOCITY_MODE_MASK) != VELOCITY_MODE_NONE) {
     NMEA_SENTENCE_PRINTF("%.2f,", sog_knots); /* Speed */
-    if (NMEA_COG_STATIC_LIMIT_KNOTS < sog_knots) {
+    if ((MS2KNOTS_FACTOR * state->cog_threshold_mps) <= sog_knots) {
       NMEA_SENTENCE_PRINTF("%.*f,", NMEA_COG_DECIMALS, cog); /* Course */
     } else {
       NMEA_SENTENCE_PRINTF(","); /* Course */
@@ -755,9 +767,9 @@ void send_gprmc(const sbp2nmea_t *state) {
 /** Assemble an NMEA GPVTG message and send it out NMEA USARTs.
  * NMEA VTG contains Course Over Ground & Ground Speed.
  *
- * \param sbp_vel_ned Pointer to sbp vel ned struct.
+ * \param state Current SBP2NMEA states
  */
-void send_gpvtg(const sbp2nmea_t *state) {
+void send_gpvtg(sbp2nmea_t *state) {
   assert(state);
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
       sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
@@ -765,7 +777,12 @@ void send_gpvtg(const sbp2nmea_t *state) {
       sbp2nmea_msg_get(state, SBP2NMEA_SBP_VEL_NED, true);
 
   double cog, sog_knots, sog_kph;
-  calc_cog_sog(sbp_vel_ned, &cog, &sog_knots, &sog_kph);
+  calc_cog_sog(sbp_vel_ned,
+               state->cog_update_threshold_mps,
+               &state->last_non_stationary_cog,
+               &cog,
+               &sog_knots,
+               &sog_kph);
 
   /* Position indicator is used based upon spec
      "Positioning system mode indicator" means we should
@@ -780,7 +797,7 @@ void send_gpvtg(const sbp2nmea_t *state) {
   bool vel_valid =
       (sbp_vel_ned->flags & VELOCITY_MODE_MASK) != VELOCITY_MODE_NONE;
 
-  if (vel_valid && NMEA_COG_STATIC_LIMIT_KNOTS < sog_knots) {
+  if (vel_valid && (MS2KNOTS_FACTOR * state->cog_threshold_mps) <= sog_knots) {
     NMEA_SENTENCE_PRINTF("%.*f,T,", NMEA_COG_DECIMALS, cog); /* Course */
   } else {
     NMEA_SENTENCE_PRINTF(",T,"); /* Course */
@@ -804,8 +821,9 @@ void send_gpvtg(const sbp2nmea_t *state) {
 /** Assemble an NMEA GPHDT message and send it out NMEA USARTs.
  * NMEA HDT contains Heading.
  *
+ * \param state Current SBP2NMEA states
  */
-void send_gphdt(const sbp2nmea_t *state) {
+void send_gphdt(sbp2nmea_t *state) {
   assert(state);
   const msg_baseline_heading_t *sbp_baseline_heading =
       sbp2nmea_msg_get(state, SBP2NMEA_SBP_HDG, false);
@@ -826,11 +844,9 @@ void send_gphdt(const sbp2nmea_t *state) {
 /** Assemble an NMEA GPGLL message and send it out NMEA USARTs.
  * NMEA GLL contains Geographic Position Latitude/Longitude.
  *
- * \param sbp_pos_llh_cov  Pointer to sbp pos llh cov struct.
- * \param sbp_msg_time Pointer to sbp gps time struct.
- * \param sbp_utc_time Pointer to sbp UTC time.
+ * \param state Current SBP2NMEA states
  */
-void send_gpgll(const sbp2nmea_t *state) {
+void send_gpgll(sbp2nmea_t *state) {
   assert(state);
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
       sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
@@ -882,9 +898,9 @@ void send_gpgll(const sbp2nmea_t *state) {
 /** Assemble an NMEA GPZDA message and send it out NMEA USARTs.
  * NMEA ZDA contains UTC Time and Date.
  *
- * \param sbp_utc_time Pointer to sbp UTC time
+ * \param state Current SBP2NMEA states
  */
-void send_gpzda(const sbp2nmea_t *state) {
+void send_gpzda(sbp2nmea_t *state) {
   assert(state);
   const msg_utc_time_t *sbp_utc_time =
       sbp2nmea_msg_get(state, SBP2NMEA_SBP_UTC_TIME, true);
@@ -903,8 +919,10 @@ void send_gpzda(const sbp2nmea_t *state) {
 
 /** Assemble an NMEA GPGST message and send it out NMEA USARTs.
  * NMEA GST contains position error information
+ *
+ * \param state Current SBP2NMEA states
  */
-void send_gpgst(const sbp2nmea_t *state) {
+void send_gpgst(sbp2nmea_t *state) {
   assert(state);
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
       sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
@@ -1062,8 +1080,9 @@ static void nmea_gsv_print(const u8 n_used,
  *       Signal ID corresponding to the ranging signal. The GN identifier shall
  *       not be used with this sentence!
  *
+ * \param state Current SBP2NMEA states
  */
-void send_gsv(const sbp2nmea_t *state) {
+void send_gsv(sbp2nmea_t *state) {
   const msg_measurement_state_t *sbp_meas_state =
       sbp2nmea_msg_get(state, SBP2NMEA_SBP_MEASUREMENT_STATE, false);
   const msg_sv_az_el_t *sbp_azel =
@@ -1077,7 +1096,9 @@ void send_gsv(const sbp2nmea_t *state) {
 
   /* Group by constellation */
   nmea_gsv_element_t sv_grouped[TALKER_ID_COUNT][n_used];
+  memset(&sv_grouped, 0, sizeof(sv_grouped));
   u8 num_sv[TALKER_ID_COUNT] = {0};
+  memset(&sv_grouped, 0, sizeof(sv_grouped));
 
   for (u8 i = 0; i < n_used; ++i) {
     sbp_gnss_signal_t sid = sbp_azel->azel[i].sid;
@@ -1148,7 +1169,7 @@ static inline const char *get_pubx_nav_stat(int flags) {
   return "G3";
 }
 
-void send_pubx(const sbp2nmea_t *state) {
+void send_pubx(sbp2nmea_t *state) {
   const msg_pos_llh_cov_t *sbp_pos_llh_cov =
       sbp2nmea_msg_get(state, SBP2NMEA_SBP_POS_LLH_COV, true);
   const msg_vel_ned_t *sbp_vel_ned =
@@ -1217,11 +1238,16 @@ void send_pubx(const sbp2nmea_t *state) {
 
   // SOG COG Vvel
   double cog, sog_knots, sog_kph;
-  calc_cog_sog(sbp_vel_ned, &cog, &sog_knots, &sog_kph);
+  calc_cog_sog(sbp_vel_ned,
+               state->cog_update_threshold_mps,
+               &state->last_non_stationary_cog,
+               &cog,
+               &sog_knots,
+               &sog_kph);
 
   if ((sbp_vel_ned->flags & VELOCITY_MODE_MASK) != VELOCITY_MODE_NONE) {
     NMEA_SENTENCE_PRINTF("%.2f,", sog_kph); /* Speed */
-    if (NMEA_COG_STATIC_LIMIT_KNOTS < sog_knots) {
+    if ((MS2KNOTS_FACTOR * state->cog_threshold_mps) < sog_knots) {
       NMEA_SENTENCE_PRINTF("%.*f,", NMEA_COG_DECIMALS, cog); /* Course */
     } else {
       NMEA_SENTENCE_PRINTF(","); /* Course */

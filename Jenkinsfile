@@ -48,19 +48,6 @@ pipeline {
     stages {
         stage('Build') {
             parallel {
-                stage('Haskell Stack') {
-                    agent {
-                        dockerfile {
-                            filename "Dockerfile_Haskell"
-                            args dockerMountArgs
-                        }
-                    }
-                    steps {
-                            sh("""#!/bin/bash -ex
-                                cd haskell && stack build --test && cd ../
-                                """)
-                    }
-                }
                 stage('Build c') {
                     agent {
                         dockerfile {
@@ -101,7 +88,38 @@ pipeline {
                         }
                     }
                 }
+                stage('Fuzz Test Checker') {
+                    agent {
+                        dockerfile {
+                            args dockerMountArgs
+                        }
+                    }
+                    environment {
+                        AFL_USE_ASAN='1'
+                        CC='/usr/bin/afl-gcc'
+                        CXX='/usr/bin/afl-g++'
+                    }
+                    steps {
+                        gitPrep()
+                        fetchTestData()
+                        script {
+                            builder.cmake(workDir: 'c', cmakeAddArgs: '-DTHIRD_PARTY_INCLUDES_AS_SYSTEM=true -DI_KNOW_WHAT_I_AM_DOING_AND_HOW_DANGEROUS_IT_IS__GNSS_CONVERTERS_DISABLE_CRC_VALIDATION=true')
+                            builder.make(workDir: 'c/build', target: 'rerun-known-failures-ubx2sbp')
+                            builder.make(workDir: 'c/build', target: 'rerun-known-failures-rtcm3tosbp')
+                        }
+                    }
+                }
             }
         }
     }
+}
+
+/**
+ * Retrieve test data submodule (it's large and not needed for all stages, so
+ * don't fetch it unless needed).
+ * @param args
+ * @return
+ */
+def fetchTestData(Map args = [:]) {
+    sh 'git submodule update --init --checkout --recursive c/tests/afl/findings'
 }

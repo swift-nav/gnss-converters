@@ -81,13 +81,15 @@ void glo_decode_string(
   }
 
   assert(data);
-  assert(prn >= GLO_FIRST_PRN);
-  assert(prn < (GLO_FIRST_PRN + NUM_SATS_GLO));
   assert(words);
-  assert(4 == sz);
+  if (prn < GLO_FIRST_PRN || prn >= (GLO_FIRST_PRN + NUM_SATS_GLO) || 4 != sz) {
+    return;
+  }
 
   int idle = (words[0] >> 31U) & 1U;
-  assert(0 == idle); /* idle must be always zero */
+  if (0 != idle) {
+    return;
+  }
 
   u8 string_num = (words[0] >> 27U) & 0xFU;
   if (string_num > GLO_MAX_STRING_NUM) {
@@ -95,7 +97,7 @@ void glo_decode_string(
     return;
   }
 
-  struct glo_sat_data *sat = &data->glo_sat[prn - 1];
+  struct glo_sat_data *sat = &data->eph_data.glo_sat_data[prn - 1];
   if (sat->curr_superframe_id != (words[3] >> 16)) {
     sat->vmask = 0;
     sat->curr_superframe_id = (words[3] >> 16);

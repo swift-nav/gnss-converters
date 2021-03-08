@@ -56,7 +56,7 @@ static int read_ixcom_frame(struct ixcom_sbp_state *state) {
     if (state->index == 0) {
       ret = read_ixcom_bytes(state, 1);
       if (ret <= 0) {
-        return ret;
+        break;
       }
 
       if (state->read_buffer[0] != XCOM_SYNC_BYTE) {
@@ -69,7 +69,7 @@ static int read_ixcom_frame(struct ixcom_sbp_state *state) {
     if (state->index > 0 && state->index < header_size) {
       ret = read_ixcom_bytes(state, header_size - state->index);
       if (ret <= 0) {
-        return ret;
+        break;
       }
     }
 
@@ -79,7 +79,7 @@ static int read_ixcom_frame(struct ixcom_sbp_state *state) {
 
       ret = read_ixcom_bytes(state, message_length - state->index);
       if (ret <= 0) {
-        return ret;
+        break;
       }
 
       if (state->index >= message_length) {
@@ -88,8 +88,7 @@ static int read_ixcom_frame(struct ixcom_sbp_state *state) {
     }
   } while (true);
 
-  /* Should never reach here */
-  return -1;
+  return ret;
 }
 
 /**

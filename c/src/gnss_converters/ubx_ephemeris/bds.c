@@ -64,9 +64,11 @@ void bds_decode_subframe(struct ubx_sbp_state *data,
                          const u32 words[],
                          int sz) {
   assert(data);
-  assert(prn >= BDS_FIRST_PRN);
-  assert(prn < (BDS_FIRST_PRN + NUM_SATS_BDS));
-  assert(10 == sz);
+  assert(words);
+  if (prn < BDS_FIRST_PRN || prn >= (BDS_FIRST_PRN + NUM_SATS_BDS) ||
+      10 != sz) {
+    return;
+  }
 
   int geo = (0 != (GNSS_CAPB_BDS_D2NAV & ((u64)1 << (prn - BDS_FIRST_PRN))));
   if (geo) {
@@ -80,7 +82,7 @@ void bds_decode_subframe(struct ubx_sbp_state *data,
     return; /* only SF 1,2,3 contain ephemeris data */
   }
 
-  struct sat_data *sat = &data->bds_sat[prn - 1];
+  struct sat_data *sat = &data->eph_data.bds_sat_data[prn - 1];
   sat->vmask |= 1U << fraid;
   memcpy(&sat->sf[fraid].words, words, sz * sizeof(words[0]));
   if (0x7 != (sat->vmask & 0x7U)) {

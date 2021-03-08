@@ -10,13 +10,21 @@ add_library(gnss_converters
   sbp_nmea.c
   sbp_rtcm3.c
   sbp_rtcm3_ephemeris.c
+  time_truth.c
   ubx_ephemeris/bds.c
   ubx_ephemeris/gal.c
   ubx_ephemeris/glo.c
   ubx_ephemeris/gps.c
-  ubx_ephemeris/sbas.c
+  ephemeris/sbas.c
   ubx_sbp.c
 )
+
+
+if(I_KNOW_WHAT_I_AM_DOING_AND_HOW_DANGEROUS_IT_IS__GNSS_CONVERTERS_DISABLE_CRC_VALIDATION)
+  target_compile_definitions(gnss_converters PRIVATE GNSS_CONVERTERS_DISABLE_CRC_VALIDATION)
+endif()
+# this is done to avoid issues with opaque time_truth_t type
+set_source_files_properties(time_truth.c PROPERTIES COMPILE_FLAGS -fno-strict-aliasing)
 
 swift_set_language_standards(gnss_converters)
 swift_set_compile_options(gnss_converters REMOVE -Wconversion -Wstack-protector)

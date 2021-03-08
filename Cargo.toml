@@ -37,6 +37,7 @@ nov2sbp = []
 [dependencies]
 libc = "0.2"
 lazy_static = "1"
+if_chain = "1"
 
 [build-dependencies]
 num_cpus = "1"

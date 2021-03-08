@@ -30,10 +30,11 @@ static struct rtcm3_out_state out_state;
 void utils_setup(void) {
   memset(&state, 0, sizeof(state));
   memset(&out_state, 0, sizeof(out_state));
-  state.time_from_rover_obs.wn = 1945;
-  state.time_from_rover_obs.tow = 211190;
+  state.time_from_input_data.wn = 1945;
+  state.time_from_input_data.tow = 211190;
+  state.leap_seconds = 18;
+  state.leap_second_known = true;
 
-  rtcm2sbp_set_leap_second(18, &state);
   sbp2rtcm_set_leap_second(18, &out_state);
 }
 
@@ -46,7 +47,7 @@ START_TEST(test_compute_glo_time) {
         for (u8 sec = 0; sec < 60; sec++) {
           u32 tod = hour * HOUR_SECS + min * MINUTE_SECS + sec;
           gps_time_t rover_time = {.tow = day * DAY_SECS + tod, .wn = 1945};
-          rtcm2sbp_set_gps_time(&rover_time, &state);
+          state.time_from_input_data = rover_time;
           u32 glo_tod_ms = (tod + UTC_SU_OFFSET * HOUR_SECS) * SECS_MS;
           if (glo_tod_ms > DAY_SECS * SECS_MS) {
             glo_tod_ms -= DAY_SECS * SECS_MS;
@@ -73,7 +74,7 @@ END_TEST
 START_TEST(test_glo_time_conversion) {
   for (u32 tow = 0; tow < WEEK_SECS; tow++) {
     gps_time_t rover_time = {.tow = tow, .wn = 1945};
-    rtcm2sbp_set_gps_time(&rover_time, &state);
+    state.time_from_input_data = rover_time;
 
     u32 glo_tod_ms =
         compute_glo_tod_ms((u32)rint(rover_time.tow * SECS_MS), &out_state);

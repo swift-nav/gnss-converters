@@ -34,6 +34,8 @@
 #define SBP_PREAMBLE 0x55
 #define STRCMP_EQ 0
 
+static time_truth_t time_truth;
+
 typedef int (*readfn_ptr)(uint8_t *, size_t, void *);
 typedef int (*writefn_ptr)(const uint8_t *, size_t, void *);
 
@@ -51,7 +53,8 @@ static void update_obs_time(const msg_obs_t *msg) {
   /* Some receivers output a TOW 0 whenever it's in a denied environment
    * (teseoV) This stops us updating that as a valid observation time */
   if (fabs(obs_time.tow) > FLOAT_EQUALITY_EPS) {
-    rtcm2sbp_set_gps_time(&obs_time, &state);
+    // TODO(SSTM-28) -  update time truth with observations
+    state.time_from_input_data = obs_time;
   }
 }
 
@@ -62,8 +65,12 @@ static void cb_rtcm_to_sbp(uint16_t msg_id,
                            uint8_t *buffer,
                            uint16_t sender_id,
                            void *context) {
-  if (msg_id == SBP_MSG_OBS) {
-    update_obs_time((msg_obs_t *)buffer);
+  if (state.use_time_from_input_obs) {
+    if (msg_id == SBP_MSG_OBS) {
+      update_obs_time((msg_obs_t *)buffer);
+    }
+  } else {
+    time_truth_update_from_sbp(&time_truth, msg_id, length, buffer);
   }
 
   (void)(context); /* squash warning */
@@ -101,8 +108,10 @@ static void cb_rtcm_to_sbp(uint16_t msg_id,
 }
 
 static void cb_base_obs_invalid(const double timediff, void *context) {
+  (void)timediff;
   (void)context; /* squash warning */
-  fprintf(stderr, "Invalid base observation! timediff: %lf\n", timediff);
+  // TODO(SSTM-30) reintroduce this message, also downgrade level to warning
+  // fprintf(stderr, "Invalid base observation! timediff: %lf\n", timediff);
 }
 
 static void help(char *arg, const char *additional_opts_help) {
@@ -126,6 +135,7 @@ static void help(char *arg, const char *additional_opts_help) {
           "the converter, needs to be accurate to within a half week for GPS "
           "only and within a half day "
           "for glonass\n");
+  fprintf(stderr, "  -o Use observations instead of ephemerides time source");
   fprintf(stderr, "  -[GREICJS] disables a constellation\n");
   fprintf(stderr, "  -v for stderr verbosity\n");
 }
@@ -137,12 +147,17 @@ int rtcm3tosbp_main(int argc,
                     writefn_ptr writefn,
                     void *context) {
   /* initialize time from systime */
-  time_t ct_utc_unix = time(NULL);
+  time_t ct_utc_unix = 0;
+  /* use observations instead of ephemerides as time source */
+  bool use_obs_time = false;
 
   g_writefn = writefn;
 
   int opt;
-  while ((opt = getopt(argc, argv, "hb:c:l:w:d:GRECJS:v")) != -1) {
+  while ((opt = getopt(argc, argv, "hb:c:l:w:d:oGRECJS:v")) != -1) {
+    if (optarg && *optarg == '=') {
+      optarg++;
+    }
     switch (opt) {
       case 'h':
         help(argv[0], additional_opts_help);
@@ -185,6 +200,9 @@ int rtcm3tosbp_main(int argc,
 
         break;
       }
+      case 'o':
+        use_obs_time = true;
+        break;
       case 'G':
         constellation_mask[CONSTELLATION_GPS] = true;
         fprintf(stderr, "Disabling Navstar\n");
@@ -217,18 +235,28 @@ int rtcm3tosbp_main(int argc,
     }
   }
 
-  /* set time, account for UTC<->GPS leap second difference */
-  gps_time_t noleapsec = time2gps_t(ct_utc_unix);
-  double gps_utc_offset = get_gps_utc_offset(&noleapsec, NULL);
-  ct_utc_unix += (s8)rint(gps_utc_offset);
-  gps_time_t withleapsec = time2gps_t(ct_utc_unix);
-  gps_time_t current_time;
-  current_time.tow = withleapsec.tow;
-  current_time.wn = withleapsec.wn;
+  time_truth_init(&time_truth);
 
-  rtcm2sbp_init(&state, cb_rtcm_to_sbp, cb_base_obs_invalid, context);
-  rtcm2sbp_set_gps_time(&current_time, &state);
-  rtcm2sbp_set_leap_second((s8)lrint(gps_utc_offset), &state);
+  if (ct_utc_unix > 0) {
+    /* set time, account for UTC<->GPS leap second difference */
+    gps_time_t noleapsec = time2gps_t(ct_utc_unix);
+    double gps_utc_offset = get_gps_utc_offset(&noleapsec, NULL);
+    ct_utc_unix += (s8)rint(gps_utc_offset);
+    gps_time_t withleapsec = time2gps_t(ct_utc_unix);
+    gps_time_t current_time;
+    current_time.tow = withleapsec.tow;
+    current_time.wn = withleapsec.wn;
+
+    time_truth_update(&time_truth, TIME_TRUTH_EPH_GAL, current_time);
+  }
+
+  rtcm2sbp_init(
+      &state, &time_truth, cb_rtcm_to_sbp, cb_base_obs_invalid, context);
+
+  if (use_obs_time) {
+    state.use_time_from_input_obs = true;
+    time_truth_get(&time_truth, NULL, &state.time_from_input_data);
+  }
 
   /* todo: Do we want to return a non-zero value on an error? */
   ssize_t ret;

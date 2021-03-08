@@ -10,6 +10,7 @@ on:
     tags:
       - 'v*'
       - 'starling-v*'
+      - '*.*.*'
 
 jobs:
 
@@ -48,24 +49,27 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v2
         with:
+          fetch-depth: 0
           submodules: recursive
           ssh-key: ${{ secrets.SSH_KEY }}
 
-      - name: Install gcc-6
+      - name: Install llvm-cov
         run: |
-          sudo apt-get update && \
-          sudo apt-get install build-essential software-properties-common -y && \
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
-          sudo apt-get update && \
-          sudo apt-get install gcc-6 g++-6 lcov -y && \
-          gcc -v
+          sudo apt-get update && sudo apt-get install llvm -y
 
       - name: Run build
         env:
-          CC: gcc-6
-          CXX: g++-6
+          CC: clang
+          CXX: clang++
           TESTENV: codecov
-          GCCVER: "6"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORGANIZATION: swift-nav
+          SONAR_PROJECT_KEY: swift-nav_gnss-converters-private
+          SONAR_PROJECT_NAME: gnss-converters-private
+          SONAR_HOST_URL: https://sonarcloud.io
+          SONAR_SCANNER_VERSION: 4.2.0.1873
+
         run: |
           bash ./ci-build.sh
 
@@ -101,6 +105,16 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+
+      - name: Install clang-6
+        run: |
+          sudo apt-get update && \
+          sudo apt-get install build-essential software-properties-common -y && \
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
+          sudo apt-get update && \
+          sudo apt-get install clang-6.0 llvm-6.0 clang-tidy-6.0 -y && \
+          clang-6.0 -v && \
+          clang++-6.0 -v
 
       - name: Run build
         env:
@@ -163,7 +177,7 @@ jobs:
           submodules: recursive
           ssh-key: ${{ secrets.SSH_KEY }}
 
-      - name: Install MinGW 6.4.0 
+      - name: Install MinGW 6.4.0
         run: |
           choco install -y --no-progress --allow-downgrade --version=6.4.0 mingw;
           choco install -y --no-progress sqlite;
@@ -209,7 +223,7 @@ jobs:
 
   trigger-release:
     needs: [ubuntu-rust, windows-rust, macos-rust, ubuntu-gcc6, ubuntu-codecov, ubuntu-haskell]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - name: Start Release workflow

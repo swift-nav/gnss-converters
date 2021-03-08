@@ -98,6 +98,16 @@ typedef struct sbp2nmea_state {
 
   void (*cb_sbp_to_nmea)(char *msg, void *ctx);
   void *ctx;
+
+  /* Only send the COG if the SOG exceeds this value */
+  float cog_threshold_mps;
+
+  /* Only recalculate the COG if the SOG exceeds this value
+   * otherwise use the last_non_stationary_cog.
+   * This allows filtering out variations in the COG due to small amounts of
+   * noise in the SOG. */
+  float cog_update_threshold_mps;
+  double last_non_stationary_cog;
 } sbp2nmea_t;
 
 #ifdef __cplusplus
@@ -137,6 +147,11 @@ void sbp2nmea_msg_set(sbp2nmea_t *state,
 void sbp2nmea_rate_set(sbp2nmea_t *state, int rate, sbp2nmea_nmea_id_t id);
 
 void sbp2nmea_soln_freq_set(sbp2nmea_t *state, float soln_freq);
+
+void sbp2nmea_cog_threshold_set(sbp2nmea_t *state, float cog_thd_mps);
+
+void sbp2nmea_cog_stationary_threshold_set(sbp2nmea_t *state,
+                                           double cog_stationary_thd_mps);
 
 #ifdef __cplusplus
 }

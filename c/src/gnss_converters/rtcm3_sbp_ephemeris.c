@@ -15,6 +15,7 @@
 #include <swiftnav/constants.h>
 #include <swiftnav/ephemeris.h>
 #include <swiftnav/float_equality.h>
+#include "ephemeris/sbas.h"
 #include "rtcm3_sbp_internal.h"
 #include "rtcm3_utils.h"
 
@@ -99,13 +100,16 @@ u32 rtcm3_decode_fit_interval_glo(const u8 p1) {
   }
 }
 
-static void gps_time_sec_match_weeks(gps_time_sec_t *t, const gps_time_t *ref) {
+static bool gps_time_sec_match_weeks(gps_time_sec_t *t, const gps_time_t *ref) {
   gps_time_t t_u = {.wn = t->wn, .tow = t->tow};
-  gps_time_match_weeks(&t_u, ref);
+  if (!gps_time_match_weeks_safe(&t_u, ref)) {
+    return false;
+  }
   t->wn = t_u.wn;
+  return true;
 }
 
-void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
+bool rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
                           msg_ephemeris_gps_t *sbp_gps_eph,
                           struct rtcm3_sbp_state *state) {
   assert(msg_eph);
@@ -115,8 +119,10 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
   sbp_gps_eph->common.toe.wn =
       gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
   sbp_gps_eph->common.toe.tow = msg_eph->toe * GPS_TOE_RESOLUTION;
-  gps_time_sec_match_weeks(&sbp_gps_eph->common.toe,
-                           &state->time_from_rover_obs);
+  if (!gps_time_sec_match_weeks(&sbp_gps_eph->common.toe,
+                                &state->time_from_input_data)) {
+    return false;
+  }
   sbp_gps_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gps_eph->common.sid.code = CODE_GPS_L1CA;
   sbp_gps_eph->common.ura = convert_ura_to_uri(msg_eph->ura);
@@ -154,7 +160,8 @@ void rtcm3_gps_eph_to_sbp(rtcm_msg_eph *msg_eph,
 
   sbp_gps_eph->toc.wn = gps_adjust_week_cycle(msg_eph->wn, GPS_WEEK_REFERENCE);
   sbp_gps_eph->toc.tow = msg_eph->kepler.toc * GPS_TOC_RESOLUTION;
-  gps_time_sec_match_weeks(&sbp_gps_eph->toc, &state->time_from_rover_obs);
+  return gps_time_sec_match_weeks(&sbp_gps_eph->toc,
+                                  &state->time_from_input_data);
 }
 
 void rtcm3_qzss_eph_to_sbp(rtcm_msg_eph *msg_eph,
@@ -213,10 +220,12 @@ bool rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
   assert(sbp_glo_eph);
   assert(RTCM_CONSTELLATION_GLO == msg_eph->constellation);
   gps_time_t toe;
-  compute_glo_time(msg_eph->glo.t_b * 15 * MINUTE_SECS * SECS_MS,
-                   &toe,
-                   &state->time_from_rover_obs,
-                   state);
+  if (!compute_glo_time(msg_eph->glo.t_b * 15 * MINUTE_SECS * SECS_MS,
+                        &toe,
+                        &state->time_from_input_data,
+                        state)) {
+    return false;
+  }
   if (toe.wn == (s16)INVALID_TIME) {
     return false;
   }
@@ -254,7 +263,7 @@ bool rtcm3_glo_eph_to_sbp(rtcm_msg_eph *msg_eph,
   return true;
 }
 
-void rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
+bool rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
                           const u8 source,
                           msg_ephemeris_gal_t *sbp_gal_eph,
                           struct rtcm3_sbp_state *state) {
@@ -266,8 +275,10 @@ void rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
                                          GPS_WEEK_REFERENCE);
   sbp_gal_eph->common.toe.wn = week;
   sbp_gal_eph->common.toe.tow = msg_eph->toe * GALILEO_TOE_RESOLUTION;
-  gps_time_sec_match_weeks(&sbp_gal_eph->common.toe,
-                           &state->time_from_rover_obs);
+  if (!gps_time_sec_match_weeks(&sbp_gal_eph->common.toe,
+                                &state->time_from_input_data)) {
+    return false;
+  }
 
   sbp_gal_eph->common.sid.sat = msg_eph->sat_id;
   sbp_gal_eph->common.sid.code = CODE_GAL_E1B;
@@ -306,9 +317,10 @@ void rtcm3_gal_eph_to_sbp(const rtcm_msg_eph *msg_eph,
 
   sbp_gal_eph->toc.wn = week;
   sbp_gal_eph->toc.tow = msg_eph->kepler.toc * GALILEO_TOC_RESOLUTION;
-  gps_time_sec_match_weeks(&sbp_gal_eph->toc, &state->time_from_rover_obs);
-
   sbp_gal_eph->source = source;
+
+  return gps_time_sec_match_weeks(&sbp_gal_eph->toc,
+                                  &state->time_from_input_data);
 }
 
 static gps_time_sec_t get_time_from_bds_wn_tow(const u32 time_resolution,
@@ -373,4 +385,36 @@ void rtcm3_bds_eph_to_sbp(rtcm_msg_eph *msg_eph,
   // What happens if toc and toe straddle the week boundary?
   sbp_bds_eph->toc = get_time_from_bds_wn_tow(
       BEIDOU_TOC_RESOLUTION, msg_eph->wn, msg_eph->kepler.toc);
+}
+
+void handle_ndf_frame(const rtcm_msg_ndf *msg_ndf,
+                      struct rtcm3_sbp_state *state) {
+  assert(msg_ndf);
+
+  for (uint8_t i = 0; i < msg_ndf->frame_count; i++) {
+    u32 frame_data_size_words = msg_ndf->frames[i].frame_data_size_bits / 32;
+    if (msg_ndf->frames[i].frame_data_size_bits % 32 > 0) {
+      frame_data_size_words++;
+    }
+
+    switch (msg_ndf->frames[i].sat_sys) {
+      case NDF_SYS_SBAS:
+        sbas_decode_subframe(&state->eph_data,
+                             msg_ndf->frames[i].epoch_time,
+                             msg_ndf->frames[i].sat_num + 120,
+                             msg_ndf->frames[i].frame_data,
+                             frame_data_size_words,
+                             rtcm_stn_to_sbp_sender_id(msg_ndf->stn_id),
+                             state->context,
+                             state->cb_rtcm_to_sbp);
+        break;
+      case NDF_SYS_GPS:
+      case NDF_SYS_GLO:
+      case NDF_SYS_GAL:
+      case NDF_SYS_QZS:
+      case NDF_SYS_BDS:
+      default:
+        break;
+    }
+  }
 }

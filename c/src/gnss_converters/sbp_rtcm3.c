@@ -34,6 +34,7 @@
 #include <swiftnav/signal.h>
 
 #include "gnss-converters/sbp_rtcm3.h"
+#include "gnss-converters/utils.h"
 #include "rtcm3_utils.h"
 #include "sbp_rtcm3_internal.h"
 
@@ -251,23 +252,25 @@ void generate_rtcm3_1033(rtcm_msg_1033 *rtcm_1033,
   rtcm_1033->rcv_serial_num_counter = 0; /* Receiver serial left blank */
 
   /* Antenna Descriptor Counter N DF029 uint8 */
-  if (strlen(state->ant_descriptor) > 0) {
-    rtcm_1033->ant_descriptor_counter = strlen(state->ant_descriptor);
+  if (strnlen(state->ant_descriptor, RTCM3_MAX_MSG_LEN) > 0) {
+    rtcm_1033->ant_descriptor_counter =
+        strnlen(state->ant_descriptor, RTCM3_MAX_MSG_LEN);
     /* Antenna Descriptor DF030 char(N) */
     MEMCPY_S(rtcm_1033->ant_descriptor,
              sizeof(rtcm_1033->ant_descriptor),
              state->ant_descriptor,
-             strlen(state->ant_descriptor));
+             strnlen(state->ant_descriptor, RTCM3_MAX_MSG_LEN));
   }
 
-  if (strlen(state->rcv_descriptor) > 0) {
+  if (strnlen(state->rcv_descriptor, RTCM3_MAX_MSG_LEN) > 0) {
     /* Receiver Type Descriptor Counter I DF227 uint8 */
-    rtcm_1033->rcv_descriptor_counter = strlen(state->rcv_descriptor);
+    rtcm_1033->rcv_descriptor_counter =
+        strnlen(state->rcv_descriptor, RTCM3_MAX_MSG_LEN);
     /* Receiver Type Descriptor DF228 char(I) */
     MEMCPY_S(rtcm_1033->rcv_descriptor,
              sizeof(rtcm_1033->rcv_descriptor),
              state->rcv_descriptor,
-             strlen(state->rcv_descriptor));
+             strnlen(state->rcv_descriptor, RTCM3_MAX_MSG_LEN));
   }
 }
 
@@ -386,11 +389,8 @@ bool sbp2rtcm_set_ant_height(const double ant_height,
 void sbp2rtcm_set_rcv_ant_descriptors(const char *ant_descriptor,
                                       const char *rcv_descriptor,
                                       struct rtcm3_out_state *state) {
-  // -1 to account for NULL terminator
-  strncpy(
-      state->ant_descriptor, ant_descriptor, sizeof(state->ant_descriptor) - 1);
-  strncpy(
-      state->rcv_descriptor, rcv_descriptor, sizeof(state->rcv_descriptor) - 1);
+  STRNCPY(state->ant_descriptor, ant_descriptor);
+  STRNCPY(state->rcv_descriptor, rcv_descriptor);
   state->ant_known = true;
 };
 

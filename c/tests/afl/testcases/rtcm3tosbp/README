@@ -1,0 +1,71 @@
+Testcases for rtcm3tosbp
+
+The testcases in this directory are to be fed in to rtcm3tosbp. The initial time must be set on the command line as `-w 2161:75000`
+
+Each testcase looks at a particular RTCM message type and tries to provoke a different path through rtcm2sbp. Most files contain only a single message but in some cases a testcase might contain 2 messages to cope with a particular situation.
+
+1002_single.rtcm
+A single 1002 message with a single L1 observation and the sync bit set to 0. When processed should output a single SBP observation message
+
+1002_multi.rtcm
+Contains 2 message. The first contains the same observation as 1002_single.rtcm but with the sync bit set to 1. The second frame in this file is another 1002 RTCM message with L1/L2 observations for a different satellite and the same TOW with the sync bit set to 0. When processed should output a single SBP observation message with containing 3 signals.
+
+1004_single.rtcm
+The same as 1002_single.rtcm but represented as a RTCM 1004 frame
+
+1004_multiple.rtcm
+The same as 1004_multiple.rtcm but represented as RTCM 1004 frames
+
+1005.rtcm
+A single RTCM 1005 frame. When processed should produce a single SBP base pos ECEF message
+
+1006.rtcm
+A single RTCM 1006 frame. When processed should produce identical SBP output as 1005.rtcm
+
+1010_single.rtcm
+Contains 2 RTCM frames. The first is a GPS ephemeris message in order to properly set leap seconds in rtcm2sbp. The second is a single RTCM 1010 message with a single observation and the sync bit set to 0. When processed should produce an SBP GPS ephemeris message following by a single observation message containing 1 glonass signal
+
+1010_multiple.rtcm
+Contains 3 RTCM frames. The first frame is identical to the first frame in 1010_single.rtcm. The second frame is identical to the second frame in 1010_single.rtcm except the sync bit is set to 1. The thirds frame is another 1010 frame containing 2 signals and the sync bit set to 1. When processed should produce an SBP GPS ephemeris message following by an observation message containing 3 glonass signals 
+
+1012_single.rtcm
+Identical to 1010_single.rtcm except represented using 1012 RTCM frames rather than 1010
+
+1012_multiple.rtcm
+Identical to 1012_multiple.rtcm except represented using 1012 RTCM frames rather than 1010
+
+msm4.rtcm
+Contains 5 separate RTCM frames. The first is a GPS ephemeris message in order to properly set leap seconds in rtcm2sbp. The following frames are of types 1074, 1084, 1091, 1124 in that order. Each MSM message contains 1 or 2 satellites with 1 or 2 signals. When processed should output an SBP GPS ephemeris message followed by a single SBP observation message containing 1 GPS, 2 GLONASS, 3 GAL, 1 BDS.
+
+msm5.rtcm
+Identical to msm4.rtcm except using the equivalent MSM5 messages
+
+1029.rtcm
+Contains a single RTCM 1029 frame with a very short string. When process should output a single SBP log message with the text "RTCM: STN" and level 6
+
+1033.rtcm
+Contains a single RTCM 1033 frame with identifiers which don't match any of the constants built in to rtcm2sbp. When processed should produce no output
+
+1230.rtcm
+Contains a single RTCM 1230 frame. When processed should output an SBP GLO biases message with all fields set to 0 and a mask of 0xf
+
+1242.rtcm
+Contains a single RTCM 1242 frame. When processed should output 7 SBP SSR code biases frames
+
+1243.rtcm
+Contains a single RTCM 1243 frame. When processed should output 6 SBP SSR orbit clock messages
+
+1260.rtcm
+Contains a single RTCM 1260 frame. When processed should output 10 SBP SSR code biases frames
+
+1261.rtcm
+Contains a single RTCM 1261 frame. When processed should output 10 SBP SSR orbit clock messages
+
+1265.rtcm
+Contains a single RTCM 1265 frame. When processed should output 9 SBP SSR phase biases messages
+
+1267.rtcm
+Contains a single RTCM 1267 frame. When processed should output 7 SBP SSR phase biases messages
+
+4062.rtcm
+Contains a single swift proprietary frame which wraps an SBP log message. When processed should output a single SBP log message with level 1 and text "ABC"

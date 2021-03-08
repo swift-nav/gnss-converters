@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 Swift Navigation Inc.
- * Contact: Pasi Miettinen <pasi.miettinen@exafore.com>
+ * Contact: Swift Navigation <dev@swiftnav.com>
  *
  * This source is subject to the license found in the file 'LICENSE' which must
  * be distributed together with this source. All other rights reserved.
@@ -17,7 +17,7 @@
 
 const char* gpgga_truth[] = {
 #if !defined(GEOID_MODEL_15_MINUTE_RESOLUTION)
-    "$GPGGA,193508.20,3746.2614514,N,12224.1890870,W,5,08,1.0,25.96,M,-32.51,M,1.2,0033*45",
+"$GPGGA,193508.20,3746.2614514,N,12224.1890870,W,5,08,1.0,25.96,M,-32.51,M,1.2,0033*45",
 "$GPGGA,193508.30,3746.2614562,N,12224.1890918,W,5,08,1.0,25.99,M,-32.51,M,1.3,0033*44",
 "$GPGGA,193508.40,3746.2614556,N,12224.1890942,W,5,08,1.0,25.99,M,-32.51,M,1.4,0033*4C",
 "$GPGGA,193508.50,3746.2614574,N,12224.1890984,W,5,08,1.0,25.98,M,-32.51,M,1.5,0033*47",
@@ -28,7 +28,7 @@ const char* gpgga_truth[] = {
 "$GPGGA,193509.00,3746.2614718,N,12224.1891002,W,5,08,1.0,25.93,M,-32.51,M,2.0,0033*40",
 "$GPGGA,193509.10,3746.2614730,N,12224.1890984,W,5,08,1.0,25.92,M,-32.51,M,2.1,0033*4D"
 #else
-    "$GPGGA,193508.20,3746.2614514,N,12224.1890870,W,5,08,1.0,25.67,M,-32.22,M,1.2,0033*4F",
+"$GPGGA,193508.20,3746.2614514,N,12224.1890870,W,5,08,1.0,25.67,M,-32.22,M,1.2,0033*4F",
 "$GPGGA,193508.30,3746.2614562,N,12224.1890918,W,5,08,1.0,25.70,M,-32.22,M,1.3,0033*47",
 "$GPGGA,193508.40,3746.2614556,N,12224.1890942,W,5,08,1.0,25.71,M,-32.22,M,1.4,0033*4E",
 "$GPGGA,193508.50,3746.2614574,N,12224.1890984,W,5,08,1.0,25.69,M,-32.22,M,1.5,0033*4D",
@@ -67,6 +67,34 @@ const char* gpvtg_truth[] = {
 "$GPVTG,,T,,M,0.01,N,0.02,K,D*25",
 "$GPVTG,,T,,M,0.02,N,0.03,K,D*27",
 "$GPVTG,,T,,M,0.02,N,0.04,K,D*20"
+};
+
+const char* gpvtg_cog_forced_truth[] = {
+    "$GPVTG,206.6,T,,M,0.02,N,0.04,K,A*09",
+"$GPVTG,201.8,T,,M,0.01,N,0.02,K,A*05",
+"$GPVTG,180.0,T,,M,0.02,N,0.04,K,A*02",
+"$GPVTG,195.9,T,,M,0.01,N,0.03,K,A*0B",
+"$GPVTG,82.9,T,,M,0.02,N,0.03,K,A*3F",
+"$GPVTG,206.6,T,,M,0.01,N,0.02,K,A*0C",
+"$GPVTG,37.9,T,,M,0.02,N,0.04,K,A*36",
+"$GPVTG,270.0,T,,M,0.02,N,0.04,K,D*0B",
+"$GPVTG,45.0,T,,M,0.01,N,0.02,K,D*3A",
+"$GPVTG,305.5,T,,M,0.02,N,0.03,K,D*0A",
+"$GPVTG,145.0,T,,M,0.02,N,0.04,K,D*0E"
+};
+
+const char* gpvtg_cog_forced_truth_stationary_thresh[] = {
+    "$GPVTG,206.6,T,,M,0.02,N,0.04,K,A*09",
+"$GPVTG,206.6,T,,M,0.01,N,0.02,K,A*0C",
+"$GPVTG,180.0,T,,M,0.02,N,0.04,K,A*02",
+"$GPVTG,195.9,T,,M,0.01,N,0.03,K,A*0B",
+"$GPVTG,82.9,T,,M,0.02,N,0.03,K,A*3F",
+"$GPVTG,82.9,T,,M,0.01,N,0.02,K,A*3D",
+"$GPVTG,37.9,T,,M,0.02,N,0.04,K,A*36",
+"$GPVTG,270.0,T,,M,0.02,N,0.04,K,D*0B",
+"$GPVTG,270.0,T,,M,0.01,N,0.02,K,D*0E",
+"$GPVTG,305.5,T,,M,0.02,N,0.03,K,D*0A",
+"$GPVTG,145.0,T,,M,0.02,N,0.04,K,D*0E"
 };
 
 const char* gpgll_truth[] = {

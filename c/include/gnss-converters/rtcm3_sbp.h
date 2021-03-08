@@ -13,6 +13,8 @@
 #ifndef GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
 #define GNSS_CONVERTERS_RTCM3_SBP_INTERFACE_H
 
+#include <gnss-converters/eph_sat_data.h>
+#include <gnss-converters/time_truth.h>
 #include <libsbp/observation.h>
 #include <libsbp/sbp.h>
 #include <rtcm3/messages.h>
@@ -35,7 +37,7 @@ extern "C" {
 #define SBP_MAX_OBS_SEQ (15u)
 #define MAX_OBS_IN_SBP ((SBP_MAX_PAYLOAD_LEN - SBP_HDR_SIZE) / SBP_OBS_SIZE)
 #define MAX_OBS_PER_EPOCH (SBP_MAX_OBS_SEQ * MAX_OBS_IN_SBP)
-#define OBS_BUFFER_SIZE (SBP_HDR_SIZE + MAX_OBS_PER_EPOCH * SBP_OBS_SIZE)
+#define OBS_BUFFER_SIZE (MAX_OBS_PER_EPOCH * SBP_OBS_SIZE)
 
 #define INVALID_TIME 0xFFFF
 #define MAX_WN (INT16_MAX)
@@ -69,7 +71,8 @@ typedef struct {
 } ssr_orbit_clock_cache;
 
 struct rtcm3_sbp_state {
-  gps_time_t time_from_rover_obs;
+  bool use_time_from_input_obs;
+  gps_time_t time_from_input_data;
   s8 leap_seconds;
   bool leap_second_known;
   u16 sender_id;
@@ -77,11 +80,14 @@ struct rtcm3_sbp_state {
   gps_time_t last_glo_time;
   gps_time_t last_1230_received;
   gps_time_t last_msm_received;
+  time_truth_t *time_truth;
   void (*cb_rtcm_to_sbp)(
       u16 msg_id, u8 len, u8 *buff, u16 sender_id, void *context);
   void (*cb_base_obs_invalid)(double time_diff, void *context);
   void *context;
-  u8 obs_buffer[OBS_BUFFER_SIZE];
+  uint8_t obs_to_send;
+  packed_obs_content_t obs_buffer[MAX_OBS_PER_EPOCH];
+  sbp_gps_time_t obs_time;
   bool sent_msm_warning;
   bool sent_code_warning[UNSUPPORTED_CODE_MAX];
   /* GLO FCN map, indexed by 1-based PRN */
@@ -91,6 +97,7 @@ struct rtcm3_sbp_state {
   ssr_orbit_clock_cache orbit_clock_cache[CONSTELLATION_COUNT];
   uint8_t fifo_buf[RTCM3_FIFO_SIZE];
   fifo_t fifo;
+  struct eph_sat_data eph_data;
 };
 
 void rtcm2sbp_decode_frame(const uint8_t *frame,
@@ -101,16 +108,12 @@ void rtcm2sbp_decode_payload(const uint8_t *payload,
                              uint32_t payload_length,
                              struct rtcm3_sbp_state *state);
 
-void rtcm2sbp_set_gps_time(const gps_time_t *current_time,
-                           struct rtcm3_sbp_state *state);
-
-void rtcm2sbp_set_leap_second(s8 leap_seconds, struct rtcm3_sbp_state *state);
-
 void rtcm2sbp_set_glo_fcn(sbp_gnss_signal_t sid,
                           u8 sbp_fcn,
                           struct rtcm3_sbp_state *state);
 
 void rtcm2sbp_init(struct rtcm3_sbp_state *state,
+                   time_truth_t *time_truth,
                    void (*cb_rtcm_to_sbp)(u16 msg_id,
                                           u8 length,
                                           u8 *buffer,
