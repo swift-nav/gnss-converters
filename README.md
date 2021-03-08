@@ -15,10 +15,10 @@ First, [install rust][6]:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-Install build dependencies, and a nightly toolchain for Rust:
+Install build dependencies:
 
 ```
-sudo apt install build-essential cmake clang sqlite3
+sudo apt install build-essential cmake clang
 ```
 
 Then build and install with `cargo`:
@@ -73,7 +73,7 @@ result in some colorful json on your terminal (the ntripping tool
 can be found [on GitHub](https://github.com/swift-nav/ntripping)):
 
 ```
-ntripping --url http://bmookerji:bmookerji@tiburon.geo.berkeley.edu:2101/MONB_RTCM3 | ./rtcm3tosbp | sbp2json | jq .
+ntripping --url http://user:pass@example.com:2101/RTCM3 | ./rtcm3tosbp | sbp2json | jq .
 ```
 
 To install the Haskell tools:
