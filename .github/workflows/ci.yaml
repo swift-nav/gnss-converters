@@ -65,8 +65,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORGANIZATION: swift-nav
-          SONAR_PROJECT_KEY: swift-nav_gnss-converters-private
-          SONAR_PROJECT_NAME: gnss-converters-private
+          SONAR_PROJECT_KEY: swift-nav_gnss-converters
+          SONAR_PROJECT_NAME: gnss-converters
           SONAR_HOST_URL: https://sonarcloud.io
           SONAR_SCANNER_VERSION: 4.2.0.1873
 
