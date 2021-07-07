@@ -26,6 +26,10 @@ name = "nov2sbp"
 path = "rust/nov2sbp.rs"
 required-features = ["nov2sbp"]
 
+[[test]]
+name = "integration"
+path = "rust/tests/lib.rs"
+
 [lib]
 name = "gnss_converters"
 path = "rust/lib.rs"
@@ -43,6 +47,12 @@ if_chain = "1"
 num_cpus = "1"
 cmake = "0.1"
 cc = "1.0"
+
+[dev-dependencies]
+assert_cmd = "2.0.1"
+predicates = "2.0.2"
+sbp = "4.0"
+tempfile = "3.2"
 
 [profile.dev]
 panic = "abort"

@@ -6,4 +6,11 @@ rustflags = ["-C", "link-args=-lc", "-C", "link-args=-lc++"]
 
 [target.x86_64-pc-windows-gnu]
 linker = "x86_64-w64-mingw32-g++"
-rustflags = ["-C", "link-args=-lshell32", "-C", "link-args=-l:libstdc++.a"]
+rustflags = ["-C", "link-args=-static-libstdc++",
+             "-C", "link-args=-l:libstdc++.a",
+             "-C", "link-args=-l:libgcc_eh.a",
+             "-C", "link-args=-l:libpthread.a",
+             "-C", "link-args=-l:libmingwex.a",
+             "-C", "link-args=-lkernel32",
+             "-C", "link-args=-lshell32",
+             "-C", "link-args=-lmsvcrt"]

@@ -7,13 +7,8 @@ set -x
 set -o errexit
 set -o pipefail
 
-function build_haskell () {
-    cd haskell
-    stack build --test
-    cd ..
-}
-
 function build_rust () {
+  VERBOSE=1 cargo test --all-features --all-targets --release -vv
   VERBOSE=1 cargo build --all-features --all-targets --release -vv
 }
 
@@ -83,16 +78,13 @@ function build_codecov() {
       "-Dsonar.cfamily.llvm-cov.reportPath=./build/ccov/coverage.txt" \
       "-Dsonar.host.url=${SONAR_HOST_URL}" \
       "-Dsonar.projectKey=${SONAR_PROJECT_KEY}" \
-      "-Dsonar.exclusions=c/tests/**" \
       ${SONAR_OTHER_ARGS} \
       "${SONAR_PROJECT_NAME_CMD_ARG}" \
       "${SONAR_TOKEN_CMD_ARG}" \
       "${SONAR_ORGANIZATION_CMD_ARG}"
 }
 
-if [ "$TESTENV" == "stack" ]; then
-  build_haskell
-elif [ "$TESTENV" == "codecov" ]; then
+if [ "$TESTENV" == "codecov" ]; then
   build_codecov
 elif [ "$TESTENV" == "rust" ]; then
   build_rust

@@ -12,8 +12,6 @@
 
 #[cfg(target_os = "windows")]
 #[windows_subsystem = "console"]
-#[cfg(target_os = "windows")]
-#[link(name = "msvcrt")]
 extern "C" {}
 
 use libc::{c_char, c_void};
@@ -31,7 +29,7 @@ extern "C" {
         argv: *const *const i8,
         addition_opts_help: *const c_char,
         readfn: unsafe extern "C" fn(*mut u8, usize, *mut c_void) -> i32,
-        writefn: unsafe extern "C" fn(*const u8, usize, *mut c_void) -> i32,
+        writefn: unsafe extern "C" fn(*const u8, u32, *mut c_void) -> i32,
         context: *mut c_void,
     ) -> i32;
 }
@@ -50,7 +48,7 @@ fn main() {
                 argv,
                 ADDITIONAL_OPTS_HELP.as_ptr(),
                 readfn,
-                writefn,
+                writefn_u32,
                 &mut context as *mut Context as *mut c_void,
             )
         }

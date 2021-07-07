@@ -1,6 +1,3 @@
-[submodule "c/third_party/librtcm"]
-	path = c/third_party/librtcm
-	url = https://github.com/swift-nav/librtcm.git
 [submodule "c/third_party/libsbp"]
 	path = c/third_party/libsbp
 	url = https://github.com/swift-nav/libsbp.git
@@ -13,13 +10,7 @@
 [submodule "c/third_party/check"]
 	path = c/third_party/check
 	url = https://github.com/swift-nav/check.git
-[submodule "c/third_party/libubx"]
-	path = c/third_party/libubx
-	url = https://github.com/swift-nav/libubx.git
-[submodule "c/third_party/libixcom"]
-	path = c/third_party/libixcom
-	url = https://github.com/swift-nav/libixcom.git
 [submodule "c/tests/afl/findings"]
-	path = c/tests/afl/findings
+	path = c/afl/findings
 	url = https://github.com/swift-nav/gnss-converters-fuzz-testcases.git
         update = none

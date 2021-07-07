@@ -12,8 +12,6 @@
 
 #[cfg(target_os = "windows")]
 #[windows_subsystem = "console"]
-#[cfg(target_os = "windows")]
-#[link(name = "msvcrt")]
 extern "C" {}
 
 use libc::{c_char, c_void};

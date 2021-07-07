@@ -81,6 +81,9 @@ pipeline {
                                 exit 1
                             fi
                             '''
+			script {
+			    builder.make(workDir: "c/build", target: "do-all-tests")
+			}
                     }
                     post {
                         always {
@@ -95,9 +98,9 @@ pipeline {
                         }
                     }
                     environment {
-                        AFL_USE_ASAN='1'
-                        CC='/usr/bin/afl-gcc'
-                        CXX='/usr/bin/afl-g++'
+                        CFLAGS='-fsanitize=address'
+                        CXXFLAGS='-fsanitize=address'
+                        LDFLAGS='-fsanitize=address'
                     }
                     steps {
                         gitPrep()
@@ -112,6 +115,32 @@ pipeline {
             }
         }
     }
+    post {
+        success {
+            script {
+                def automatedPr = new AutomatedPR(context: context)
+                automatedPr.merge()
+            }
+        }
+
+        failure {
+            script {
+                def automatedPr = new AutomatedPR(context: context)
+                automatedPr.alertSlack()
+            }
+        }
+
+        always {
+            script {
+                context.slackNotify(channel: '#positioning-dev')
+                context.slackNotify(channel: '#release', branches: ['.*v.*-release'])
+            }
+        }
+
+        cleanup {
+            cleanWs()
+        }
+    }
 }
 
 /**
@@ -121,5 +150,5 @@ pipeline {
  * @return
  */
 def fetchTestData(Map args = [:]) {
-    sh 'git submodule update --init --checkout --recursive c/tests/afl/findings'
+    sh 'git submodule update --init --checkout --recursive c/afl/findings'
 }

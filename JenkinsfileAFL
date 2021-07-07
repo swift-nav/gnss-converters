@@ -22,6 +22,9 @@ pipeline {
     BRANCH_NAME=env.GIT_BRANCH.minus('origin/')
     CC='/usr/bin/afl-gcc'
     CXX='/usr/bin/afl-g++'
+    CFLAGS='-m32 -fsanitize=address'
+    CXXFLAGS='-m32 -fsanitize=address'
+    LDFLAGS='-m32 -fsanitize=address'
     HANG_TIMEOUT='5000'
     MEMORY_LIMIT='1500'
   }
@@ -45,15 +48,15 @@ pipeline {
               gitPrep()
               builder.cmake(
                 workDir: 'c',
-                cmakeAddArgs: '-DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32 -DTHIRD_PARTY_INCLUDES_AS_SYSTEM=true -DI_KNOW_WHAT_I_AM_DOING_AND_HOW_DANGEROUS_IT_IS__GNSS_CONVERTERS_DISABLE_CRC_VALIDATION=true',
+                cmakeAddArgs: '-DTHIRD_PARTY_INCLUDES_AS_SYSTEM=true -DI_KNOW_WHAT_I_AM_DOING_AND_HOW_DANGEROUS_IT_IS__GNSS_CONVERTERS_DISABLE_CRC_VALIDATION=true',
                 buildType: 'Release'
               )
               builder.make(
                 workDir: 'c/build',
-                target: 'asan-rtcm3tosbp'
+                target: 'rtcm3tosbp'
               )
 
-              sh("timeout --preserve-status '${params.FUZZ_TIMEOUT}' ./jenkins/afl-parallel.sh -t '${env.HANG_TIMEOUT}' -m '${env.MEMORY_LIMIT}' -i c/tests/afl/testcases/rtcm3tosbp -o afl_output c/build/src/rtcm3tosbp/asan-rtcm3tosbp -w 1945:27750")
+              sh("timeout --preserve-status '${params.FUZZ_TIMEOUT}' ./jenkins/afl-parallel.sh -t '${env.HANG_TIMEOUT}' -m '${env.MEMORY_LIMIT}' -i c/afl/testcases/rtcm3tosbp -o afl_output c/build/rtcm3tosbp/src/rtcm3tosbp -w 1945:27750")
 
               def crashes = findFiles(glob: 'afl_output/**/crashes/*')
               def hangs = findFiles(glob: 'afl_output/**/hangs/*')
@@ -89,15 +92,15 @@ pipeline {
               gitPrep()
               builder.cmake(
                 workDir: 'c',
-                cmakeAddArgs: '-DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32 -DTHIRD_PARTY_INCLUDES_AS_SYSTEM=true -DI_KNOW_WHAT_I_AM_DOING_AND_HOW_DANGEROUS_IT_IS__GNSS_CONVERTERS_DISABLE_CRC_VALIDATION=true',
+                cmakeAddArgs: '-DTHIRD_PARTY_INCLUDES_AS_SYSTEM=true -DI_KNOW_WHAT_I_AM_DOING_AND_HOW_DANGEROUS_IT_IS__GNSS_CONVERTERS_DISABLE_CRC_VALIDATION=true',
                 buildType: 'Release'
               )
               builder.make(
                 workDir: 'c/build',
-                target: 'asan-ubx2sbp'
+                target: 'ubx2sbp'
               )
 
-              sh("timeout --preserve-status '${params.FUZZ_TIMEOUT}' ./jenkins/afl-parallel.sh -t '${env.HANG_TIMEOUT}' -m '${env.MEMORY_LIMIT}' -i c/tests/afl/testcases/ubx2sbp -o afl_output c/build/src/ubx2sbp/asan-ubx2sbp -w 1945:27750")
+              sh("timeout --preserve-status '${params.FUZZ_TIMEOUT}' ./jenkins/afl-parallel.sh -t '${env.HANG_TIMEOUT}' -m '${env.MEMORY_LIMIT}' -i c/afl/testcases/ubx2sbp -o afl_output c/build/ubx2sbp/src/ubx2sbp -w 1945:27750")
 
               def crashes = findFiles(glob: 'afl_output/**/crashes/*')
               def hangs = findFiles(glob: 'afl_output/**/hangs/*')

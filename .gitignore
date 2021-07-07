@@ -12,3 +12,4 @@ CMakeCache.txt
 .project
 .vscode
 target/
+.clang-tidy

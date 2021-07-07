@@ -73,22 +73,6 @@ jobs:
         run: |
           bash ./ci-build.sh
 
-  ubuntu-haskell:
-    runs-on: ubuntu-18.04
-    steps:
-
-      - name: Checkout source
-        uses: actions/checkout@v2
-        with:
-          submodules: recursive
-          ssh-key: ${{ secrets.SSH_KEY }}
-
-      - name: Run build
-        env:
-          TESTENV: stack
-        run: |
-          bash ./ci-build.sh
-
   ubuntu-rust:
     runs-on: ubuntu-18.04
     steps:
@@ -177,16 +161,15 @@ jobs:
           submodules: recursive
           ssh-key: ${{ secrets.SSH_KEY }}
 
-      - name: Install MinGW 6.4.0
+      - name: Install SQLite
         run: |
-          choco install -y --no-progress --allow-downgrade --version=6.4.0 mingw;
           choco install -y --no-progress sqlite;
 
       - name: Install msys2 packages
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
-          install: git base-devel
+          msystem: mingw64
+          install: git base-devel mingw-w64-x86_64-toolchain
           update: true
 
       - name: Install MinGW Rust toolchain
@@ -196,21 +179,15 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Install Chocolatey packages
-        run: |
-          choco install -y --noprogress cmake
-          choco install -y --noprogress sqlite
-
       - name: Run build
-        shell: msys2 {0}
+        shell: bash
         env:
-          CC: gcc
-          CXX: g++
+          CC: x86_64-w64-mingw32-gcc
+          CXX: x86_64-w64-mingw32-g++
           TESTENV: rust
           OS_NAME: windows
           CMAKE_GENERATOR: MinGW Makefiles
         run: |
-          export PATH="$PATH:/C/Rust/.cargo/bin:/C/ProgramData/chocolatey/bin:/C/Program Files/CMake/bin"
           bash ./ci-build.sh
           echo "RELEASE_ARCHIVE=$(cat release-archive.filename)" >>$GITHUB_ENV
 
@@ -222,7 +199,7 @@ jobs:
             release-archive.filename
 
   trigger-release:
-    needs: [ubuntu-rust, windows-rust, macos-rust, ubuntu-gcc6, ubuntu-codecov, ubuntu-haskell]
+    needs: [ubuntu-rust, windows-rust, macos-rust, ubuntu-gcc6, ubuntu-codecov]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:

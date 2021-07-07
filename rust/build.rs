@@ -128,6 +128,7 @@ fn main() -> Result<(), Error> {
         println!("cargo:rustc-link-lib=static=sbp2rtcm_main");
         println!("cargo:rustc-link-lib=static=ixcom2sbp_main");
         println!("cargo:rustc-link-lib=static=gnss_converters");
+        println!("cargo:rustc-link-lib=static=gnss_converters_extra");
         println!("cargo:rustc-link-lib=static=novatel-parser");
         println!("cargo:rustc-link-lib=static=swiftnav");
         println!("cargo:rustc-link-lib=static=rtcm");
