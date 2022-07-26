@@ -6,7 +6,7 @@ def context = new Context(context: this)
 context.setRepo('gnss-converters')
 def builder = context.getBuilder()
 
-String dockerMountArgs = '--privileged -v /mnt/efs/ccache:/home/jenkins/.ccache -v /mnt/efs/refrepo:/mnt/efs/refrepo'
+String dockerMountArgs = '--privileged -v /mnt/efs/refrepo:/mnt/efs/refrepo'
 
 pipeline {
   agent any
