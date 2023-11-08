@@ -10,13 +10,13 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include "ubx2sbp_main.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
-
-#include "ubx2sbp_main.h"
 
 static int readfn(uint8_t *buf, size_t len, void *context) {
   (void)context;

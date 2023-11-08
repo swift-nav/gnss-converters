@@ -10,9 +10,8 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <swiftnav/bits.h>
-
 #include <ixcom/encode.h>
+#include <swiftnav/bits.h>
 
 /* Serialize the iXCOM Header
  *

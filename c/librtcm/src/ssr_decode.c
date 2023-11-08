@@ -11,13 +11,14 @@
  */
 
 #include "rtcm3/ssr_decode.h"
+
 #include <assert.h>
 #include <stdio.h>
+
+#include "decode_helpers.h"
 #include "rtcm3/bits.h"
 #include "rtcm3/msm_utils.h"
 #include "swiftnav/bitstream.h"
-
-#include "decode_helpers.h"
 
 /** Get the numbers of bits for the  Epoch Time 1s field
  * \param constellation Message constellation
@@ -143,7 +144,7 @@ bool is_ssr_phase_biases_message(const uint16_t message_num) {
   return message_num >= 1265 && message_num <= 1270;
 }
 
-enum rtcm3_rc_e decode_ssr_header(swiftnav_bitstream_t *buff,
+enum rtcm3_rc_e decode_ssr_header(swiftnav_in_bitstream_t *buff,
                                   rtcm_msg_ssr_header *msg_header) {
   assert(msg_header);
   BITSTREAM_DECODE_U16(buff, msg_header->message_num, 12);
@@ -173,7 +174,7 @@ enum rtcm3_rc_e decode_ssr_header(swiftnav_bitstream_t *buff,
   return RC_OK;
 }
 
-static rtcm3_rc decode_ssr_orbit(swiftnav_bitstream_t *buff,
+static rtcm3_rc decode_ssr_orbit(swiftnav_in_bitstream_t *buff,
                                  uint8_t constellation,
                                  rtcm_msg_ssr_orbit_corr *orbit) {
   uint8_t number_of_bits_for_iode;
@@ -208,7 +209,7 @@ static rtcm3_rc decode_ssr_orbit(swiftnav_bitstream_t *buff,
   return RC_OK;
 }
 
-static rtcm3_rc decode_ssr_clock(swiftnav_bitstream_t *buff,
+static rtcm3_rc decode_ssr_clock(swiftnav_in_bitstream_t *buff,
                                  rtcm_msg_ssr_clock_corr *clock) {
   BITSTREAM_DECODE_S32(buff, clock->c0, 22);
   BITSTREAM_DECODE_S32(buff, clock->c1, 21);
@@ -216,7 +217,7 @@ static rtcm3_rc decode_ssr_clock(swiftnav_bitstream_t *buff,
   return RC_OK;
 }
 
-static rtcm3_rc decode_satellite_id(swiftnav_bitstream_t *buff,
+static rtcm3_rc decode_satellite_id(swiftnav_in_bitstream_t *buff,
                                     uint8_t constellation,
                                     uint8_t *sat_id) {
   uint8_t number_of_bits_for_sat_id;
@@ -230,7 +231,7 @@ static rtcm3_rc decode_satellite_id(swiftnav_bitstream_t *buff,
   return RC_OK;
 }
 
-rtcm3_rc rtcm3_decode_orbit_bitstream(swiftnav_bitstream_t *buff,
+rtcm3_rc rtcm3_decode_orbit_bitstream(swiftnav_in_bitstream_t *buff,
                                       rtcm_msg_orbit *msg_orbit) {
   assert(msg_orbit);
   if (!(RC_OK == decode_ssr_header(buff, &msg_orbit->header))) {
@@ -260,7 +261,7 @@ rtcm3_rc rtcm3_decode_orbit_bitstream(swiftnav_bitstream_t *buff,
   return RC_OK;
 }
 
-rtcm3_rc rtcm3_decode_clock_bitstream(swiftnav_bitstream_t *buff,
+rtcm3_rc rtcm3_decode_clock_bitstream(swiftnav_in_bitstream_t *buff,
                                       rtcm_msg_clock *msg_clock) {
   assert(msg_clock);
   if (!(RC_OK == decode_ssr_header(buff, &msg_clock->header))) {
@@ -295,7 +296,7 @@ rtcm3_rc rtcm3_decode_clock_bitstream(swiftnav_bitstream_t *buff,
  *          - RC_INVALID_MESSAGE : Unknown constellation
  */
 rtcm3_rc rtcm3_decode_orbit_clock_bitstream(
-    swiftnav_bitstream_t *buff, rtcm_msg_orbit_clock *msg_orbit_clock) {
+    swiftnav_in_bitstream_t *buff, rtcm_msg_orbit_clock *msg_orbit_clock) {
   assert(msg_orbit_clock);
   if (!(RC_OK == decode_ssr_header(buff, &msg_orbit_clock->header))) {
     return RC_INVALID_MESSAGE;
@@ -336,7 +337,7 @@ rtcm3_rc rtcm3_decode_orbit_clock_bitstream(
  *          - RC_MESSAGE_TYPE_MISMATCH : Message type mismatch
  *          - RC_INVALID_MESSAGE : Unknown constellation
  */
-rtcm3_rc rtcm3_decode_code_bias_bitstream(swiftnav_bitstream_t *buff,
+rtcm3_rc rtcm3_decode_code_bias_bitstream(swiftnav_in_bitstream_t *buff,
                                           rtcm_msg_code_bias *msg_code_bias) {
   assert(msg_code_bias);
   if (!(RC_OK == decode_ssr_header(buff, &msg_code_bias->header))) {
@@ -378,7 +379,7 @@ rtcm3_rc rtcm3_decode_code_bias_bitstream(swiftnav_bitstream_t *buff,
  *          - RC_INVALID_MESSAGE : Unknown constellation
  */
 rtcm3_rc rtcm3_decode_phase_bias_bitstream(
-    swiftnav_bitstream_t *buff, rtcm_msg_phase_bias *msg_phase_bias) {
+    swiftnav_in_bitstream_t *buff, rtcm_msg_phase_bias *msg_phase_bias) {
   assert(msg_phase_bias);
   if (!(RC_OK == decode_ssr_header(buff, &msg_phase_bias->header))) {
     return RC_INVALID_MESSAGE;

@@ -13,10 +13,9 @@
 #ifndef GNSS_CONVERTERS_RTCM3_UTILS_H
 #define GNSS_CONVERTERS_RTCM3_UTILS_H
 
+#include <rtcm3/messages.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-#include <rtcm3/messages.h>
 #include <swiftnav/signal.h>
 
 #define GPS_TOE_RESOLUTION 16

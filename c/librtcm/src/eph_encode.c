@@ -11,8 +11,10 @@
  */
 
 #include "rtcm3/eph_encode.h"
+
 #include <assert.h>
 #include <string.h>
+
 #include "rtcm3/bits.h"
 
 uint16_t rtcm3_encode_gps_eph(const rtcm_msg_eph *msg_1019, uint8_t buff[]) {

@@ -10,18 +10,17 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include "check_suites.h"
-
-#include <ubx/decode.h>
-#include <ubx/encode.h>
-#include <ubx/ubx_messages.h>
-
 #include <assert.h>
 #include <check.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ubx/decode.h>
+#include <ubx/encode.h>
+#include <ubx/ubx_messages.h>
+
+#include "check_suites.h"
 
 #define FLOAT_EPS 1e-6
 

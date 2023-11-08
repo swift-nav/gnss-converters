@@ -11,14 +11,14 @@
  */
 
 #include <swiftnav/logging.h>
-
-#include "parser/novatel.h"
-#include "swiftnav_conversion_helpers.h"
-
 #include <unistd.h>
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+
+#include "parser/novatel.h"
+#include "swiftnav_conversion_helpers.h"
 
 typedef int (*readfn_ptr)(uint8_t *, uint32_t, void *);
 typedef int (*writefn_ptr)(uint8_t *, uint32_t, void *);

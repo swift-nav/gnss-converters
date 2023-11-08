@@ -19,6 +19,7 @@
 #include <swiftnav/constants.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/signal.h>
+
 #include "common.h"
 #include "gnss-converters/rtcm3_sbp.h"
 
@@ -152,7 +153,7 @@ void send_sbp_log_message(uint8_t level,
                           uint16_t stn_id,
                           const struct rtcm3_sbp_state *state);
 
-void send_MSM_warning(const swiftnav_bitstream_t *bitstream,
+void send_MSM_warning(const swiftnav_in_bitstream_t *bitstream,
                       struct rtcm3_sbp_state *state);
 
 void send_buffer_full_error(const struct rtcm3_sbp_state *state);

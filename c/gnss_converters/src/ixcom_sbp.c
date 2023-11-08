@@ -1,14 +1,11 @@
 #include <assert.h>
-#include <math.h>
-#include <stddef.h>
-#include <string.h>
-
+#include <gnss-converters/ixcom_sbp.h>
 #include <ixcom/decode.h>
 #include <libsbp/v4/imu.h>
 #include <libsbp/v4/vehicle.h>
-
-#include <gnss-converters/ixcom_sbp.h>
-
+#include <math.h>
+#include <stddef.h>
+#include <string.h>
 #include <swiftnav/constants.h>
 
 #define ODO_TIMESOURCE_GPS 0x1

@@ -10,13 +10,12 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <assert.h>
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
+#include "gnss-converters-extra/sbp_rtcm3.h"
 
+#include <assert.h>
 #include <libsbp/legacy/gnss.h>
 #include <libsbp/legacy/logging.h>
+#include <math.h>
 #include <rtcm3/bits.h>
 #include <rtcm3/decode.h>
 #include <rtcm3/encode.h>
@@ -24,6 +23,8 @@
 #include <rtcm3/eph_encode.h>
 #include <rtcm3/logging.h>
 #include <rtcm3/ssr_decode.h>
+#include <stdlib.h>
+#include <string.h>
 #include <swiftnav/edc.h>
 #include <swiftnav/ephemeris.h>
 #include <swiftnav/fifo_byte.h>
@@ -34,7 +35,6 @@
 #include <swiftnav/signal.h>
 #include <swiftnav/swift_strnlen.h>
 
-#include "gnss-converters-extra/sbp_rtcm3.h"
 #include "gnss-converters/utils.h"
 #include "rtcm3_utils.h"
 #include "sbp_rtcm3_internal.h"

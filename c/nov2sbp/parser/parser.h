@@ -15,6 +15,7 @@
 
 #include <swiftnav/macros.h>
 #include <unistd.h>  // for size_t
+
 #include "binary_header.h"
 #include "message.h"
 

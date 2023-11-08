@@ -1,7 +1,8 @@
 #include "message_bestvel.h"
-#include "read_little_endian.h"
 
 #include <cassert>
+
+#include "read_little_endian.h"
 
 namespace Novatel {
 

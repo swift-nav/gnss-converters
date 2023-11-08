@@ -13,15 +13,15 @@
 #ifndef GNSS_CONVERTERS_UBX_SBP_INTERFACE_H
 #define GNSS_CONVERTERS_UBX_SBP_INTERFACE_H
 
+#include <gnss-converters/eph_sat_data.h>
 #include <libsbp/sbp.h>
 #include <libsbp/v4/gnss.h>
 #include <libsbp/v4/navigation.h>
 #include <libsbp/v4/observation.h>
 #include <libsbp/v4/orientation.h>
+#include <swiftnav/bytestream.h>
 #include <unistd.h>
 
-#include <gnss-converters/eph_sat_data.h>
-#include <swiftnav/bytestream.h>
 #include "swiftnav/gnss_time.h"
 #include "swiftnav/signal.h"
 

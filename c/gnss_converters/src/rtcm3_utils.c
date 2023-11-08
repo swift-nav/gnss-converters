@@ -24,11 +24,10 @@
 #include "rtcm3_utils.h"
 
 #include <assert.h>
-#include <stdbool.h>
-#include <stdint.h>
-
 #include <rtcm3/constants.h>
 #include <rtcm3/msm_utils.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <swiftnav/constants.h>
 #include <swiftnav/logging.h>
 #include <swiftnav/signal.h>
@@ -455,7 +454,7 @@ bool msm_signal_frequency(const rtcm_msm_header *header,
         return false;
       }
     case CODE_BDS2_B1:
-      *p_freq = BDS2_B11_HZ;
+      *p_freq = BDS2_B1I_HZ;
       return true;
     case CODE_BDS2_B2:
       *p_freq = BDS2_B2_HZ;

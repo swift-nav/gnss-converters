@@ -16,14 +16,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../../gnss_converters_extra/src/sbp_rtcm3_internal.h"
+#include "../src/rtcm3_sbp_internal.h"
+#include "../src/rtcm3_utils.h"
 #include "common.h"
 #include "gnss-converters-extra/sbp_rtcm3.h"
 #include "gnss-converters/rtcm3_sbp.h"
 #include "libsbp/legacy/logging.h"
-
-#include "../../gnss_converters_extra/src/sbp_rtcm3_internal.h"
-#include "../src/rtcm3_sbp_internal.h"
-#include "../src/rtcm3_utils.h"
 
 #define FREQ_TOL 1e-3
 

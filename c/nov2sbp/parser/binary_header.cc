@@ -11,6 +11,7 @@
  */
 
 #include "binary_header.h"
+
 #include "read_little_endian.h"
 
 namespace Novatel {

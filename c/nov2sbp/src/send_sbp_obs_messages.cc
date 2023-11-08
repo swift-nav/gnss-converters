@@ -13,8 +13,6 @@
 /**
  * This implementation is entirely lifted from PFWP.
  */
-#include "swiftnav_conversion_helpers.h"
-
 #include <swiftnav/common.h>
 #include <swiftnav/constants.h>
 #include <swiftnav/gnss_time.h>
@@ -22,6 +20,8 @@
 #include <swiftnav/signal.h>
 
 #include <cassert>
+
+#include "swiftnav_conversion_helpers.h"
 
 namespace Novatel {
 

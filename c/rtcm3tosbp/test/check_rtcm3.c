@@ -10,23 +10,23 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <check.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "check_rtcm3.h"
 
+#include <check.h>
 #include <libsbp/sbp.h>
 #include <libsbp/v4/observation.h>
+#include <math.h>
 #include <rtcm3/decode.h>
 #include <rtcm3/encode.h>
 #include <rtcm3/eph_decode.h>
 #include <rtcm3/eph_encode.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <swiftnav/ephemeris.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/sid_set.h>
 
-#include "check_rtcm3.h"
 #include "config.h"
 
 #define GPS_TOW_TOLERANCE 1e-4
@@ -988,8 +988,8 @@ static s32 rtcm_gps_eph_cb(u8 *buffer, u16 length, void *context) {
   if (!checked_eph_gps && message_type == 1019) {
     checked_eph_gps = true;
     rtcm_msg_eph msg_eph;
-    swiftnav_bitstream_t bitstream;
-    swiftnav_bitstream_init(&bitstream, &buffer[byte], message_size * 8);
+    swiftnav_in_bitstream_t bitstream;
+    swiftnav_in_bitstream_init(&bitstream, &buffer[byte], message_size * 8);
     rtcm3_decode_gps_eph_bitstream(&bitstream, &msg_eph);
 
     ck_assert(msg_eph.constellation == RTCM_CONSTELLATION_GPS);
@@ -1047,8 +1047,8 @@ static s32 rtcm_gal_fnav_eph_cb(u8 *buffer, u16 length, void *context) {
     printf("GAL FNAV Eph checked\n");
     checked_eph_gal_fnav = true;
     rtcm_msg_eph msg_eph;
-    swiftnav_bitstream_t bitstream;
-    swiftnav_bitstream_init(&bitstream, &buffer[byte], message_size * 8);
+    swiftnav_in_bitstream_t bitstream;
+    swiftnav_in_bitstream_init(&bitstream, &buffer[byte], message_size * 8);
     rtcm3_decode_gal_eph_fnav_bitstream(&bitstream, &msg_eph);
 
     ck_assert(msg_eph.constellation == RTCM_CONSTELLATION_GAL);
@@ -1104,8 +1104,8 @@ static s32 rtcm_gal_inav_eph_cb(u8 *buffer, u16 length, void *context) {
     printf("GAL INAV Eph checked\n");
     checked_eph_gal_inav = true;
     rtcm_msg_eph msg_eph;
-    swiftnav_bitstream_t bitstream;
-    swiftnav_bitstream_init(&bitstream, &buffer[byte], message_size * 8);
+    swiftnav_in_bitstream_t bitstream;
+    swiftnav_in_bitstream_init(&bitstream, &buffer[byte], message_size * 8);
     rtcm3_decode_gal_eph_inav_bitstream(&bitstream, &msg_eph);
 
     ck_assert(msg_eph.constellation == RTCM_CONSTELLATION_GAL);
