@@ -24,7 +24,7 @@
  * \return  - RC_OK : Success
  *          - RC_MESSAGE_TYPE_MISMATCH : Message type mismatch
  */
-rtcm3_rc rtcm3_decode_gps_eph_bitstream(swiftnav_bitstream_t *buff,
+rtcm3_rc rtcm3_decode_gps_eph_bitstream(swiftnav_in_bitstream_t *buff,
                                         rtcm_msg_eph *msg_eph) {
   assert(msg_eph);
   memset(msg_eph, 0, sizeof(*msg_eph));
@@ -77,7 +77,7 @@ rtcm3_rc rtcm3_decode_gps_eph_bitstream(swiftnav_bitstream_t *buff,
  * \return  - RC_OK : Success
  *          - RC_MESSAGE_TYPE_MISMATCH : Message type mismatch
  */
-rtcm3_rc rtcm3_decode_qzss_eph_bitstream(swiftnav_bitstream_t *buff,
+rtcm3_rc rtcm3_decode_qzss_eph_bitstream(swiftnav_in_bitstream_t *buff,
                                          rtcm_msg_eph *msg_eph) {
   assert(msg_eph);
   memset(msg_eph, 0, sizeof(*msg_eph));
@@ -110,7 +110,7 @@ rtcm3_rc rtcm3_decode_qzss_eph_bitstream(swiftnav_bitstream_t *buff,
   BITSTREAM_DECODE_S32(buff, msg_eph->data.kepler.omegadot, 24);
   BITSTREAM_DECODE_S16(buff, msg_eph->data.kepler.inc_dot, 14);
   /* L2 data bit */
-  swiftnav_bitstream_remove(buff, 2);
+  swiftnav_in_bitstream_remove(buff, 2);
   BITSTREAM_DECODE_U16(buff, msg_eph->wn, 10);
   BITSTREAM_DECODE_U16(buff, msg_eph->ura, 4);
   BITSTREAM_DECODE_U8(buff, msg_eph->health_bits, 6);
@@ -127,7 +127,7 @@ rtcm3_rc rtcm3_decode_qzss_eph_bitstream(swiftnav_bitstream_t *buff,
  * \return  - RC_OK : Success
  *          - RC_MESSAGE_TYPE_MISMATCH : Message type mismatch
  */
-rtcm3_rc rtcm3_decode_glo_eph_bitstream(swiftnav_bitstream_t *buff,
+rtcm3_rc rtcm3_decode_glo_eph_bitstream(swiftnav_in_bitstream_t *buff,
                                         rtcm_msg_eph *msg_eph) {
   assert(msg_eph);
   memset(msg_eph, 0, sizeof(*msg_eph));
@@ -140,17 +140,17 @@ rtcm3_rc rtcm3_decode_glo_eph_bitstream(swiftnav_bitstream_t *buff,
   BITSTREAM_DECODE_U8(buff, msg_eph->sat_id, 6);
   BITSTREAM_DECODE_U8(buff, msg_eph->data.glo.fcn, 5);
   /*alm health ind = */
-  swiftnav_bitstream_remove(buff, 1);
+  swiftnav_in_bitstream_remove(buff, 1);
   /*alm health ind valid = */
-  swiftnav_bitstream_remove(buff, 1);
+  swiftnav_in_bitstream_remove(buff, 1);
   BITSTREAM_DECODE_U32(buff, msg_eph->fit_interval, 2);
   /* tk */
-  swiftnav_bitstream_remove(buff, 12);
+  swiftnav_in_bitstream_remove(buff, 12);
   /* most significant bit of Bn */
   uint8_t bn_msb;
   BITSTREAM_DECODE_U8(buff, bn_msb, 1);
   /* P2 */
-  swiftnav_bitstream_remove(buff, 1);
+  swiftnav_in_bitstream_remove(buff, 1);
   BITSTREAM_DECODE_U8(buff, msg_eph->data.glo.t_b, 7);
   rtcm3_rc ret =
       rtcm_get_sign_magnitude_bitstream(buff, 24, &msg_eph->data.glo.vel[0]);
@@ -190,7 +190,7 @@ rtcm3_rc rtcm3_decode_glo_eph_bitstream(swiftnav_bitstream_t *buff,
     return ret;
   }
   /* P3 */
-  swiftnav_bitstream_remove(buff, 1);
+  swiftnav_in_bitstream_remove(buff, 1);
   s32 gamma;
   ret = rtcm_get_sign_magnitude_bitstream(buff, 11, &gamma);
   if (ret != RC_OK) {
@@ -198,7 +198,7 @@ rtcm3_rc rtcm3_decode_glo_eph_bitstream(swiftnav_bitstream_t *buff,
   }
   msg_eph->data.glo.gamma = (s16)gamma;
   /* P */
-  swiftnav_bitstream_remove(buff, 2);
+  swiftnav_in_bitstream_remove(buff, 2);
   /* health flag in string 3 */
   uint8_t mln3;
   BITSTREAM_DECODE_U8(buff, mln3, 1);
@@ -213,30 +213,30 @@ rtcm3_rc rtcm3_decode_glo_eph_bitstream(swiftnav_bitstream_t *buff,
   }
   msg_eph->data.glo.d_tau = (uint8_t)d_tau;
   /* EN */
-  swiftnav_bitstream_remove(buff, 5);
+  swiftnav_in_bitstream_remove(buff, 5);
   /* P4 */
-  swiftnav_bitstream_remove(buff, 1);
+  swiftnav_in_bitstream_remove(buff, 1);
   BITSTREAM_DECODE_U16(buff, msg_eph->ura, 4);
   /* NT */
-  swiftnav_bitstream_remove(buff, 11);
+  swiftnav_in_bitstream_remove(buff, 11);
   /* M */
-  swiftnav_bitstream_remove(buff, 2);
+  swiftnav_in_bitstream_remove(buff, 2);
   uint32_t additional_data;
   BITSTREAM_DECODE_U32(buff, additional_data, 1);
   uint8_t mln5 = 0;
   if (additional_data) {
     /* NA  */
-    swiftnav_bitstream_remove(buff, 11);
+    swiftnav_in_bitstream_remove(buff, 11);
     /* Tc */
-    swiftnav_bitstream_remove(buff, 32);
+    swiftnav_in_bitstream_remove(buff, 32);
     /* N4 */
-    swiftnav_bitstream_remove(buff, 5);
+    swiftnav_in_bitstream_remove(buff, 5);
     /* Tgps */
-    swiftnav_bitstream_remove(buff, 22);
+    swiftnav_in_bitstream_remove(buff, 22);
     /* health flag in string 5 */
     BITSTREAM_DECODE_U8(buff, mln5, 1);
     /* reserved */
-    swiftnav_bitstream_remove(buff, 7);
+    swiftnav_in_bitstream_remove(buff, 7);
   }
   msg_eph->health_bits = bn_msb | mln3 | mln5;
   return RC_OK;
@@ -250,7 +250,7 @@ rtcm3_rc rtcm3_decode_glo_eph_bitstream(swiftnav_bitstream_t *buff,
  *          - RC_MESSAGE_TYPE_MISMATCH : Message type mismatch
  *          - RC_INVALID_MESSAGE : Satellite is geostationary
  */
-rtcm3_rc rtcm3_decode_bds_eph_bitstream(swiftnav_bitstream_t *buff,
+rtcm3_rc rtcm3_decode_bds_eph_bitstream(swiftnav_in_bitstream_t *buff,
                                         rtcm_msg_eph *msg_eph) {
   assert(msg_eph);
   memset(msg_eph, 0, sizeof(*msg_eph));
@@ -301,7 +301,7 @@ rtcm3_rc rtcm3_decode_bds_eph_bitstream(swiftnav_bitstream_t *buff,
  * \param msg_eph RTCM message struct
  * \return bit position in the RTCM frame
  */
-static uint16_t rtcm3_decode_gal_eph_common(swiftnav_bitstream_t *buff,
+static uint16_t rtcm3_decode_gal_eph_common(swiftnav_in_bitstream_t *buff,
                                             rtcm_msg_eph *msg_eph) {
   assert(msg_eph);
   BITSTREAM_DECODE_U8(buff, msg_eph->sat_id, 6);
@@ -338,7 +338,7 @@ static uint16_t rtcm3_decode_gal_eph_common(swiftnav_bitstream_t *buff,
  * \return  - RC_OK : Success
  *          - RC_MESSAGE_TYPE_MISMATCH : Message type mismatch
  */
-rtcm3_rc rtcm3_decode_gal_eph_inav_bitstream(swiftnav_bitstream_t *buff,
+rtcm3_rc rtcm3_decode_gal_eph_inav_bitstream(swiftnav_in_bitstream_t *buff,
                                              rtcm_msg_eph *msg_eph) {
   assert(msg_eph);
   memset(msg_eph, 0, sizeof(*msg_eph));
@@ -359,7 +359,7 @@ rtcm3_rc rtcm3_decode_gal_eph_inav_bitstream(swiftnav_bitstream_t *buff,
   BITSTREAM_DECODE_S32(buff, msg_eph->data.kepler.tgd.gal_s[1], 10);
   BITSTREAM_DECODE_S8(buff, msg_eph->health_bits, 6);
   /* reserved */
-  swiftnav_bitstream_remove(buff, 2);
+  swiftnav_in_bitstream_remove(buff, 2);
 
   return RC_OK;
 }
@@ -371,7 +371,7 @@ rtcm3_rc rtcm3_decode_gal_eph_inav_bitstream(swiftnav_bitstream_t *buff,
  * \return  - RC_OK : Success
  *          - RC_MESSAGE_TYPE_MISMATCH : Message type mismatch
  */
-rtcm3_rc rtcm3_decode_gal_eph_fnav_bitstream(swiftnav_bitstream_t *buff,
+rtcm3_rc rtcm3_decode_gal_eph_fnav_bitstream(swiftnav_in_bitstream_t *buff,
                                              rtcm_msg_eph *msg_eph) {
   assert(msg_eph);
   memset(msg_eph, 0, sizeof(*msg_eph));
@@ -392,7 +392,7 @@ rtcm3_rc rtcm3_decode_gal_eph_fnav_bitstream(swiftnav_bitstream_t *buff,
   msg_eph->data.kepler.tgd.gal_s[1] = 0;
   BITSTREAM_DECODE_S8(buff, msg_eph->health_bits, 3);
   /* reserved */
-  swiftnav_bitstream_remove(buff, 7);
+  swiftnav_in_bitstream_remove(buff, 7);
 
   return RC_OK;
 }

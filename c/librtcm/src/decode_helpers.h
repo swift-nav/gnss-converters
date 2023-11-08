@@ -16,11 +16,11 @@
         __decode_assert_2[((size_t)(n_bits) <= (sizeof(field) * 8)) ? 1 : -1]; \
     (void)__decode_assert_1;                                                   \
     (void)__decode_assert_2;                                                   \
-    if (!swiftnav_bitstream_getbitul(                                          \
+    if (!swiftnav_in_bitstream_getbitul(                                          \
             bitstream, &decode_u64_temp, 0, n_bits)) {                         \
       return RC_INVALID_MESSAGE;                                               \
     }                                                                          \
-    swiftnav_bitstream_remove(bitstream, n_bits);                              \
+    swiftnav_in_bitstream_remove(bitstream, n_bits);                              \
     (field) = decode_u64_temp;                                                 \
   } while (false)
 
@@ -32,11 +32,11 @@
         __decode_assert_2[((size_t)(n_bits) <= (sizeof(field) * 8)) ? 1 : -1]; \
     (void)__decode_assert_1;                                                   \
     (void)__decode_assert_2;                                                   \
-    if (!swiftnav_bitstream_getbitsl(                                          \
+    if (!swiftnav_in_bitstream_getbitsl(                                          \
             bitstream, &decode_s64_temp, 0, n_bits)) {                         \
       return RC_INVALID_MESSAGE;                                               \
     }                                                                          \
-    swiftnav_bitstream_remove(bitstream, n_bits);                              \
+    swiftnav_in_bitstream_remove(bitstream, n_bits);                              \
     (field) = decode_s64_temp;                                                 \
   } while (false)
 
@@ -48,10 +48,10 @@
         __decode_assert_2[((size_t)(n_bits) <= (sizeof(field) * 8)) ? 1 : -1]; \
     (void)__decode_assert_1;                                                   \
     (void)__decode_assert_2;                                                   \
-    if (!swiftnav_bitstream_getbitu(bitstream, &decode_u32_temp, 0, n_bits)) { \
+    if (!swiftnav_in_bitstream_getbitu(bitstream, &decode_u32_temp, 0, n_bits)) { \
       return RC_INVALID_MESSAGE;                                               \
     }                                                                          \
-    swiftnav_bitstream_remove(bitstream, n_bits);                              \
+    swiftnav_in_bitstream_remove(bitstream, n_bits);                              \
     (field) = decode_u32_temp;                                                 \
   } while (false)
 
@@ -63,10 +63,10 @@
         __decode_assert_2[((size_t)(n_bits) <= (sizeof(field) * 8)) ? 1 : -1]; \
     (void)__decode_assert_1;                                                   \
     (void)__decode_assert_2;                                                   \
-    if (!swiftnav_bitstream_getbits(bitstream, &decode_s32_temp, 0, n_bits)) { \
+    if (!swiftnav_in_bitstream_getbits(bitstream, &decode_s32_temp, 0, n_bits)) { \
       return RC_INVALID_MESSAGE;                                               \
     }                                                                          \
-    swiftnav_bitstream_remove(bitstream, n_bits);                              \
+    swiftnav_in_bitstream_remove(bitstream, n_bits);                              \
     (field) = decode_s32_temp;                                                 \
   } while (false)
 
@@ -78,10 +78,10 @@
         __decode_assert_2[((size_t)(n_bits) <= (sizeof(field) * 8)) ? 1 : -1]; \
     (void)__decode_assert_1;                                                   \
     (void)__decode_assert_2;                                                   \
-    if (!swiftnav_bitstream_getbitu(bitstream, &decode_u16_temp, 0, n_bits)) { \
+    if (!swiftnav_in_bitstream_getbitu(bitstream, &decode_u16_temp, 0, n_bits)) { \
       return RC_INVALID_MESSAGE;                                               \
     }                                                                          \
-    swiftnav_bitstream_remove(bitstream, n_bits);                              \
+    swiftnav_in_bitstream_remove(bitstream, n_bits);                              \
     (field) = decode_u16_temp;                                                 \
   } while (false)
 
@@ -93,10 +93,10 @@
         __decode_assert_2[((size_t)(n_bits) <= (sizeof(field) * 8)) ? 1 : -1]; \
     (void)__decode_assert_1;                                                   \
     (void)__decode_assert_2;                                                   \
-    if (!swiftnav_bitstream_getbits(bitstream, &decode_s16_temp, 0, n_bits)) { \
+    if (!swiftnav_in_bitstream_getbits(bitstream, &decode_s16_temp, 0, n_bits)) { \
       return RC_INVALID_MESSAGE;                                               \
     }                                                                          \
-    swiftnav_bitstream_remove(bitstream, n_bits);                              \
+    swiftnav_in_bitstream_remove(bitstream, n_bits);                              \
     (field) = decode_s16_temp;                                                 \
   } while (false)
 
@@ -108,10 +108,10 @@
         __decode_assert_2[((size_t)(n_bits) <= (sizeof(field) * 8)) ? 1 : -1]; \
     (void)__decode_assert_1;                                                   \
     (void)__decode_assert_2;                                                   \
-    if (!swiftnav_bitstream_getbitu(bitstream, &decode_u8_temp, 0, n_bits)) {  \
+    if (!swiftnav_in_bitstream_getbitu(bitstream, &decode_u8_temp, 0, n_bits)) {  \
       return RC_INVALID_MESSAGE;                                               \
     }                                                                          \
-    swiftnav_bitstream_remove(bitstream, n_bits);                              \
+    swiftnav_in_bitstream_remove(bitstream, n_bits);                              \
     (field) = decode_u8_temp;                                                  \
   } while (false)
 
@@ -123,10 +123,10 @@
         __decode_assert_2[((size_t)(n_bits) <= (sizeof(field) * 8)) ? 1 : -1]; \
     (void)__decode_assert_1;                                                   \
     (void)__decode_assert_2;                                                   \
-    if (!swiftnav_bitstream_getbits(bitstream, &decode_s8_temp, 0, n_bits)) {  \
+    if (!swiftnav_in_bitstream_getbits(bitstream, &decode_s8_temp, 0, n_bits)) {  \
       return RC_INVALID_MESSAGE;                                               \
     }                                                                          \
-    swiftnav_bitstream_remove(bitstream, n_bits);                              \
+    swiftnav_in_bitstream_remove(bitstream, n_bits);                              \
     (field) = decode_s8_temp;                                                  \
   } while (false)
 

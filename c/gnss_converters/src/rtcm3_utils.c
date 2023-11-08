@@ -455,7 +455,7 @@ bool msm_signal_frequency(const rtcm_msm_header *header,
         return false;
       }
     case CODE_BDS2_B1:
-      *p_freq = BDS2_B11_HZ;
+      *p_freq = BDS2_B1I_HZ;
       return true;
     case CODE_BDS2_B2:
       *p_freq = BDS2_B2_HZ;

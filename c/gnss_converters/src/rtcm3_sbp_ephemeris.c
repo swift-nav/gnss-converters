@@ -69,10 +69,7 @@ values, N = 0-6: use 2^(1+N/2) (round to one
 decimal place i.e. 2.8, 5.7 and 11.3) , N=
 7-15:use 2^(N-2), 8192 specifies use at own
 risk) */
-  if (ura >= ARRAY_SIZE(g_bds_ura_table)) {
-    return -1;
-  }
-  float m = g_bds_ura_table[ura];
+  float m = decode_bds_ura_index(ura);
   if (float_equal(INVALID_URA_VALUE, m)) {
     return 8192.0f;
   }

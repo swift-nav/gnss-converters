@@ -198,7 +198,7 @@ void rtcm_set_sign_magnitude_bit(uint8_t *buff,
   rtcm_setbitu(buff, pos + 1, len - 1, ((data < 0) ? -data : data));
 }
 
-rtcm3_rc rtcm_get_sign_magnitude_bitstream(swiftnav_bitstream_t *buff,
+rtcm3_rc rtcm_get_sign_magnitude_bitstream(swiftnav_in_bitstream_t *buff,
                                            uint8_t len,
                                            s32 *out) {
   uint32_t sign;
