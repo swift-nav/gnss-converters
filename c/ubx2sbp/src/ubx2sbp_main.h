@@ -1,6 +1,7 @@
 #ifndef UBX2SBP_MAIN_H
 #define UBX2SBP_MAIN_H
 
+#include <stddef.h>  // for size_t
 #include <stdint.h>
 
 typedef int (*readfn_ptr)(uint8_t *, size_t, void *);
