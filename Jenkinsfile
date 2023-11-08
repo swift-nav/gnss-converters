@@ -30,21 +30,6 @@ pipeline {
         buildDiscarder(logRotator(daysToKeepStr: '3'))
     }
 
-    // Overwrite in stages that need clang
-    environment {
-        // Default compiler. Override in each stage as needed.
-        CC='gcc-6'
-        CXX='g++-6'
-        COMPILER='gcc-6'
-
-        // Default parallelism for make
-        MAKEJ='4'
-
-        // Since ~/.ccache is mounted from a shared NFS disk, make sure the temp
-        // dir is local to the container.
-        CCACHE_TEMPDIR='/tmp/ccache_tmp'
-    }
-
     stages {
         stage('Build') {
             parallel {
