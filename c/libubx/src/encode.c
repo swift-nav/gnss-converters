@@ -16,10 +16,8 @@
  */
 
 #include <string.h>
-
-#include <ubx/encode.h>
-
 #include <swiftnav/bits.h>
+#include <ubx/encode.h>
 
 // UBX protocol is little-endian.
 

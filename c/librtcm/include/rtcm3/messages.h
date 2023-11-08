@@ -15,6 +15,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
 #include "rtcm3/constants.h"
 
 #ifdef __cplusplus

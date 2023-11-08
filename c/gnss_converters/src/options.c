@@ -10,7 +10,6 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 #include <assert.h>
-
 #include <gnss-converters/options.h>
 #include <rtcm3/constants.h>
 #include <rtcm3/msm_utils.h>

@@ -15,6 +15,7 @@
 #include <swiftnav/constants.h>
 #include <swiftnav/ephemeris.h>
 #include <swiftnav/float_equality.h>
+
 #include "ephemeris/sbas.h"
 #include "rtcm3_sbp_internal.h"
 #include "rtcm3_utils.h"

@@ -1,5 +1,6 @@
 #include <ubx/decode.h>
 #include <ubx/encode.h>
+
 #include "make_afl_testcases.h"
 
 static u8 output_buf[4096];

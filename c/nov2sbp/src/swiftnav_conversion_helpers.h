@@ -22,17 +22,16 @@
  * type in either Swiftnav or SBP providing more or less a 1-to-1 match.
  */
 
-#include "parser/novatel.h"
-
-#include <swiftnav/gnss_time.h>
-#include <swiftnav/nav_meas.h>
-#include <swiftnav/pvt_result.h>
-
 #include <libsbp/legacy/imu.h>
 #include <libsbp/legacy/navigation.h>
 #include <libsbp/legacy/observation.h>
 #include <libsbp/legacy/orientation.h>
 #include <libsbp/sbp.h>
+#include <swiftnav/gnss_time.h>
+#include <swiftnav/nav_meas.h>
+#include <swiftnav/pvt_result.h>
+
+#include "parser/novatel.h"
 
 namespace Novatel {
 

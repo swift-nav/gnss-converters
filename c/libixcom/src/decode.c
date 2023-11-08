@@ -10,9 +10,8 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <swiftnav/bits.h>
-
 #include <ixcom/decode.h>
+#include <swiftnav/bits.h>
 
 /* iXCOM is a little-endian protocol. This library assumes the host system is
  * also little-endian.

@@ -16,11 +16,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "decode_helpers.h"
 #include "rtcm3/bits.h"
 #include "rtcm3/eph_decode.h"
 #include "rtcm3/msm_utils.h"
-
-#include "decode_helpers.h"
 
 static void init_sat_data(rtcm_sat_data *sat_data) {
   for (uint8_t freq = 0; freq < NUM_FREQS; ++freq) {
@@ -298,7 +297,8 @@ static uint8_t construct_L2_phase(rtcm_freq_data *l2_freq_data,
   return 0;
 }
 
-static rtcm3_rc get_cnr(rtcm_freq_data *freq_data, swiftnav_in_bitstream_t *buff) {
+static rtcm3_rc get_cnr(rtcm_freq_data *freq_data,
+                        swiftnav_in_bitstream_t *buff) {
   uint32_t cnr;
   BITSTREAM_DECODE_U32(buff, cnr, 8);
   if (cnr == 0) {
@@ -618,7 +618,9 @@ rtcm3_rc rtcm3_decode_1006_bitstream(swiftnav_in_bitstream_t *buff,
   return RC_OK;
 }
 
-static rtcm3_rc decode_string(swiftnav_in_bitstream_t *buff, u8 *len, char *str) {
+static rtcm3_rc decode_string(swiftnav_in_bitstream_t *buff,
+                              u8 *len,
+                              char *str) {
   BITSTREAM_DECODE_U8(buff, *len, 8);
   if (*len > RTCM_MAX_STRING_LEN) {
     return RC_INVALID_MESSAGE;
@@ -1072,10 +1074,11 @@ static rtcm3_rc decode_msm_fine_phaseranges(swiftnav_in_bitstream_t *buff,
   return RC_OK;
 }
 
-static rtcm3_rc decode_msm_fine_phaseranges_extended(swiftnav_in_bitstream_t *buff,
-                                                     const uint8_t num_cells,
-                                                     double fine_cp_ms[],
-                                                     flag_bf flags[]) {
+static rtcm3_rc decode_msm_fine_phaseranges_extended(
+    swiftnav_in_bitstream_t *buff,
+    const uint8_t num_cells,
+    double fine_cp_ms[],
+    flag_bf flags[]) {
   /* DF406 */
   for (uint16_t i = 0; i < num_cells; i++) {
     int32_t decoded;

@@ -11,11 +11,11 @@
  */
 
 #include <getopt.h>
+#include <gnss-converters/ubx_sbp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <gnss-converters/ubx_sbp.h>
 #include "ubx2sbp_main.h"
 
 static sbp_state_t sbp_state;

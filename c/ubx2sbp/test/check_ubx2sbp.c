@@ -10,13 +10,8 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <gnss-converters/ubx_sbp.h>
-
-#include <ubx/decode.h>
-#include <ubx/encode.h>
-#include <ubx/ubx_messages.h>
-
 #include <check.h>
+#include <gnss-converters/ubx_sbp.h>
 #include <libsbp/edc.h>
 #include <libsbp/legacy/logging.h>
 #include <libsbp/v4/orientation.h>
@@ -24,14 +19,15 @@
 #include <libsbp/v4/system.h>
 #include <libsbp/v4/tracking.h>
 #include <libsbp/v4/vehicle.h>
-
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <swiftnav/nav_meas.h>
 #include <swiftnav/signal.h>
+#include <ubx/decode.h>
+#include <ubx/encode.h>
+#include <ubx/ubx_messages.h>
 
 #include "config.h"
 

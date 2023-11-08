@@ -12,14 +12,13 @@
 
 #include <assert.h>
 #include <check.h>
+#include <ixcom/decode.h>
+#include <ixcom/encode.h>
+#include <ixcom/messages.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <ixcom/decode.h>
-#include <ixcom/encode.h>
-#include <ixcom/messages.h>
 
 #include "check_suites.h"
 

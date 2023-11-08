@@ -26,7 +26,6 @@
 #define DEBUG 0
 #define LIBRTCM_LOG_INTERNAL
 #include "rtcm3/logging.h"
-
 #include "test_assert.h"
 
 static uint8_t fw_ver_array[] = {

@@ -13,12 +13,10 @@
 #ifndef GNSS_CONVERTERS_IXCOM_SBP_INTERFACE_H
 #define GNSS_CONVERTERS_IXCOM_SBP_INTERFACE_H
 
+#include <ixcom/messages.h>
+#include <libsbp/sbp.h>
 #include <stddef.h>
 #include <unistd.h>
-
-#include <libsbp/sbp.h>
-
-#include <ixcom/messages.h>
 
 #ifdef __cplusplus
 extern "C" {

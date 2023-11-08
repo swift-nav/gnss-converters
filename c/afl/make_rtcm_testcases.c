@@ -4,6 +4,7 @@
 #include <string.h>
 #include <swiftnav/bits.h>
 #include <swiftnav/edc.h>
+
 #include "make_afl_testcases.h"
 
 #define RTCM3_PREAMBLE 0xD3

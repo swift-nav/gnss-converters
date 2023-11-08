@@ -11,21 +11,17 @@
  */
 
 #include <check.h>
+#include <gnss-converters/ixcom_sbp.h>
+#include <ixcom/decode.h>
+#include <ixcom/messages.h>
+#include <libsbp/edc.h>
+#include <libsbp/v4/imu.h>
+#include <libsbp/v4/logging.h>
+#include <libsbp/v4/vehicle.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <libsbp/edc.h>
-#include <libsbp/v4/imu.h>
-#include <libsbp/v4/vehicle.h>
-
-#include <gnss-converters/ixcom_sbp.h>
-
-#include <libsbp/v4/logging.h>
-
-#include <ixcom/decode.h>
-#include <ixcom/messages.h>
 
 #include "config.h"
 

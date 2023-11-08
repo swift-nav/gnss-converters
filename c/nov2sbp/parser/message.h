@@ -13,10 +13,10 @@
 #ifndef NOVATEL_PARSER_MESSAGE_H_
 #define NOVATEL_PARSER_MESSAGE_H_
 
-#include "binary_header.h"
-
 #include <array>
 #include <functional>
+
+#include "binary_header.h"
 
 namespace Novatel {
 namespace Message {

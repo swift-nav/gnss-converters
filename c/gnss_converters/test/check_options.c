@@ -11,9 +11,8 @@
  */
 
 #include <check.h>
-#include <math.h>
-
 #include <gnss-converters/options.h>
+#include <math.h>
 #include <rtcm3/messages.h>
 #include <rtcm3/msm_utils.h>
 #include <rtcm3_utils.h>

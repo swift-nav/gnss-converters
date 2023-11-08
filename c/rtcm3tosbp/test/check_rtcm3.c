@@ -10,23 +10,23 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <check.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "check_rtcm3.h"
 
+#include <check.h>
 #include <libsbp/sbp.h>
 #include <libsbp/v4/observation.h>
+#include <math.h>
 #include <rtcm3/decode.h>
 #include <rtcm3/encode.h>
 #include <rtcm3/eph_decode.h>
 #include <rtcm3/eph_encode.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <swiftnav/ephemeris.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/sid_set.h>
 
-#include "check_rtcm3.h"
 #include "config.h"
 
 #define GPS_TOW_TOLERANCE 1e-4

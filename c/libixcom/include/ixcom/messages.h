@@ -13,11 +13,10 @@
 #ifndef SWIFTNAV_IXCOM_MESSAGES_H
 #define SWIFTNAV_IXCOM_MESSAGES_H
 
+#include <ixcom/XCOMdat.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#include <ixcom/XCOMdat.h>
 
 size_t ixcom_set_bytes(const uint8_t *src, uint8_t *dest, size_t num_bytes);
 

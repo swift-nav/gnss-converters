@@ -10,13 +10,12 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include "catch/catch.hpp"
-#include "parser.h"
-
-#include "message_gloephemeris.h"
-
 #include <cassert>
 #include <cstdio>
+
+#include "catch/catch.hpp"
+#include "message_gloephemeris.h"
+#include "parser.h"
 
 static void logfn(const char *msg) { printf("%s\n", msg); }
 

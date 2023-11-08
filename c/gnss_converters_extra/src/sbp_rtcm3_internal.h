@@ -18,6 +18,7 @@
 #include <swiftnav/constants.h>
 #include <swiftnav/gnss_time.h>
 #include <swiftnav/signal.h>
+
 #include "common.h"
 #include "gnss-converters-extra/sbp_rtcm3.h"
 

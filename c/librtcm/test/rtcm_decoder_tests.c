@@ -11,11 +11,13 @@
  */
 
 #include "rtcm_decoder_tests.h"
+
 #include <math.h>
 #include <rtcm3/messages.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "rtcm3/bits.h"
 #include "rtcm3/decode.h"
 #include "rtcm3/encode.h"
@@ -26,7 +28,6 @@
 
 #define LIBRTCM_LOG_INTERNAL
 #include "rtcm3/logging.h"
-
 #include "test_assert.h"
 
 int main(void) {

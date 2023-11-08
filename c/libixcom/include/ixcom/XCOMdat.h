@@ -8,7 +8,6 @@
 #define XCOMDAT_H_
 
 #include <stdint.h>
-
 #include <swiftnav/macros.h>
 
 /*

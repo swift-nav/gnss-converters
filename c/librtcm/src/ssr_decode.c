@@ -11,13 +11,14 @@
  */
 
 #include "rtcm3/ssr_decode.h"
+
 #include <assert.h>
 #include <stdio.h>
+
+#include "decode_helpers.h"
 #include "rtcm3/bits.h"
 #include "rtcm3/msm_utils.h"
 #include "swiftnav/bitstream.h"
-
-#include "decode_helpers.h"
 
 /** Get the numbers of bits for the  Epoch Time 1s field
  * \param constellation Message constellation

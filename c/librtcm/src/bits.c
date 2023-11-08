@@ -11,9 +11,9 @@
  */
 
 #include <rtcm3/bits.h>
-#include "rtcm3/messages.h"
 
 #include "decode_helpers.h"
+#include "rtcm3/messages.h"
 
 /** Get bit field from buffer as an unsigned integer.
  * Unpacks `len` bits at bit position `pos` from the start of the buffer.

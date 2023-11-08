@@ -10,11 +10,12 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <cmath>
-#include <string>
+#include "swiftnav_conversion_helpers.h"
 
 #include <swiftnav/geoid_model.h>
-#include "swiftnav_conversion_helpers.h"
+
+#include <cmath>
+#include <string>
 
 static const double kStandardGravity = 9.806;  // m/s^2
 static const uint32_t kMsPerWeek = 7 * 24 * 60 * 60 * 1000;

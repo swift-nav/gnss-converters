@@ -11,9 +11,10 @@
  */
 
 #include "message_insatt.h"
-#include "read_little_endian.h"
 
 #include <cassert>
+
+#include "read_little_endian.h"
 
 namespace Novatel {
 

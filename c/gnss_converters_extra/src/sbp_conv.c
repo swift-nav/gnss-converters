@@ -10,16 +10,14 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <gnss-converters-extra/sbp_conv.h>
-
 #include <assert.h>
+#include <gnss-converters-extra/sbp_conv.h>
+#include <gnss-converters-extra/sbp_rtcm3.h>
 #include <libsbp/legacy/logging.h>
 #include <libsbp/sbp.h>
 #include <swiftnav/fifo_byte.h>
 #include <swiftnav/gnss_time.h>
 #include <time.h>
-
-#include <gnss-converters-extra/sbp_rtcm3.h>
 
 struct sbp_conv_s {
   struct rtcm3_out_state state;
@@ -114,7 +112,9 @@ size_t sbp_conv(sbp_conv_t conv,
       sbp2rtcm_sbp_log_cb(sender, (u8)rlen, rbuf, &conv->state);
       break;
     }
-    default: { break; }
+    default: {
+      break;
+    }
   }
   return fifo_read(&conv->fifo, wbuf, (u32)wlen);
 }

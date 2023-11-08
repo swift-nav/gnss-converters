@@ -10,9 +10,8 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <string.h>
-
 #include <ixcom/messages.h>
+#include <string.h>
 
 /* iXCOM protocol is little-endian */
 

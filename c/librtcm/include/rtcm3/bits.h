@@ -14,6 +14,7 @@
 #define SWIFTNAV_RTCM3_BITS_H
 
 #include <swiftnav/bitstream.h>
+
 #include "rtcm3/messages.h"
 #ifdef __cplusplus
 extern "C" {

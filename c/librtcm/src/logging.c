@@ -10,9 +10,8 @@
  * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <stdlib.h>
-
 #include <rtcm3/logging.h>
+#include <stdlib.h>
 
 static rtcm_log_callback log_callback_ = NULL;
 static void *log_context_ = NULL;

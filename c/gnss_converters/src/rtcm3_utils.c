@@ -24,11 +24,10 @@
 #include "rtcm3_utils.h"
 
 #include <assert.h>
-#include <stdbool.h>
-#include <stdint.h>
-
 #include <rtcm3/constants.h>
 #include <rtcm3/msm_utils.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <swiftnav/constants.h>
 #include <swiftnav/logging.h>
 #include <swiftnav/signal.h>
